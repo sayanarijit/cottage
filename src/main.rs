@@ -19,15 +19,15 @@ struct CottageCli {
 #[derive(clap::Subcommand, Debug)]
 enum Commands {
     /// Encrypt secrets
-    #[command(name = "encrypt", alias = "e")]
+    #[command(name = "encrypt", aliases = ["e", "enc"])]
     Encrypt(EncryptArgs),
 
     /// Decrypt secrets
-    #[command(name = "decrypt", alias = "d")]
+    #[command(name = "decrypt", aliases = ["d", "dec"])]
     Decrypt(DecryptArgs),
 
     /// Sync encrypted and decrypted files
-    #[command(name = "sync", alias = "s")]
+    #[command(name = "sync", aliases = ["s", "syn"])]
     Sync(SyncArgs),
 }
 
