@@ -2,6 +2,8 @@ use anyhow::{Context, Result, anyhow};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use crate::Project;
+
 pub fn parse_identity_file(path: &Path) -> Result<Box<dyn age::Identity>> {
     let s = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read identity file: {:?}", path))?;
@@ -33,13 +35,13 @@ pub fn parse_identities_dir(path: &Path) -> Vec<Box<dyn age::Identity>> {
 }
 
 pub fn load_identities(
-    root: &Path,
+    proj: &Project,
     identities: &Vec<PathBuf>,
 ) -> Result<Vec<Box<dyn age::Identity>>> {
     let mut result = Vec::new();
 
     if identities.is_empty() {
-        let default_identities = root.join(".cottage/identity");
+        let default_identities = proj.identity_path();
         if default_identities.is_dir() && default_identities.read_dir()?.next().is_some() {
             result.extend(parse_identities_dir(&default_identities));
         } else if default_identities.is_file() {

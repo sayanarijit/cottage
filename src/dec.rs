@@ -19,7 +19,10 @@ pub struct DecryptOptions<'a> {
     pub skip_timestamps: bool,
 }
 
-pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<(&'a Path, PathBuf)> {
+pub fn decrypt_file<'a>(
+    path: &'a Path,
+    options: &DecryptOptions,
+) -> Result<(&'a Path, PathBuf, Option<PathBuf>)> {
     if !is_encrypted_path(path) {
         return Err(anyhow!(
             "Input file does not have .cott.age extension: {:?}",
@@ -33,6 +36,14 @@ pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<(&'a
             path
         )
     })?;
+
+    // First add to .gitignore before creating the decrypted file, so that if the decryption fails
+    // for some reason, we won't have a decrypted file that is not ignored.
+    let gitignorefile = if !options.skip_gitignore {
+        add_to_gitignore(&output_path)?
+    } else {
+        None
+    };
 
     let input_file =
         File::open(path).with_context(|| format!("Failed to open input file: {:?}", path))?;
@@ -64,22 +75,19 @@ pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<(&'a
         )?;
     };
 
-    if !options.skip_gitignore {
-        add_to_gitignore(&output_path)?;
-    }
-
-    Ok((path, output_path))
+    Ok((path, output_path, gitignorefile))
 }
 
 pub fn decrypt_dir<'a>(
     path: &'a Path,
     options: &DecryptOptions,
-) -> impl Iterator<Item = Result<(PathBuf, PathBuf)>> {
+) -> impl Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> {
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
         .map(|e| {
-            decrypt_file(e.path(), options).map(|(input, output)| (input.to_path_buf(), output))
+            decrypt_file(e.path(), options)
+                .map(|(input, output, gi)| (input.to_path_buf(), output, gi))
         })
 }

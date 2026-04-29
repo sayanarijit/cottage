@@ -1,2 +1,6 @@
 /target
+
+
+# cottage managed secrets: start
 /.cottage/identity
+# cottage managed secrets: end

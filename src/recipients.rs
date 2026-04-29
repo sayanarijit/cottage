@@ -4,6 +4,8 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use crate::Project;
+
 pub fn parse_recipient(s: &str) -> Result<Box<dyn age::Recipient + Send>> {
     if s.starts_with("age1") {
         let recipient = age::x25519::Recipient::from_str(s)
@@ -49,14 +51,14 @@ pub fn parse_recipients_dir(path: &Path) -> Result<Vec<Box<dyn age::Recipient + 
 }
 
 pub fn load_recipients(
-    root: &Path,
+    proj: &Project,
     recipients: &[String],
     recipients_file: &Vec<PathBuf>,
 ) -> Result<Vec<Box<dyn age::Recipient + Send>>> {
     let mut result = Vec::new();
 
     if recipients.is_empty() && recipients_file.is_empty() {
-        let default_recipients = root.join(".cottage/recipients");
+        let default_recipients = proj.recipients_path();
         if default_recipients.is_dir() && default_recipients.read_dir()?.next().is_some() {
             result.extend(parse_recipients_dir(&default_recipients)?);
         } else if default_recipients.is_file() {

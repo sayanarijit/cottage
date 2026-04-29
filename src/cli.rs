@@ -1,7 +1,6 @@
 use crate::{
-    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, decrypt_dir, decrypt_file,
-    encrypt_dir, encrypt_file, get_project_root, load_identities, load_recipients, sync_dir,
-    sync_file,
+    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, Project, decrypt_dir,
+    decrypt_file, encrypt_dir, encrypt_file, load_identities, load_recipients, sync_dir, sync_file,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -124,12 +123,10 @@ struct SyncArgs {
     skip_gitignore: bool,
 }
 
-fn run_encrypt_cmd(args: EncryptArgs) -> Result<()> {
-    let cwd = std::env::current_dir()?;
-    let root = get_project_root(&cwd).unwrap_or_else(|| cwd.clone());
-    let input = args.path.as_ref().unwrap_or(&root);
+fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
+    let input = args.path.unwrap_or_else(|| proj.root().into());
+    let recipients = load_recipients(&proj, &args.recipient, &args.recipients_file)?;
 
-    let recipients = load_recipients(&root, &args.recipient, &args.recipients_file)?;
     let mode = if args.passphrase {
         let pass = rpassword::prompt_password("Enter passphrase: ")?;
         let confirm = rpassword::prompt_password("Confirm passphrase: ")?;
@@ -148,34 +145,43 @@ fn run_encrypt_cmd(args: EncryptArgs) -> Result<()> {
         skip_timestamps: args.skip_timestamps,
     };
     if input.is_dir() {
-        for res in encrypt_dir(input, &options) {
-            let (input, output) = res?;
+        for res in encrypt_dir(&input, &options) {
+            let (input, output, gi) = res?;
             println!(
                 "╭─ {}",
-                input.strip_prefix(&cwd).unwrap_or(&input).display()
+                input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
             );
+            if let Some(gi) = gi {
+                println!(
+                    "├─ {}",
+                    gi.strip_prefix(&proj.cwd()).unwrap_or(&gi).display()
+                );
+            }
             println!(
-                "╰→ {}",
-                output.strip_prefix(&cwd).unwrap_or(&output).display()
+                "╰─ {}",
+                output
+                    .strip_prefix(&proj.cwd())
+                    .unwrap_or(&output)
+                    .display()
             );
         }
     } else if input.is_file() {
-        let (input, output) = encrypt_file(input, &options)?;
+        let (input, output, gi) = encrypt_file(&input, &options)?;
         println!("╭─ {}", input.display());
-        println!("╰→ {}", output.display());
+        if let Some(gi) = gi {
+            println!("├─ {}", gi.display());
+        }
+        println!("╰─ {}", output.display());
     } else if !input.exists() {
-        return Err(anyhow!("Path does not exist: {}", root.display()));
+        return Err(anyhow!("Path does not exist: {}", proj.root().display()));
     }
 
     Ok(())
 }
 
-fn run_decrypt_cmd(args: DecryptArgs) -> Result<()> {
-    let cwd = std::env::current_dir()?;
-    let root = get_project_root(&cwd).unwrap_or_else(|| cwd.clone());
-    let input = args.path.as_ref().unwrap_or(&root);
-
-    let identities = load_identities(&root, &args.identity)?;
+fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
+    let input = args.path.unwrap_or_else(|| proj.root().into());
+    let identities = load_identities(&proj, &args.identity)?;
 
     let mode = if args.passphrase {
         let pass = rpassword::prompt_password("Enter passphrase: ")?;
@@ -190,35 +196,44 @@ fn run_decrypt_cmd(args: DecryptArgs) -> Result<()> {
     };
 
     if input.is_dir() {
-        for res in decrypt_dir(input, &options) {
-            let (input, output) = res?;
+        for res in decrypt_dir(&input, &options) {
+            let (input, output, gi) = res?;
             println!(
                 "╭─ {}",
-                input.strip_prefix(&cwd).unwrap_or(&input).display()
+                input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
             );
+            if let Some(gi) = gi {
+                println!(
+                    "├─ {}",
+                    gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
+                );
+            }
             println!(
-                "╰→ {}",
-                output.strip_prefix(&cwd).unwrap_or(&output).display()
+                "╰─ {}",
+                output.strip_prefix(proj.cwd()).unwrap_or(&output).display()
             );
         }
     } else if input.is_file() {
-        let (input, output) = decrypt_file(input, &options)?;
+        let (input, output, gi) = decrypt_file(&input, &options)?;
         println!("╭─ {}", input.display());
-        println!("╰→ {}", output.display());
+        if let Some(gi) = gi {
+            println!(
+                "├─ {}",
+                gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
+            );
+        }
+        println!("╰─ {}", output.display());
     } else if !input.exists() {
-        return Err(anyhow!("Path does not exist: {}", root.display()));
+        return Err(anyhow!("Path does not exist: {}", proj.root().display()));
     }
 
     Ok(())
 }
 
-fn run_sync_cmd(args: SyncArgs) -> Result<()> {
-    let cwd = std::env::current_dir()?;
-    let root = get_project_root(&cwd).unwrap_or_else(|| cwd.clone());
-    let input = args.path.as_ref().unwrap_or(&root);
-
-    let recipients = load_recipients(&root, &args.recipient, &args.recipients_file)?;
-    let identities = load_identities(&root, &args.identity)?;
+fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
+    let input = args.path.unwrap_or_else(|| proj.root().into());
+    let recipients = load_recipients(&proj, &args.recipient, &args.recipients_file)?;
+    let identities = load_identities(&proj, &args.identity)?;
 
     let (enc_mode, dec_mode) = if args.passphrase {
         let pass = rpassword::prompt_password("Enter passphrase: ")?;
@@ -246,20 +261,33 @@ fn run_sync_cmd(args: SyncArgs) -> Result<()> {
     };
 
     if input.is_dir() {
-        for res in sync_dir(input, &enc_options, &dec_options) {
-            let (input, output) = res?;
+        for res in sync_dir(&input, &enc_options, &dec_options) {
+            let (input, output, gi) = res?;
             println!(
                 "╭─ {}",
-                input.strip_prefix(&cwd).unwrap_or(&input).display()
+                input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
             );
+            if let Some(gi) = gi {
+                println!(
+                    "├─ {}",
+                    gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
+                );
+            }
+
             println!(
-                "╰→ {}",
-                output.strip_prefix(&cwd).unwrap_or(&output).display()
+                "╰─ {}",
+                output.strip_prefix(proj.cwd()).unwrap_or(&output).display()
             );
         }
     } else if input.is_file() {
-        if let Some((input, output)) = sync_file(&input, &enc_options, &dec_options)? {
+        if let Some((input, output, gi)) = sync_file(&input, &enc_options, &dec_options)? {
             println!("╭─ {}", input.display());
+            if let Some(gi) = gi {
+                println!(
+                    "├─ {}",
+                    gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
+                );
+            }
             println!("╰→ {}", output.display());
         }
     } else if !input.exists() {
@@ -271,10 +299,11 @@ fn run_sync_cmd(args: SyncArgs) -> Result<()> {
 
 pub fn run() -> Result<()> {
     let cli = CottageCli::parse();
+    let proj = Project::init()?;
 
     match cli.command {
-        Commands::Encrypt(args) => run_encrypt_cmd(args),
-        Commands::Decrypt(args) => run_decrypt_cmd(args),
-        Commands::Sync(args) => run_sync_cmd(args),
+        Commands::Encrypt(args) => run_encrypt_cmd(&proj, args),
+        Commands::Decrypt(args) => run_decrypt_cmd(&proj, args),
+        Commands::Sync(args) => run_sync_cmd(&proj, args),
     }
 }

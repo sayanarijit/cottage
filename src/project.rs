@@ -2,7 +2,63 @@ use anyhow::{Context, Result};
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 
-pub fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {
+#[derive(Debug)]
+pub struct Project {
+    cwd: PathBuf,
+    root: PathBuf,
+    cottage_dir: PathBuf,
+    recipients_path: PathBuf,
+    identity_path: PathBuf,
+    root_gitignore: Option<PathBuf>,
+}
+
+impl Project {
+    pub fn init() -> Result<Self> {
+        let cwd = std::env::current_dir().context("Failed to get current working directory")?;
+        let root = get_project_root(&cwd)
+            .context("Could not find project root (looking for .cottage/ or .git/)")?;
+
+        let cottage_dir = root.join(".cottage");
+        let recipients_path = cottage_dir.join("recipients");
+        let identity_path = cottage_dir.join("identity");
+        let root_gitignore = add_to_gitignore(&identity_path)?;
+
+        Ok(Self {
+            cwd,
+            root,
+            cottage_dir,
+            recipients_path,
+            identity_path,
+            root_gitignore,
+        })
+    }
+
+    pub fn cwd(&self) -> &Path {
+        &self.cwd
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn cottage_dir(&self) -> &Path {
+        &self.cottage_dir
+    }
+
+    pub fn recipients_path(&self) -> &Path {
+        &self.recipients_path
+    }
+
+    pub fn identity_path(&self) -> &Path {
+        &self.identity_path
+    }
+
+    pub fn root_gitignore(&self) -> Option<&Path> {
+        self.root_gitignore.as_deref()
+    }
+}
+
+fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {
     let start = std::path::absolute(cwd).ok()?;
     let mut current = start;
     while let Some(path) = current.parent() {
@@ -20,7 +76,7 @@ pub fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {
     None
 }
 
-pub fn get_project_root(cwd: &Path) -> Option<PathBuf> {
+fn get_project_root(cwd: &Path) -> Option<PathBuf> {
     get_root(cwd, ".cottage/").or_else(|| get_root(cwd, ".git/"))
 }
 
@@ -72,6 +128,7 @@ pub(crate) fn add_to_gitignore(path: &Path) -> Result<Option<PathBuf>> {
 
     let mut content = std::fs::read_to_string(&gitignore_path)
         .with_context(|| format!("Failed to read {:?}", gitignore_path))?;
+
     if content.contains(&line_to_add) {
         return Ok(None);
     }
@@ -121,7 +178,7 @@ pub(crate) fn add_to_gitignore(path: &Path) -> Result<Option<PathBuf>> {
         }
     };
 
-    std::fs::write(&gitignore_path, content)
+    std::fs::write(&gitignore_path, format!("{}\n", content.trim()))
         .with_context(|| format!("Failed to write to {:?}", gitignore_path))?;
 
     Ok(Some(gitignore_path))

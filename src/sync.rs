@@ -10,7 +10,7 @@ pub fn sync_file(
     path: &Path,
     encrypt_options: &EncryptOptions,
     decrypt_options: &DecryptOptions,
-) -> Result<Option<(PathBuf, PathBuf)>> {
+) -> Result<Option<(PathBuf, PathBuf, Option<PathBuf>)>> {
     let (encrypted_path, decrypted_path) = if is_encrypted_path(path) {
         let decrypted_path = to_decrypted_path(path)
             .ok_or_else(|| anyhow!("Failed to determine decrypted path for {:?}", path))?;
@@ -23,12 +23,12 @@ pub fn sync_file(
     if !encrypted_path.exists() {
         Ok(Some(
             encrypt_file(&decrypted_path, &encrypt_options)
-                .map(|(p1, p2)| (p1.to_path_buf(), p2))?,
+                .map(|(p1, p2, p3)| (p1.to_path_buf(), p2, p3))?,
         ))
     } else if !decrypted_path.exists() {
         Ok(Some(
             decrypt_file(&encrypted_path, &decrypt_options)
-                .map(|(p1, p2)| (p1.to_path_buf(), p2))?,
+                .map(|(p1, p2, p3)| (p1.to_path_buf(), p2, p3))?,
         ))
     } else {
         let encrypted_mtime = fs::metadata(path)?.modified()?;
@@ -37,12 +37,12 @@ pub fn sync_file(
         if encrypted_mtime > decrypted_mtime {
             Ok(Some(
                 decrypt_file(&encrypted_path, &decrypt_options)
-                    .map(|(p1, p2)| (p1.to_path_buf(), p2))?,
+                    .map(|(p1, p2, p3)| (p1.to_path_buf(), p2, p3))?,
             ))
         } else if decrypted_mtime > encrypted_mtime {
             Ok(Some(
                 encrypt_file(&decrypted_path, &encrypt_options)
-                    .map(|(p1, p2)| (p1.to_path_buf(), p2))?,
+                    .map(|(p1, p2, p3)| (p1.to_path_buf(), p2, p3))?,
             ))
         } else {
             Ok(None)
@@ -54,7 +54,7 @@ pub fn sync_dir(
     path: &Path,
     encrypt_options: &EncryptOptions,
     decrypt_options: &DecryptOptions,
-) -> impl Iterator<Item = Result<(PathBuf, PathBuf)>> {
+) -> impl Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> {
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())

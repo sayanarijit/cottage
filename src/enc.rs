@@ -20,8 +20,18 @@ pub struct EncryptOptions<'a> {
     pub skip_timestamps: bool,
 }
 
-pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<(&'a Path, PathBuf)> {
+pub fn encrypt_file<'a>(
+    path: &'a Path,
+    options: &EncryptOptions,
+) -> Result<(&'a Path, PathBuf, Option<PathBuf>)> {
     let output_path = to_encrypted_path(path);
+
+    // First add to .gitignore before creating the encrypted file, because, why not!
+    let gitignorefile = if !options.skip_gitignore {
+        add_to_gitignore(&output_path)?
+    } else {
+        None
+    };
 
     let encryptor = match &options.mode {
         EncryptionMode::Passphrase(pass) => {
@@ -60,23 +70,20 @@ pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<(&'a
         )?;
     }
 
-    if !options.skip_gitignore {
-        add_to_gitignore(&output_path)?;
-    }
-
-    Ok((path, output_path))
+    Ok((path, output_path, gitignorefile))
 }
 
 pub fn encrypt_dir<'a>(
     path: &'a Path,
     options: &EncryptOptions,
-) -> impl Iterator<Item = Result<(PathBuf, PathBuf)>> {
+) -> impl Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> {
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
         .filter_map(|e| to_decrypted_path(e.path()))
         .map(|path| {
-            encrypt_file(&path, options).map(|(input, output)| (input.to_path_buf(), output))
+            encrypt_file(&path, options)
+                .map(|(input, output, gi)| (input.to_path_buf(), output, gi))
         })
 }
