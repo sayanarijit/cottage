@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, anyhow};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub fn parse_identity_file(path: &Path) -> Result<Box<dyn age::Identity>> {
@@ -30,4 +30,37 @@ pub fn parse_identities_dir(path: &Path) -> Vec<Box<dyn age::Identity>> {
         }
     }
     identities
+}
+
+pub fn load_identities(
+    root: &Path,
+    identities: &Vec<PathBuf>,
+) -> Result<Vec<Box<dyn age::Identity>>> {
+    let mut result = Vec::new();
+
+    if identities.is_empty() {
+        let default_identities = root.join(".cottage/identity");
+        if default_identities.is_dir() && default_identities.read_dir()?.next().is_some() {
+            result.extend(parse_identities_dir(&default_identities));
+        } else if default_identities.is_file() {
+            result.push(parse_identity_file(&default_identities)?);
+        } else {
+            let sshdir = dirs::home_dir()
+                .ok_or_else(|| anyhow!("Failed to get home directory"))?
+                .join(".ssh");
+            if sshdir.is_dir() {
+                result.extend(parse_identities_dir(&sshdir));
+            }
+        }
+    } else {
+        for i in identities {
+            match parse_identity_file(&i) {
+                Ok(identity) => result.push(identity),
+                Err(e) => {
+                    eprintln!("skipped: {}: {}", i.display(), e);
+                }
+            }
+        }
+    }
+    Ok(result)
 }

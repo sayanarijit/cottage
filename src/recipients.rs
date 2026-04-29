@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 use std::fs::File;
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub fn parse_recipient(s: &str) -> Result<Box<dyn age::Recipient + Send>> {
@@ -46,4 +46,33 @@ pub fn parse_recipients_dir(path: &Path) -> Result<Vec<Box<dyn age::Recipient + 
         }
     }
     Ok(recipients)
+}
+
+pub fn load_recipients(
+    root: &Path,
+    recipients: &[String],
+    recipients_file: &Vec<PathBuf>,
+) -> Result<Vec<Box<dyn age::Recipient + Send>>> {
+    let mut result = Vec::new();
+
+    if recipients.is_empty() && recipients_file.is_empty() {
+        let default_recipients = root.join(".cottage/recipients");
+        if default_recipients.is_dir() && default_recipients.read_dir()?.next().is_some() {
+            result.extend(parse_recipients_dir(&default_recipients)?);
+        } else if default_recipients.is_file() {
+            result.extend(parse_recipients_file(&default_recipients)?);
+        }
+    } else {
+        for r in recipients {
+            result.push(parse_recipient(r)?);
+        }
+        for f in recipients_file {
+            if f.is_dir() {
+                result.extend(parse_recipients_dir(&f)?);
+            } else if f.is_file() {
+                result.extend(parse_recipients_file(&f)?);
+            }
+        }
+    }
+    Ok(result)
 }
