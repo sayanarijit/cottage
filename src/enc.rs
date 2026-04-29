@@ -1,9 +1,12 @@
 use age::armor::ArmoredWriter;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
+use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
+
+use crate::{is_encrypted_path, to_decrypted_path, to_encrypted_path};
 
 pub enum EncryptionMode<'a> {
     Passphrase(String),
@@ -15,16 +18,8 @@ pub struct EncryptOptions<'a> {
     pub armor: bool,
 }
 
-pub fn encrypt_file<'a>(
-    input_path: &'a Path,
-    options: &EncryptOptions,
-) -> Result<(&'a Path, PathBuf)> {
-    let input_file = File::open(input_path)
-        .with_context(|| format!("Failed to open input file: {:?}", input_path))?;
-
-    let output_path = input_path
-        .with_added_extension("cott")
-        .with_added_extension("age");
+pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<(&'a Path, PathBuf)> {
+    let output_path = to_encrypted_path(path);
 
     let encryptor = match &options.mode {
         EncryptionMode::Passphrase(pass) => {
@@ -42,16 +37,26 @@ pub fn encrypt_file<'a>(
         age::armor::Format::Binary
     };
 
-    let mut output_file = File::create(&output_path)
-        .with_context(|| format!("Failed to create output file: {:?}", &output_path))?;
-    let mut output = BufWriter::new(&mut output_file);
-    let mut writer = encryptor.wrap_output(ArmoredWriter::wrap_output(&mut output, format)?)?;
+    let input_file =
+        File::open(path).with_context(|| format!("Failed to open input file: {:?}", path))?;
+    let input_metadata = input_file.metadata()?;
+    {
+        let mut output_file = File::create(&output_path)
+            .with_context(|| format!("Failed to create output file: {:?}", &output_path))?;
+        let mut output = BufWriter::new(&mut output_file);
+        let mut writer = encryptor.wrap_output(ArmoredWriter::wrap_output(&mut output, format)?)?;
 
-    let mut reader = BufReader::new(input_file);
-    std::io::copy(&mut reader, &mut writer)?;
-    writer.finish().and_then(|armor| armor.finish())?;
+        let mut reader = BufReader::new(input_file);
+        std::io::copy(&mut reader, &mut writer)?;
+        writer.finish().and_then(|armor| armor.finish())?;
+    }
 
-    Ok((input_path, output_path))
+    set_file_mtime(
+        &output_path,
+        FileTime::from_system_time(input_metadata.modified()?),
+    )?;
+
+    Ok((path, output_path))
 }
 
 pub fn encrypt_dir<'a>(
@@ -61,14 +66,8 @@ pub fn encrypt_dir<'a>(
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file() && e.path().to_string_lossy().ends_with(".cott.age"))
-        .filter_map(|e| {
-            e.path().file_stem().and_then(|s| {
-                PathBuf::from(s)
-                    .file_stem()
-                    .map(|s| e.path().with_file_name(s))
-            })
-        })
+        .filter(|e| is_encrypted_path(e.path()))
+        .filter_map(|e| to_decrypted_path(e.path()))
         .map(|path| {
             encrypt_file(&path, options).map(|(input, output)| (input.to_path_buf(), output))
         })

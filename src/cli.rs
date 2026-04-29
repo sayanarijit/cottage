@@ -1,6 +1,7 @@
 use crate::{
     DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, decrypt_dir, decrypt_file,
-    encrypt_dir, encrypt_file, get_project_root, load_identities, load_recipients,
+    encrypt_dir, encrypt_file, get_project_root, load_identities, load_recipients, sync_dir,
+    sync_file,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -33,6 +34,7 @@ struct EncryptArgs {
     /// The file or dir to encrypt, defaults to project root.
     /// If a directory is specified, all files with associated .cott.age files will be
     /// encrypted, overwriting existing .cott.age files.
+    /// Defaults to project root if not specified.
     path: Option<PathBuf>,
 
     /// Encrypt with a passphrase.
@@ -61,6 +63,9 @@ struct EncryptArgs {
 #[derive(clap::Args, Debug)]
 struct DecryptArgs {
     /// The file to dir to decrypt, defaults to project root.
+    /// If a directory is specified, all .cott.age files will be decrypted, overwriting existing
+    /// decrypted files.
+    /// Defaults to project root if not specified.
     path: Option<PathBuf>,
 
     /// Decrypt with a passphrase.
@@ -183,12 +188,63 @@ fn run_decrypt_cmd(args: DecryptArgs) -> Result<()> {
     Ok(())
 }
 
+fn run_sync_cmd(args: SyncArgs) -> Result<()> {
+    let cwd = std::env::current_dir()?;
+    let root = get_project_root(&cwd).unwrap_or_else(|| cwd.clone());
+    let input = args.path.as_ref().unwrap_or(&root);
+
+    let recipients = load_recipients(&root, &args.recipient, &args.recipients_file)?;
+    let identities = load_identities(&root, &args.identity)?;
+
+    let (enc_mode, dec_mode) = if args.passphrase {
+        let pass = rpassword::prompt_password("Enter passphrase: ")?;
+        (
+            EncryptionMode::Passphrase(pass.clone()),
+            DecryptionMode::Passphrase(pass),
+        )
+    } else {
+        (
+            EncryptionMode::Recipients(&recipients),
+            DecryptionMode::Identities(&identities),
+        )
+    };
+
+    let enc_options = EncryptOptions {
+        mode: enc_mode,
+        armor: args.armor,
+    };
+    let dec_options = DecryptOptions { mode: dec_mode };
+
+    if input.is_dir() {
+        for res in sync_dir(input, &enc_options, &dec_options) {
+            let (input, output) = res?;
+            println!(
+                "╭─ {}",
+                input.strip_prefix(&cwd).unwrap_or(&input).display()
+            );
+            println!(
+                "╰→ {}",
+                output.strip_prefix(&cwd).unwrap_or(&output).display()
+            );
+        }
+    } else if input.is_file() {
+        if let Some((input, output)) = sync_file(&input, &enc_options, &dec_options)? {
+            println!("╭─ {}", input.display());
+            println!("╰→ {}", output.display());
+        }
+    } else if !input.exists() {
+        return Err(anyhow!("Path does not exist: {}", input.display()));
+    }
+
+    Ok(())
+}
+
 pub fn run() -> Result<()> {
     let cli = CottageCli::parse();
 
     match cli.command {
         Commands::Encrypt(args) => run_encrypt_cmd(args),
         Commands::Decrypt(args) => run_decrypt_cmd(args),
-        Commands::Sync(_args) => unimplemented!("Sync command is not implemented yet"),
+        Commands::Sync(args) => run_sync_cmd(args),
     }
 }
