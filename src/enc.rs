@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 
-use crate::{is_encrypted_path, to_decrypted_path, to_encrypted_path};
+use crate::{is_encrypted_path, project::add_to_gitignore, to_decrypted_path, to_encrypted_path};
 
 pub enum EncryptionMode<'a> {
     Passphrase(String),
@@ -16,6 +16,8 @@ pub enum EncryptionMode<'a> {
 pub struct EncryptOptions<'a> {
     pub mode: EncryptionMode<'a>,
     pub armor: bool,
+    pub skip_gitignore: bool,
+    pub skip_timestamps: bool,
 }
 
 pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<(&'a Path, PathBuf)> {
@@ -51,10 +53,16 @@ pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<(&'a
         writer.finish().and_then(|armor| armor.finish())?;
     }
 
-    set_file_mtime(
-        &output_path,
-        FileTime::from_system_time(input_metadata.modified()?),
-    )?;
+    if !options.skip_timestamps {
+        set_file_mtime(
+            &output_path,
+            FileTime::from_system_time(input_metadata.modified()?),
+        )?;
+    }
+
+    if !options.skip_gitignore {
+        add_to_gitignore(&output_path)?;
+    }
 
     Ok((path, output_path))
 }

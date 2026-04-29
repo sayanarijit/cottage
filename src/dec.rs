@@ -1,4 +1,4 @@
-use crate::{is_encrypted_path, to_decrypted_path};
+use crate::{is_encrypted_path, project::add_to_gitignore, to_decrypted_path};
 use age::armor::ArmoredReader;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
@@ -15,6 +15,8 @@ pub enum DecryptionMode<'a> {
 
 pub struct DecryptOptions<'a> {
     pub mode: DecryptionMode<'a>,
+    pub skip_gitignore: bool,
+    pub skip_timestamps: bool,
 }
 
 pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<(&'a Path, PathBuf)> {
@@ -55,10 +57,16 @@ pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<(&'a
         writer.flush()?;
     }
 
-    set_file_mtime(
-        &output_path,
-        FileTime::from_system_time(input_metadata.modified()?),
-    )?;
+    if !options.skip_timestamps {
+        set_file_mtime(
+            &output_path,
+            FileTime::from_system_time(input_metadata.modified()?),
+        )?;
+    };
+
+    if !options.skip_gitignore {
+        add_to_gitignore(&output_path)?;
+    }
 
     Ok((path, output_path))
 }

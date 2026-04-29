@@ -32,9 +32,6 @@ enum Commands {
 #[derive(clap::Args, Debug)]
 struct EncryptArgs {
     /// The file or dir to encrypt, defaults to project root.
-    /// If a directory is specified, all files with associated .cott.age files will be
-    /// encrypted, overwriting existing .cott.age files.
-    /// Defaults to project root if not specified.
     path: Option<PathBuf>,
 
     /// Encrypt with a passphrase.
@@ -58,14 +55,19 @@ struct EncryptArgs {
     /// Encrypt to a PEM encoded format.
     #[arg(short, long)]
     armor: bool,
+
+    /// Skip updating timestamps on encrypted files.
+    #[arg(long)]
+    skip_timestamps: bool,
+
+    /// Skip adding encrypted files to .gitignore.
+    #[arg(long)]
+    skip_gitignore: bool,
 }
 
 #[derive(clap::Args, Debug)]
 struct DecryptArgs {
     /// The file to dir to decrypt, defaults to project root.
-    /// If a directory is specified, all .cott.age files will be decrypted, overwriting existing
-    /// decrypted files.
-    /// Defaults to project root if not specified.
     path: Option<PathBuf>,
 
     /// Decrypt with a passphrase.
@@ -76,6 +78,14 @@ struct DecryptArgs {
     /// Defaults to identity in .cottage/identity if not specified.
     #[arg(short, long)]
     identity: Vec<PathBuf>,
+
+    /// Skip updating timestamps on decrypted files.
+    #[arg(long)]
+    skip_timestamps: bool,
+
+    /// Skip adding decrypted files to .gitignore.
+    #[arg(long)]
+    skip_gitignore: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -104,6 +114,14 @@ struct SyncArgs {
     /// Encrypt to a PEM encoded format.
     #[arg(short, long)]
     armor: bool,
+
+    /// Skip updating timestamps on encrypted and decrypted files.
+    #[arg(long)]
+    skip_timestamps: bool,
+
+    /// Skip adding encrypted and decrypted files to .gitignore.
+    #[arg(long)]
+    skip_gitignore: bool,
 }
 
 fn run_encrypt_cmd(args: EncryptArgs) -> Result<()> {
@@ -126,6 +144,8 @@ fn run_encrypt_cmd(args: EncryptArgs) -> Result<()> {
     let options = EncryptOptions {
         mode: mode,
         armor: args.armor,
+        skip_gitignore: args.skip_gitignore,
+        skip_timestamps: args.skip_timestamps,
     };
     if input.is_dir() {
         for res in encrypt_dir(input, &options) {
@@ -163,7 +183,11 @@ fn run_decrypt_cmd(args: DecryptArgs) -> Result<()> {
     } else {
         DecryptionMode::Identities(&identities)
     };
-    let options = DecryptOptions { mode: mode };
+    let options = DecryptOptions {
+        mode: mode,
+        skip_gitignore: args.skip_gitignore,
+        skip_timestamps: args.skip_timestamps,
+    };
 
     if input.is_dir() {
         for res in decrypt_dir(input, &options) {
@@ -212,8 +236,14 @@ fn run_sync_cmd(args: SyncArgs) -> Result<()> {
     let enc_options = EncryptOptions {
         mode: enc_mode,
         armor: args.armor,
+        skip_gitignore: args.skip_gitignore,
+        skip_timestamps: args.skip_timestamps,
     };
-    let dec_options = DecryptOptions { mode: dec_mode };
+    let dec_options = DecryptOptions {
+        mode: dec_mode,
+        skip_gitignore: args.skip_gitignore,
+        skip_timestamps: args.skip_timestamps,
+    };
 
     if input.is_dir() {
         for res in sync_dir(input, &enc_options, &dec_options) {
