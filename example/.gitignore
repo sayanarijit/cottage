@@ -1,5 +1,4 @@
 # cottage managed: start
-/.cottage/identity
-/example/.env
-/example/secrets/secret.yaml
+/.env
+/secrets/secret.yaml
 # cottage managed: end

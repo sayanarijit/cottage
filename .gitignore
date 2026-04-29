@@ -1,1 +1,5 @@
 /target
+
+# cottage managed: start
+/.cottage/identity
+# cottage managed: end

@@ -1,7 +1,8 @@
 use anyhow::{Result, anyhow};
 use cottage::{
-    EncryptOptions, EncryptionMode, encrypt_dir, encrypt_file, parse_identities_dir,
-    parse_identity_file, parse_recipient, parse_recipients_dir, parse_recipients_file,
+    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, decrypt_file, encrypt_dir,
+    encrypt_file, parse_identities_dir, parse_identity_file, parse_recipient, parse_recipients_dir,
+    parse_recipients_file,
 };
 use std::path::PathBuf;
 
@@ -128,7 +129,7 @@ fn load_recipients(
 
     if recipients.is_empty() && recipients_file.is_empty() {
         let default_recipients = root.join(".cottage/recipients");
-        if default_recipients.is_dir() {
+        if default_recipients.is_dir() && default_recipients.read_dir()?.next().is_some() {
             result.extend(parse_recipients_dir(&default_recipients)?);
         } else if default_recipients.is_file() {
             result.extend(parse_recipients_file(&default_recipients)?);
@@ -152,9 +153,9 @@ fn load_identities(root: &Path, identities: &[PathBuf]) -> Result<Vec<Box<dyn ag
     let mut result = Vec::new();
 
     if identities.is_empty() {
-        let default_identities = root.join(".cottage/identities");
-        if default_identities.is_dir() {
-            result.extend(parse_identities_dir(&default_identities)?);
+        let default_identities = root.join(".cottage/identity");
+        if default_identities.is_dir() && default_identities.read_dir()?.next().is_some() {
+            result.extend(parse_identities_dir(&default_identities));
         } else if default_identities.is_file() {
             result.push(parse_identity_file(&default_identities)?);
         } else {
@@ -162,12 +163,17 @@ fn load_identities(root: &Path, identities: &[PathBuf]) -> Result<Vec<Box<dyn ag
                 .ok_or_else(|| anyhow!("Failed to get home directory"))?
                 .join(".ssh");
             if sshdir.is_dir() {
-                result.extend(parse_identities_dir(&sshdir)?);
+                result.extend(parse_identities_dir(&sshdir));
             }
         }
     } else {
         for i in identities {
-            result.push(parse_identity_file(i)?);
+            match parse_identity_file(i) {
+                Ok(identity) => result.push(identity),
+                Err(e) => {
+                    eprintln!("skipped: {}: {}", i.display(), e);
+                }
+            }
         }
     }
     Ok(result)
@@ -217,12 +223,50 @@ fn run_encrypt_cmd(args: EncryptArgs) -> Result<()> {
     Ok(())
 }
 
+fn run_decrypt_cmd(args: DecryptArgs) -> Result<()> {
+    let cwd = std::env::current_dir()?;
+    let root = get_project_root(&cwd).unwrap_or_else(|| cwd.clone());
+    let input = args.path.as_ref().unwrap_or(&root);
+
+    let identities = load_identities(&root, &args.identity)?;
+
+    let mode = if args.passphrase {
+        let pass = rpassword::prompt_password("Enter passphrase: ")?;
+        DecryptionMode::Passphrase(pass)
+    } else {
+        DecryptionMode::Identities(&identities)
+    };
+    let options = DecryptOptions { mode: mode };
+
+    if input.is_dir() {
+        for res in cottage::decrypt_dir(input, &options) {
+            let (input, output) = res?;
+            println!(
+                "╭─ {}",
+                input.strip_prefix(&cwd).unwrap_or(&input).display()
+            );
+            println!(
+                "╰→ {}",
+                output.strip_prefix(&cwd).unwrap_or(&output).display()
+            );
+        }
+    } else if input.is_file() {
+        let (input, output) = decrypt_file(input, &options)?;
+        println!("╭─ {}", input.display());
+        println!("╰→ {}", output.display());
+    } else if !input.exists() {
+        return Err(anyhow!("Path does not exist: {}", root.display()));
+    }
+
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let cli = CottageCli::parse();
 
     match cli.command {
         Commands::Encrypt(args) => run_encrypt_cmd(args)?,
-        // Commands::Decrypt(args) => run_decrypt_cmd(args),
+        Commands::Decrypt(args) => run_decrypt_cmd(args)?,
         // Commands::Sync(args) => run_sync_command(args),
         _ => unimplemented!(),
     }

@@ -1,6 +1,8 @@
+use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
+use std::iter;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -9,18 +11,9 @@ pub enum EncryptionMode<'a> {
     Recipients(&'a [Box<dyn age::Recipient + Send>]),
 }
 
-pub enum DecryptionMode<'a> {
-    Passphrase(String),
-    Identities(&'a [Box<dyn age::Identity>]),
-}
-
 pub struct EncryptOptions<'a> {
     pub mode: EncryptionMode<'a>,
     pub armor: bool,
-}
-
-pub struct DecryptOptions<'a> {
-    pub mode: DecryptionMode<'a>,
 }
 
 pub fn encrypt_file<'a>(
@@ -87,6 +80,74 @@ pub fn encrypt_dir<'a>(
         })
 }
 
+pub enum DecryptionMode<'a> {
+    Passphrase(String),
+    Identities(&'a [Box<dyn age::Identity>]),
+}
+
+pub struct DecryptOptions<'a> {
+    pub mode: DecryptionMode<'a>,
+}
+
+pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<(&'a Path, PathBuf)> {
+    let input_file =
+        File::open(path).with_context(|| format!("Failed to open input file: {:?}", path))?;
+
+    if !path.to_string_lossy().ends_with(".cott.age") {
+        return Err(anyhow!(
+            "Input file does not have .cott.age extension: {:?}",
+            path
+        ));
+    }
+
+    let output_path = match path
+        .file_stem()
+        .map(PathBuf::from)
+        .and_then(|s| s.file_stem().map(PathBuf::from))
+    {
+        Some(stem) => path.with_file_name(stem),
+        None => {
+            return Err(anyhow!(
+                "Failed to determine output file name from input path: {:?}",
+                path
+            ));
+        }
+    };
+
+    let decryptor = age::Decryptor::new(&input_file)?;
+
+    let output_file = File::create(&output_path)
+        .with_context(|| format!("Failed to create output file: {:?}", &output_path))?;
+    let mut writer = BufWriter::new(output_file);
+
+    let mut decrypted = match &options.mode {
+        DecryptionMode::Passphrase(pass) => decryptor.decrypt(iter::once(
+            &age::scrypt::Identity::new(SecretString::from(pass.as_str())) as _,
+        ))?,
+        DecryptionMode::Identities(identities) => {
+            decryptor.decrypt(identities.iter().map(|i| i.as_ref()))?
+        }
+    };
+
+    std::io::copy(&mut decrypted, &mut writer)?;
+    writer.flush()?;
+
+    Ok((path, output_path))
+}
+
+pub fn decrypt_dir<'a>(
+    path: &'a Path,
+    options: &DecryptOptions,
+) -> impl Iterator<Item = Result<(PathBuf, PathBuf)>> {
+    walkdir::WalkDir::new(path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file() && e.path().to_string_lossy().ends_with(".cott.age"))
+        .map(|e| {
+            decrypt_file(e.path(), options).map(|(input, output)| (input.to_path_buf(), output))
+        })
+}
+
 pub fn parse_recipient(s: &str) -> Result<Box<dyn age::Recipient + Send>> {
     if s.starts_with("age1") {
         let recipient = age::x25519::Recipient::from_str(s)
@@ -99,40 +160,6 @@ pub fn parse_recipient(s: &str) -> Result<Box<dyn age::Recipient + Send>> {
     } else {
         Err(anyhow!("Unsupported recipient format: {}", s))
     }
-}
-
-pub fn parse_identity_file(path: &Path) -> Result<Box<dyn age::Identity>> {
-    let s = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read identity file: {:?}", path))?;
-
-    if s.starts_with("AGE-SECRET-KEY-1") {
-        let identity = age::x25519::Identity::from_str(&s)
-            .map_err(|e| anyhow!("Failed to parse age identity: {}", e))?;
-        return Ok(Box::new(identity));
-    }
-
-    if let Ok(identity) = age::ssh::Identity::from_buffer(s.as_bytes(), None) {
-        match identity {
-            age::ssh::Identity::Unsupported(k) => {
-                // Skip unsupported keys, but log a warning
-                eprintln!("skipped: {:?}: {:?}", path, k);
-            }
-            _ => return Ok(Box::new(identity)),
-        }
-    }
-
-    Err(anyhow!("Unsupported identity format"))
-}
-
-pub fn parse_identities_dir(path: &Path) -> Result<Vec<Box<dyn age::Identity>>> {
-    let mut identities = Vec::new();
-    for entry in walkdir::WalkDir::new(path) {
-        let entry = entry?;
-        if entry.file_type().is_file() {
-            identities.push(parse_identity_file(&entry.path())?);
-        }
-    }
-    Ok(identities)
 }
 
 pub fn parse_recipients_file(path: &Path) -> Result<Vec<Box<dyn age::Recipient + Send>>> {
@@ -163,4 +190,34 @@ pub fn parse_recipients_dir(path: &Path) -> Result<Vec<Box<dyn age::Recipient + 
         }
     }
     Ok(recipients)
+}
+
+pub fn parse_identity_file(path: &Path) -> Result<Box<dyn age::Identity>> {
+    let s = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read identity file: {:?}", path))?;
+
+    if s.starts_with("AGE-SECRET-KEY-1") {
+        let identity = age::x25519::Identity::from_str(&s)
+            .map_err(|e| anyhow!("Failed to parse age identity: {}", e))?;
+        return Ok(Box::new(identity));
+    }
+
+    let identity = age::ssh::Identity::from_buffer(s.as_bytes(), None)?;
+    Ok(Box::new(identity))
+}
+
+pub fn parse_identities_dir(path: &Path) -> Vec<Box<dyn age::Identity>> {
+    let mut identities = Vec::new();
+    for entry in walkdir::WalkDir::new(path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.file_type().is_file() {
+            match parse_identity_file(&entry.path()) {
+                Ok(identity) => identities.push(identity),
+                Err(e) => eprintln!("skipped: {}: {}", entry.path().display(), e),
+            }
+        }
+    }
+    identities
 }
