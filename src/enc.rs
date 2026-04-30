@@ -4,6 +4,7 @@ use anyhow::{Context, Result, anyhow};
 use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
+use std::iter;
 use std::path::{Path, PathBuf};
 
 use crate::{
@@ -90,4 +91,17 @@ pub fn encrypt_dir<'a>(
             encrypt_file(&path, options)
                 .map(|(input, output, gi)| (input.to_path_buf(), output, gi))
         })
+}
+
+pub fn encrypt_path<'a>(
+    path: &'a Path,
+    options: &'a EncryptOptions,
+) -> Box<dyn Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> + 'a> {
+    if path.is_dir() {
+        Box::new(encrypt_dir(path, options))
+    } else {
+        Box::new(iter::once(
+            encrypt_file(path, options).map(|(i, o, g)| (i.to_path_buf(), o, g)),
+        ))
+    }
 }

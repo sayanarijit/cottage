@@ -1,7 +1,7 @@
 use crate::{
-    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, Project, SyncOptions,
-    decrypt_dir, decrypt_file, encrypt_dir, encrypt_file, load_identities, load_recipients,
-    sync_dir, sync_file,
+    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, PendingOperation, Project,
+    SyncOptions, decrypt_path, encrypt_path, load_identities, load_recipients, status_path,
+    sync_path,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -27,12 +27,16 @@ enum Commands {
     /// Sync encrypted and decrypted files
     #[command(name = "sync", aliases = ["s", "syn"])]
     Sync(SyncArgs),
+
+    /// See status of encrypted and decrypted files
+    #[command(name = "status", aliases = ["st"])]
+    Status(StatusArgs),
 }
 
 #[derive(clap::Args, Debug)]
 struct EncryptArgs {
     /// The file or dir to encrypt, defaults to project root.
-    path: Option<PathBuf>,
+    path: Vec<PathBuf>,
 
     /// Encrypt with a passphrase.
     #[arg(short, long)]
@@ -63,12 +67,15 @@ struct EncryptArgs {
     /// Skip adding encrypted files to .gitignore.
     #[arg(long)]
     skip_gitignore: bool,
+
+    #[arg(short, long, global = true)]
+    verbose: bool,
 }
 
 #[derive(clap::Args, Debug)]
 struct DecryptArgs {
     /// The file to dir to decrypt, defaults to project root.
-    path: Option<PathBuf>,
+    path: Vec<PathBuf>,
 
     /// Decrypt with a passphrase.
     #[arg(short, long)]
@@ -86,12 +93,15 @@ struct DecryptArgs {
     /// Skip adding decrypted files to .gitignore.
     #[arg(long)]
     skip_gitignore: bool,
+
+    #[arg(short, long, global = true)]
+    verbose: bool,
 }
 
 #[derive(clap::Args, Debug)]
 struct SyncArgs {
     /// The file to dir to sync, defaults to project root.
-    path: Option<PathBuf>,
+    path: Vec<PathBuf>,
 
     /// Encrypt with a passphrase.
     #[arg(short, long)]
@@ -122,10 +132,24 @@ struct SyncArgs {
     /// Skip adding encrypted and decrypted files to .gitignore.
     #[arg(long)]
     skip_gitignore: bool,
+
+    #[arg(short, long, global = true)]
+    verbose: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct StatusArgs {
+    /// The file to dir to check status of, defaults to project root.
+    path: Vec<PathBuf>,
 }
 
 fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
-    let input = args.path.unwrap_or_else(|| proj.root().into());
+    let input = if args.path.is_empty() {
+        vec![proj.root().into()]
+    } else {
+        args.path
+    };
+
     let recipients = load_recipients(&proj, &args.recipient, &args.recipients_file)?;
 
     let mode = if args.passphrase {
@@ -145,43 +169,42 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
         skip_gitignore: args.skip_gitignore,
         skip_timestamps: args.skip_timestamps,
     };
-    if input.is_dir() {
-        for res in encrypt_dir(&input, &options) {
+
+    for path in &input {
+        for res in encrypt_path(path, &options) {
             let (input, output, gi) = res?;
-            println!(
-                "╭─ {}",
-                input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
-            );
-            if let Some(gi) = gi {
+            if args.verbose {
                 println!(
-                    "├─ {}",
-                    gi.strip_prefix(&proj.cwd()).unwrap_or(&gi).display()
+                    "╭─ {}",
+                    input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
+                );
+                if let Some(gi) = gi {
+                    println!(
+                        "├─ {}",
+                        gi.strip_prefix(&proj.cwd()).unwrap_or(&gi).display()
+                    );
+                }
+                println!(
+                    "╰─ {}",
+                    output
+                        .strip_prefix(&proj.cwd())
+                        .unwrap_or(&output)
+                        .display()
                 );
             }
-            println!(
-                "╰─ {}",
-                output
-                    .strip_prefix(&proj.cwd())
-                    .unwrap_or(&output)
-                    .display()
-            );
         }
-    } else if input.is_file() {
-        let (input, output, gi) = encrypt_file(&input, &options)?;
-        println!("╭─ {}", input.display());
-        if let Some(gi) = gi {
-            println!("├─ {}", gi.display());
-        }
-        println!("╰─ {}", output.display());
-    } else if !input.exists() {
-        return Err(anyhow!("Path does not exist: {}", proj.root().display()));
     }
 
     Ok(())
 }
 
 fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
-    let input = args.path.unwrap_or_else(|| proj.root().into());
+    let input = if args.path.is_empty() {
+        vec![proj.root().into()]
+    } else {
+        args.path
+    };
+
     let identities = load_identities(&proj, &args.identity)?;
 
     let mode = if args.passphrase {
@@ -196,43 +219,69 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
         skip_timestamps: args.skip_timestamps,
     };
 
-    if input.is_dir() {
-        for res in decrypt_dir(&input, &options) {
+    for path in &input {
+        for res in decrypt_path(path, &options) {
             let (input, output, gi) = res?;
-            println!(
-                "╭─ {}",
-                input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
-            );
-            if let Some(gi) = gi {
+            if args.verbose {
                 println!(
-                    "├─ {}",
-                    gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
+                    "╭─ {}",
+                    input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
+                );
+                if let Some(gi) = gi {
+                    println!(
+                        "├─ {}",
+                        gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
+                    );
+                }
+                println!(
+                    "╰─ {}",
+                    output.strip_prefix(proj.cwd()).unwrap_or(&output).display()
                 );
             }
-            println!(
-                "╰─ {}",
-                output.strip_prefix(proj.cwd()).unwrap_or(&output).display()
-            );
         }
-    } else if input.is_file() {
-        let (input, output, gi) = decrypt_file(&input, &options)?;
-        println!("╭─ {}", input.display());
-        if let Some(gi) = gi {
-            println!(
-                "├─ {}",
-                gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
-            );
+    }
+    Ok(())
+}
+
+fn run_status_cmd(proj: &Project, args: StatusArgs) -> Result<()> {
+    let input = if args.path.is_empty() {
+        vec![proj.root().into()]
+    } else {
+        args.path
+    };
+
+    for path in &input {
+        for res in status_path(&path) {
+            let op = res?;
+            match op {
+                PendingOperation::Encrypt(src, dst) => {
+                    println!(
+                        "encrypt {}\n   into {}",
+                        src.strip_prefix(proj.cwd()).unwrap_or(&src).display(),
+                        dst.strip_prefix(proj.cwd()).unwrap_or(&dst).display()
+                    );
+                }
+                PendingOperation::Decrypt(src, dst) => {
+                    println!(
+                        "decrypt {}\n   into {}",
+                        src.strip_prefix(proj.cwd()).unwrap_or(&src).display(),
+                        dst.strip_prefix(proj.cwd()).unwrap_or(&dst).display()
+                    );
+                }
+            }
         }
-        println!("╰─ {}", output.display());
-    } else if !input.exists() {
-        return Err(anyhow!("Path does not exist: {}", proj.root().display()));
     }
 
     Ok(())
 }
 
 fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
-    let input = args.path.unwrap_or_else(|| proj.root().into());
+    let input = if args.path.is_empty() {
+        vec![proj.root().into()]
+    } else {
+        args.path
+    };
+
     let recipients = load_recipients(&proj, &args.recipient, &args.recipients_file)?;
     let identities = load_identities(&proj, &args.identity)?;
 
@@ -257,38 +306,29 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
         skip_timestamps: args.skip_timestamps,
     };
 
-    if input.is_dir() {
-        for res in sync_dir(&input, &sync_options) {
+    for path in &input {
+        for res in sync_path(path, &sync_options) {
             let (input, output, gi) = res?;
-            println!(
-                "╭─ {}",
-                input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
-            );
-            if let Some(gi) = gi {
+            if args.verbose {
                 println!(
-                    "├─ {}",
-                    gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
+                    "╭─ {}",
+                    input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
+                );
+                if let Some(gi) = gi {
+                    println!(
+                        "├─ {}",
+                        gi.strip_prefix(&proj.cwd()).unwrap_or(&gi).display()
+                    );
+                }
+                println!(
+                    "╰─ {}",
+                    output
+                        .strip_prefix(&proj.cwd())
+                        .unwrap_or(&output)
+                        .display()
                 );
             }
-
-            println!(
-                "╰─ {}",
-                output.strip_prefix(proj.cwd()).unwrap_or(&output).display()
-            );
         }
-    } else if input.is_file() {
-        if let Some((input, output, gi)) = sync_file(&input, &sync_options)? {
-            println!("╭─ {}", input.display());
-            if let Some(gi) = gi {
-                println!(
-                    "├─ {}",
-                    gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
-                );
-            }
-            println!("╰→ {}", output.display());
-        }
-    } else if !input.exists() {
-        return Err(anyhow!("Path does not exist: {}", input.display()));
     }
 
     Ok(())
@@ -302,5 +342,6 @@ pub fn run() -> Result<()> {
         Commands::Encrypt(args) => run_encrypt_cmd(&proj, args),
         Commands::Decrypt(args) => run_decrypt_cmd(&proj, args),
         Commands::Sync(args) => run_sync_cmd(&proj, args),
+        Commands::Status(args) => run_status_cmd(&proj, args),
     }
 }

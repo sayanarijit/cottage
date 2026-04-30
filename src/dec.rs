@@ -95,3 +95,16 @@ pub fn decrypt_dir<'a>(
                 .map(|(input, output, gi)| (input.to_path_buf(), output, gi))
         })
 }
+
+pub fn decrypt_path<'a>(
+    path: &'a Path,
+    options: &'a DecryptOptions,
+) -> Box<dyn Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> + 'a> {
+    if path.is_dir() {
+        Box::new(decrypt_dir(path, options))
+    } else {
+        Box::new(iter::once(
+            decrypt_file(path, options).map(|(i, o, g)| (i.to_path_buf(), o, g)),
+        ))
+    }
+}
