@@ -198,23 +198,11 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
                 gitignore,
             } = res?;
             if args.verbose {
-                println!(
-                    "╭─ {}",
-                    input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
-                );
+                println!("╭─ {}", proj.relative_to_cwd(&input).display());
                 if let Some(gi) = gitignore {
-                    println!(
-                        "├─ {}",
-                        gi.strip_prefix(&proj.cwd()).unwrap_or(&gi).display()
-                    );
+                    println!("├─ {}", proj.relative_to_cwd(&gi).display());
                 }
-                println!(
-                    "╰─ {}",
-                    output
-                        .strip_prefix(&proj.cwd())
-                        .unwrap_or(&output)
-                        .display()
-                );
+                println!("╰─ {}", proj.relative_to_cwd(&output).display());
             }
         }
     }
@@ -251,25 +239,16 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
                 gitignore,
             } = res?;
             if args.verbose {
-                println!(
-                    "╭─ {}",
-                    input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
-                );
+                println!("╭─ {}", proj.relative_to_cwd(&input).display());
                 if let Some(gi) = gitignore {
-                    println!(
-                        "├─ {}",
-                        gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
-                    );
+                    println!("├─ {}", proj.relative_to_cwd(&gi).display());
                 }
-                println!(
-                    "╰─ {}",
-                    output.strip_prefix(proj.cwd()).unwrap_or(&output).display()
-                );
+                println!("╰─ {}", proj.relative_to_cwd(&output).display());
             } else if !args.quiet {
                 println!(
                     "Decrypted {} into {}",
-                    input.strip_prefix(proj.cwd()).unwrap_or(&input).display(),
-                    output.strip_prefix(proj.cwd()).unwrap_or(&output).display()
+                    proj.relative_to_cwd(&input).display(),
+                    proj.relative_to_cwd(&output).display()
                 );
             }
         }
@@ -291,15 +270,15 @@ fn run_status_cmd(proj: &Project, args: StatusArgs) -> Result<()> {
                 PendingOperation::Encrypt(src, dst) => {
                     println!(
                         "encrypt {}\n   into {}",
-                        src.strip_prefix(proj.cwd()).unwrap_or(&src).display(),
-                        dst.strip_prefix(proj.cwd()).unwrap_or(&dst).display()
+                        proj.relative_to_cwd(&src).display(),
+                        proj.relative_to_cwd(&dst).display()
                     );
                 }
                 PendingOperation::Decrypt(src, dst) => {
                     println!(
                         "decrypt {}\n   into {}",
-                        src.strip_prefix(proj.cwd()).unwrap_or(&src).display(),
-                        dst.strip_prefix(proj.cwd()).unwrap_or(&dst).display()
+                        proj.relative_to_cwd(&src).display(),
+                        proj.relative_to_cwd(&dst).display()
                     );
                 }
             }
@@ -348,23 +327,11 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
                 gitignore,
             } = res?;
             if args.verbose {
-                println!(
-                    "╭─ {}",
-                    input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
-                );
+                println!("╭─ {}", proj.relative_to_cwd(&input).display());
                 if let Some(gi) = gitignore {
-                    println!(
-                        "├─ {}",
-                        gi.strip_prefix(&proj.cwd()).unwrap_or(&gi).display()
-                    );
+                    println!("├─ {}", proj.relative_to_cwd(&gi).display());
                 }
-                println!(
-                    "╰─ {}",
-                    output
-                        .strip_prefix(&proj.cwd())
-                        .unwrap_or(&output)
-                        .display()
-                );
+                println!("╰─ {}", proj.relative_to_cwd(&output).display());
             }
         }
     }

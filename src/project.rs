@@ -128,6 +128,10 @@ impl Project {
     pub fn git(&self) -> Option<&Git> {
         self.git.as_ref()
     }
+
+    pub fn relative_to_cwd(&self, path: &Path) -> PathBuf {
+        pathdiff::diff_paths(path, &self.cwd).unwrap_or_else(|| path.to_path_buf())
+    }
 }
 
 fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {
@@ -219,7 +223,10 @@ pub(crate) fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBu
     }
 
     let line_to_add = PathBuf::from("/")
-        .join(&abs_path.strip_prefix(&abs_root)?)
+        .join(
+            pathdiff::diff_paths(&abs_path, &abs_root)
+                .context("Failed to get relative path for gitignore")?,
+        )
         .to_string_lossy()
         .to_string();
 
