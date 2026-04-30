@@ -42,7 +42,7 @@ impl Project {
     pub fn init() -> Result<Self> {
         let cwd = std::env::current_dir().context("Failed to get current working directory")?;
         let root = get_project_root(&cwd)
-            .context("Could not find project root (looking for .cottage/ or .git/)")?;
+            .context("Could not find project root (looking for any of .cottage/, .git/ or .jj/)")?;
 
         let cottage_dir = root.join(".cottage");
         if !cottage_dir.exists() {
@@ -153,7 +153,9 @@ fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {
 }
 
 fn get_project_root(cwd: &Path) -> Option<PathBuf> {
-    get_root(cwd, ".cottage/").or_else(|| get_root(cwd, ".git/"))
+    get_root(cwd, ".cottage/")
+        .or_else(|| get_root(cwd, ".git/"))
+        .or_else(|| get_root(cwd, ".jj/"))
 }
 
 pub fn to_encrypted_path(path: &Path) -> PathBuf {
