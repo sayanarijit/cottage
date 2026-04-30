@@ -1,7 +1,7 @@
 use crate::{
-    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, OperationKind, Project,
-    SyncOptions, decrypt_path, encrypt_path, load_identities, load_recipients, status_path,
-    sync_path,
+    DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode, OperationKind,
+    Project, SyncOptions, decrypt_path, diff, encrypt_path, load_identities, load_recipients,
+    status_path, sync_path,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -31,6 +31,10 @@ enum Commands {
     /// See status of encrypted and decrypted files
     #[command(name = "status", aliases = ["st"])]
     Status(StatusArgs),
+
+    /// See diff between encrypted and decrypted files
+    #[command(name = "diff", aliases = ["df"])]
+    Diff(DiffArgs),
 }
 
 #[derive(clap::ValueEnum, Clone, Debug, PartialEq)]
@@ -175,6 +179,29 @@ struct SyncArgs {
 }
 
 #[derive(clap::Args, Debug)]
+struct DiffArgs {
+    /// The file or dir to diff, defaults to project root.
+    path: Vec<PathBuf>,
+
+    /// Decrypt with a passphrase.
+    #[arg(short, long)]
+    passphrase: bool,
+
+    /// Use the identity file at PATH. Can be repeated.
+    /// Defaults to identity in .cottage/identity if not specified.
+    #[arg(short, long)]
+    identity: Vec<PathBuf>,
+
+    /// Skip checksum verification.
+    #[arg(long, num_args(0..=1), value_name = "TARGET")]
+    skip_checksum: Option<Option<SkipChecksum>>,
+
+    /// Exit with code 1 if there is any diff.
+    #[arg(short, long)]
+    fail: bool,
+}
+
+#[derive(clap::Args, Debug)]
 struct StatusArgs {
     /// The file to dir to check status of, defaults to project root.
     path: Vec<PathBuf>,
@@ -301,11 +328,17 @@ fn run_status_cmd(proj: &Project, args: StatusArgs) -> Result<()> {
         args.path
     };
 
+    let mut has_pending = false;
     for path in &input {
         for res in status_path(&path) {
             let res = res?;
             print_result(proj, res.kind, &res.input, &res.output, true);
+            has_pending = true;
         }
+    }
+
+    if has_pending && args.fail {
+        std::process::exit(1);
     }
 
     Ok(())
@@ -355,6 +388,37 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
     Ok(())
 }
 
+fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
+    let input = if args.path.is_empty() {
+        vec![proj.root().into()]
+    } else {
+        args.path
+    };
+
+    let identities = load_identities(&proj, &args.identity)?;
+
+    let mode = if args.passphrase {
+        let pass = rpassword::prompt_password("Enter passphrase: ")?;
+        DecryptionMode::Passphrase(pass)
+    } else {
+        DecryptionMode::Identities(&identities)
+    };
+
+    let (skip_checksum_encrypted, skip_checksum_decrypted) = get_skip_checksum(&args.skip_checksum);
+
+    let options = DiffOptions {
+        mode,
+        skip_checksum_encrypted,
+        skip_checksum_decrypted,
+    };
+
+    if diff(proj, &input, &options)? && args.fail {
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
 pub fn run() -> Result<()> {
     let cli = CottageCli::parse();
     let proj = Project::init()?;
@@ -364,5 +428,6 @@ pub fn run() -> Result<()> {
         Commands::Decrypt(args) => run_decrypt_cmd(&proj, args),
         Commands::Sync(args) => run_sync_cmd(&proj, args),
         Commands::Status(args) => run_status_cmd(&proj, args),
+        Commands::Diff(args) => run_diff_cmd(&proj, args),
     }
 }

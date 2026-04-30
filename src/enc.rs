@@ -1,7 +1,6 @@
 use crate::{
-    ChecksumMetadata, Metadata, OperationKind, OperationResult, PreviewFormat, PreviewMetadata,
-    SecretMetadata, is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path,
-    to_encrypted_path, to_metadata_path,
+    ChecksumMetadata, Metadata, OperationKind, OperationResult, SecretMetadata, is_encrypted_path,
+    project::append_to_gitignore_if_absent, to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
 use crate::{make_checksum, validate_checksum};
 use age::armor::ArmoredWriter;
@@ -75,8 +74,8 @@ pub fn encrypt_file<'a>(
         let metadata = Metadata::read_from_path(&metadata_path)
             .with_context(|| format!("Failed to read metadata: {:?}", metadata_path))?;
 
-        if validate_checksum(&recipients_data, &metadata.checksum.recipients).is_ok()
-            && validate_checksum(input.as_slice(), &metadata.checksum.decrypted).is_ok()
+        if validate_checksum(&recipients_data, &metadata.checksum.recipients, &path).is_ok()
+            && validate_checksum(input.as_slice(), &metadata.checksum.decrypted, &path).is_ok()
         {
             if !options.skip_timestamps {
                 set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;

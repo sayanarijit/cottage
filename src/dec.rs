@@ -27,6 +27,28 @@ pub struct DecryptOptions<'a> {
     pub skip_checksum_decrypted: bool,
 }
 
+pub fn decrypt_into_memory(
+    input_reader: impl std::io::Read,
+    options: &DecryptOptions,
+) -> Result<Vec<u8>> {
+    let decryptor = age::Decryptor::new_buffered(ArmoredReader::new(input_reader))?;
+
+    let mut buffer = vec![];
+
+    let mut decrypted = match &options.mode {
+        DecryptionMode::Passphrase(pass) => decryptor.decrypt(iter::once(
+            &age::scrypt::Identity::new(SecretString::from(pass.as_str())) as _,
+        ))?,
+        DecryptionMode::Identities(identities) => {
+            decryptor.decrypt(identities.iter().map(|i| i.as_ref()))?
+        }
+    };
+
+    std::io::copy(&mut decrypted, &mut buffer)?;
+    buffer.flush()?;
+    Ok(buffer)
+}
+
 pub fn decrypt_file<'a>(
     path: &'a Path,
     options: &DecryptOptions,
@@ -59,28 +81,10 @@ pub fn decrypt_file<'a>(
     };
 
     if !options.skip_checksum_encrypted {
-        validate_checksum(input.as_slice(), &metadata.checksum.encrypted)?;
+        validate_checksum(input.as_slice(), &metadata.checksum.encrypted, &path)?;
     }
 
-    let output = {
-        let input = BufReader::new(input_file);
-        let decryptor = age::Decryptor::new_buffered(ArmoredReader::new(input))?;
-
-        let mut buffer = vec![];
-
-        let mut decrypted = match &options.mode {
-            DecryptionMode::Passphrase(pass) => decryptor.decrypt(iter::once(
-                &age::scrypt::Identity::new(SecretString::from(pass.as_str())) as _,
-            ))?,
-            DecryptionMode::Identities(identities) => {
-                decryptor.decrypt(identities.iter().map(|i| i.as_ref()))?
-            }
-        };
-
-        std::io::copy(&mut decrypted, &mut buffer)?;
-        buffer.flush()?;
-        buffer
-    };
+    let output = decrypt_into_memory(input_file, options)?;
 
     if output_path.exists() {
         if std::fs::read(&output_path)? == output {
@@ -92,7 +96,11 @@ pub fn decrypt_file<'a>(
     }
 
     if !options.skip_checksum_decrypted {
-        validate_checksum(output.as_slice(), &metadata.checksum.decrypted)?;
+        validate_checksum(
+            output.as_slice(),
+            &metadata.checksum.decrypted,
+            &output_path,
+        )?;
     }
 
     // Write starts here ------------------------

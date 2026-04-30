@@ -1,15 +1,16 @@
 mod dec;
+mod diff;
 mod enc;
 mod identity;
 mod metadata;
 mod operation;
-mod preview;
 mod project;
 mod recipients;
 mod sync;
 
 pub mod cli;
-pub use dec::{DecryptOptions, DecryptionMode, decrypt_path};
+pub use dec::{DecryptOptions, DecryptionMode, decrypt_into_memory, decrypt_path};
+pub use diff::{DiffOptions, diff};
 pub use enc::{EncryptOptions, EncryptionMode, encrypt_path};
 pub use identity::load_identities;
 pub use metadata::{
@@ -20,6 +21,8 @@ pub use operation::{
     Operation, OperationKind, OperationResult, is_encrypted_path, to_decrypted_path,
     to_encrypted_path, to_metadata_path,
 };
-pub use project::Project;
+pub use project::{
+    Project, append_line_if_absent, append_to_gitignore_if_absent, get_project_root, get_root,
+};
 pub use recipients::load_recipients;
 pub use sync::{SyncOptions, status_path, sync_path};

@@ -53,16 +53,15 @@ pub fn make_checksum(data: &[u8]) -> String {
     format!("blake3:{}", blake3::hash(data).to_hex().to_string())
 }
 
-pub fn validate_checksum(data: &[u8], checksum: &str) -> Result<()> {
+pub fn validate_checksum(data: &[u8], checksum: &str, path: &Path) -> Result<()> {
     if let Some(("blake3", cs)) = checksum.split_once(":") {
         let enc_checksum = blake3::hash(data).to_hex().to_string();
         if enc_checksum == cs {
             Ok(())
         } else {
             Err(anyhow!(
-                "Encrypted file checksum does not match metadata: expected {}, got {}",
-                cs,
-                enc_checksum
+                "Checksum mismatch: {}: expected {cs:?}, got {enc_checksum:?}",
+                path.display(),
             ))
         }
     } else {

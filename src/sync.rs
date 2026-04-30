@@ -39,7 +39,7 @@ pub fn status_file(path: &Path) -> Result<Option<Operation>> {
             output: decrypted_path,
         }))
     } else {
-        let encrypted_mtime = fs::metadata(path)?.modified()?;
+        let encrypted_mtime = fs::metadata(&encrypted_path)?.modified()?;
         let decrypted_mtime = fs::metadata(&decrypted_path)?.modified()?;
 
         if encrypted_mtime > decrypted_mtime {
