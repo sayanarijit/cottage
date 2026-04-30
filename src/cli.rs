@@ -1,6 +1,7 @@
 use crate::{
-    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, Project, decrypt_dir,
-    decrypt_file, encrypt_dir, encrypt_file, load_identities, load_recipients, sync_dir, sync_file,
+    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, Project, SyncOptions,
+    decrypt_dir, decrypt_file, encrypt_dir, encrypt_file, load_identities, load_recipients,
+    sync_dir, sync_file,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -248,20 +249,16 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
         )
     };
 
-    let enc_options = EncryptOptions {
-        mode: enc_mode,
+    let sync_options = SyncOptions {
+        encryption_mode: enc_mode,
+        decryption_mode: dec_mode,
         armor: args.armor,
-        skip_gitignore: args.skip_gitignore,
-        skip_timestamps: args.skip_timestamps,
-    };
-    let dec_options = DecryptOptions {
-        mode: dec_mode,
         skip_gitignore: args.skip_gitignore,
         skip_timestamps: args.skip_timestamps,
     };
 
     if input.is_dir() {
-        for res in sync_dir(&input, &enc_options, &dec_options) {
+        for res in sync_dir(&input, &sync_options) {
             let (input, output, gi) = res?;
             println!(
                 "╭─ {}",
@@ -280,7 +277,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
             );
         }
     } else if input.is_file() {
-        if let Some((input, output, gi)) = sync_file(&input, &enc_options, &dec_options)? {
+        if let Some((input, output, gi)) = sync_file(&input, &sync_options)? {
             println!("╭─ {}", input.display());
             if let Some(gi) = gi {
                 println!(

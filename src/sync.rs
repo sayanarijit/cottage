@@ -1,15 +1,22 @@
 use crate::{
-    DecryptOptions, EncryptOptions, decrypt_file, encrypt_file, is_encrypted_path,
-    to_decrypted_path, to_encrypted_path,
+    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, decrypt_file, encrypt_file,
+    is_encrypted_path, to_decrypted_path, to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub struct SyncOptions<'e, 'd> {
+    pub encryption_mode: EncryptionMode<'e>,
+    pub decryption_mode: DecryptionMode<'d>,
+    pub armor: bool,
+    pub skip_gitignore: bool,
+    pub skip_timestamps: bool,
+}
+
 pub fn sync_file(
     path: &Path,
-    encrypt_options: &EncryptOptions,
-    decrypt_options: &DecryptOptions,
+    sync_options: &SyncOptions,
 ) -> Result<Option<(PathBuf, PathBuf, Option<PathBuf>)>> {
     let (encrypted_path, decrypted_path) = if is_encrypted_path(path) {
         let decrypted_path = to_decrypted_path(path)
@@ -18,6 +25,19 @@ pub fn sync_file(
     } else {
         let encrypted_path = to_encrypted_path(path);
         (encrypted_path, path.to_path_buf())
+    };
+
+    let encrypt_options = EncryptOptions {
+        mode: sync_options.encryption_mode.clone(),
+        armor: sync_options.armor,
+        skip_gitignore: sync_options.skip_gitignore,
+        skip_timestamps: sync_options.skip_timestamps,
+    };
+
+    let decrypt_options = DecryptOptions {
+        mode: sync_options.decryption_mode.clone(),
+        skip_gitignore: sync_options.skip_gitignore,
+        skip_timestamps: sync_options.skip_timestamps,
     };
 
     if !encrypted_path.exists() {
@@ -52,12 +72,11 @@ pub fn sync_file(
 
 pub fn sync_dir(
     path: &Path,
-    encrypt_options: &EncryptOptions,
-    decrypt_options: &DecryptOptions,
+    sync_options: &SyncOptions,
 ) -> impl Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> {
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
-        .filter_map(|e| sync_file(e.path(), encrypt_options, decrypt_options).transpose())
+        .filter_map(|e| sync_file(e.path(), sync_options).transpose())
 }

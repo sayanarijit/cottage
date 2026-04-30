@@ -1,6 +1,25 @@
+use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result};
 use std::fs::OpenOptions;
+use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
+
+#[derive(Debug)]
+pub struct Git {
+    root_gitignore: PathBuf,
+    root_gitattributes: PathBuf,
+}
+
+impl Git {
+    pub fn root_gitignore(&self) -> &Path {
+        &self.root_gitignore
+    }
+
+    pub fn root_gitattributes(&self) -> &Path {
+        &self.root_gitattributes
+    }
+}
 
 #[derive(Debug)]
 pub struct Project {
@@ -9,7 +28,7 @@ pub struct Project {
     cottage_dir: PathBuf,
     recipients_path: PathBuf,
     identity_path: PathBuf,
-    root_gitignore: Option<PathBuf>,
+    git: Option<Git>,
 }
 
 impl Project {
@@ -19,9 +38,55 @@ impl Project {
             .context("Could not find project root (looking for .cottage/ or .git/)")?;
 
         let cottage_dir = root.join(".cottage");
+        if !cottage_dir.exists() {
+            std::fs::create_dir(&cottage_dir).with_context(|| {
+                format!("Failed to create cottage directory at {:?}", cottage_dir)
+            })?;
+        }
         let recipients_path = cottage_dir.join("recipients");
         let identity_path = cottage_dir.join("identity");
-        let root_gitignore = add_to_gitignore(&identity_path)?;
+        if !identity_path.exists() && !recipients_path.exists() {
+            let reicipient = whoami::username().unwrap_or_else(|_| {
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs()
+                    .to_string()
+            });
+            let recipient_path = recipients_path.join(&reicipient);
+
+            let sk = age::x25519::Identity::generate();
+            let pk = sk.to_public();
+
+            std::fs::create_dir_all(&recipients_path).with_context(|| {
+                format!(
+                    "Failed to create recipient directory at {:?}",
+                    recipient_path.parent().unwrap()
+                )
+            })?;
+            std::fs::write(&recipient_path, pk.to_string()).with_context(|| {
+                format!("Failed to write recipient file at {:?}", recipient_path)
+            })?;
+            std::fs::write(&identity_path, sk.to_string().expose_secret())
+                .with_context(|| format!("Failed to write identity file at {:?}", identity_path))?;
+        };
+
+        let git = if root.join(".git").exists() {
+            Some(Git {
+                root_gitignore: root.join(".gitignore"),
+                root_gitattributes: root.join(".gitattributes"),
+            })
+        } else {
+            None
+        };
+
+        if let Some(git) = &git {
+            append_to_gitignore_if_absent(&identity_path)?;
+            append_line_if_absent(
+                git.root_gitattributes(),
+                "*.cott.age binary filter=cottage-encrypted",
+            )?;
+        }
 
         Ok(Self {
             cwd,
@@ -29,7 +94,7 @@ impl Project {
             cottage_dir,
             recipients_path,
             identity_path,
-            root_gitignore,
+            git,
         })
     }
 
@@ -53,8 +118,8 @@ impl Project {
         &self.identity_path
     }
 
-    pub fn root_gitignore(&self) -> Option<&Path> {
-        self.root_gitignore.as_deref()
+    pub fn git(&self) -> Option<&Git> {
+        self.git.as_ref()
     }
 }
 
@@ -98,8 +163,43 @@ pub fn to_decrypted_path(path: &Path) -> Option<PathBuf> {
     }
 }
 
+fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
+    let line = line.trim();
+    let mut file = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .append(true)
+        .open(path)
+        .with_context(|| format!("Failed to open {:?}", path))?;
+
+    if std::io::BufReader::new(&file)
+        .lines()
+        .filter_map(Result::ok)
+        .any(|l| l.trim() == line)
+    {
+        return Ok(false);
+    }
+
+    let needs_nl = if file.seek(SeekFrom::End(0))? > 0 {
+        let mut buf = [0; 1];
+        file.seek(SeekFrom::End(-1))?;
+        file.read_exact(&mut buf)?;
+        file.seek(SeekFrom::End(0))?;
+        buf[0] != b'\n'
+    } else {
+        false
+    };
+
+    if needs_nl {
+        writeln!(file).with_context(|| format!("Failed to write newline to {:?}", path))?;
+    }
+
+    writeln!(file, "{}", line).with_context(|| format!("Failed to write to {:?}", path))?;
+    Ok(true)
+}
+
 // Very naive implementation for now
-pub(crate) fn add_to_gitignore(path: &Path) -> Result<Option<PathBuf>> {
+pub(crate) fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBuf>> {
     let gitignote_root = get_root(path, ".gitignore")
         .or_else(|| get_root(path, ".git/"))
         .context("Could not find .gitignore or .git directory")?;
@@ -117,71 +217,11 @@ pub(crate) fn add_to_gitignore(path: &Path) -> Result<Option<PathBuf>> {
         .to_string();
 
     let gitignore_path = gitignote_root.join(".gitignore");
-
-    if !gitignore_path.exists() {
-        OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(&gitignore_path)
-            .with_context(|| format!("Failed to create {:?}", gitignore_path))?;
+    if append_line_if_absent(&gitignore_path, &line_to_add)? {
+        Ok(Some(gitignore_path))
+    } else {
+        Ok(None)
     }
-
-    let mut content = std::fs::read_to_string(&gitignore_path)
-        .with_context(|| format!("Failed to read {:?}", gitignore_path))?;
-
-    if content.contains(&line_to_add) {
-        return Ok(None);
-    }
-
-    let start = "# cottage managed secrets: start";
-    let end = "# cottage managed secrets: end";
-
-    match (content.find(start), content.find(end)) {
-        (Some(start_idx), Some(mut end_idx)) => {
-            if start_idx > end_idx {
-                // Try to fix
-                content = content
-                    .lines()
-                    .map(|l| {
-                        if l == start {
-                            end.to_string()
-                        } else if l == end {
-                            start.to_string()
-                        } else {
-                            l.to_string()
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-            };
-            end_idx = content
-                .find(end)
-                .context("Failed to find end marker after fixing")?;
-
-            if content.get(end_idx.saturating_sub(1)..end_idx) == Some("\n") {
-                content.insert_str(end_idx, &format!("{line_to_add}\n"));
-            } else {
-                content.insert_str(end_idx, &format!("\n{line_to_add}\n"));
-            }
-        }
-        (Some(start_idx), None) => {
-            content.insert_str(
-                start_idx + start.chars().count(),
-                &format!("\n{line_to_add}\n{end}\n\n"),
-            );
-        }
-        (None, Some(end_idx)) => {
-            content.insert_str(end_idx, &format!("\n\n{start}\n{line_to_add}\n"));
-        }
-        (None, None) => {
-            content.push_str(&format!("\n\n{start}\n{line_to_add}\n{end}\n\n"));
-        }
-    };
-
-    std::fs::write(&gitignore_path, format!("{}\n", content.trim()))
-        .with_context(|| format!("Failed to write to {:?}", gitignore_path))?;
-
-    Ok(Some(gitignore_path))
 }
 
 #[cfg(test)]
@@ -269,14 +309,18 @@ mod tests {
         std::fs::write(&subdir_secret, "subsecret").unwrap();
 
         // Test adding to parent .gitignore
-        let added_path = add_to_gitignore(&parent_secret).unwrap().unwrap();
+        let added_path = append_to_gitignore_if_absent(&parent_secret)
+            .unwrap()
+            .unwrap();
         assert_eq!(added_path, parent_gitignore);
 
         let parent_content = std::fs::read_to_string(&parent_gitignore).unwrap();
         assert!(parent_content.contains("/secret.txt"));
 
         // Test adding to parent .gitignore when subdir .gitignore doesn't exist
-        let added_subpath = add_to_gitignore(&subdir_secret).unwrap().unwrap();
+        let added_subpath = append_to_gitignore_if_absent(&subdir_secret)
+            .unwrap()
+            .unwrap();
         assert_eq!(added_subpath, parent_gitignore);
 
         let parent_content = std::fs::read_to_string(&parent_gitignore).unwrap();
@@ -284,7 +328,7 @@ mod tests {
 
         // Test adding to subdir .gitignore
         std::fs::write(&subdir_gitignore, "").unwrap();
-        let added_subpath_to_subdir = add_to_gitignore(&subdir_secret).unwrap();
+        let added_subpath_to_subdir = append_to_gitignore_if_absent(&subdir_secret).unwrap();
 
         assert_eq!(added_subpath_to_subdir, Some(subdir_gitignore.clone()));
 
@@ -292,8 +336,8 @@ mod tests {
         assert!(subdir_content.contains("/subsecret.txt"));
 
         // Check duplicates are not added
-        let duplicate_parent_add = add_to_gitignore(&parent_secret).unwrap();
-        let duplicate_subdir_add = add_to_gitignore(&subdir_secret).unwrap();
+        let duplicate_parent_add = append_to_gitignore_if_absent(&parent_secret).unwrap();
+        let duplicate_subdir_add = append_to_gitignore_if_absent(&subdir_secret).unwrap();
         let updated_parent_content = std::fs::read_to_string(&parent_gitignore).unwrap();
         let updated_subdir_content = std::fs::read_to_string(&subdir_gitignore).unwrap();
 
@@ -302,5 +346,32 @@ mod tests {
 
         assert_eq!(parent_content, updated_parent_content);
         assert_eq!(subdir_content, updated_subdir_content);
+    }
+
+    #[test]
+    fn test_add_line_if_absent() {
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let path = temp_file.path();
+
+        // Test adding a line to an empty file
+        append_line_if_absent(path, "line1").unwrap();
+        let content = std::fs::read_to_string(path).unwrap();
+        assert_eq!(content, "line1\n");
+
+        // Test adding the same line again (should not be added)
+        append_line_if_absent(path, "line1").unwrap();
+        let content = std::fs::read_to_string(path).unwrap();
+        assert_eq!(content, "line1\n");
+
+        // Test adding a different line
+        append_line_if_absent(path, "line2").unwrap();
+        let content = std::fs::read_to_string(path).unwrap();
+        assert_eq!(content, "line1\nline2\n");
+
+        // Test newline is added if file doesn't end with newline
+        std::fs::write(path, "line1").unwrap();
+        append_line_if_absent(path, "line2").unwrap();
+        let content = std::fs::read_to_string(path).unwrap();
+        assert_eq!(content, "line1\nline2\n");
     }
 }

@@ -1,4 +1,4 @@
-use crate::{is_encrypted_path, project::add_to_gitignore, to_decrypted_path};
+use crate::{is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path};
 use age::armor::ArmoredReader;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
@@ -8,11 +8,13 @@ use std::io::{BufReader, BufWriter, Write};
 use std::iter;
 use std::path::{Path, PathBuf};
 
+#[derive(Clone)]
 pub enum DecryptionMode<'a> {
     Passphrase(String),
     Identities(&'a [Box<dyn age::Identity>]),
 }
 
+#[derive(Clone)]
 pub struct DecryptOptions<'a> {
     pub mode: DecryptionMode<'a>,
     pub skip_gitignore: bool,
@@ -37,16 +39,17 @@ pub fn decrypt_file<'a>(
         )
     })?;
 
-    // First add to .gitignore before creating the decrypted file, so that if the decryption fails
+    // First add to .gitignore before creating the decrypted file, so that if the operation fails
     // for some reason, we won't have a decrypted file that is not ignored.
     let gitignorefile = if !options.skip_gitignore {
-        add_to_gitignore(&output_path)?
+        append_to_gitignore_if_absent(&output_path)?
     } else {
         None
     };
 
     let input_file =
         File::open(path).with_context(|| format!("Failed to open input file: {:?}", path))?;
+
     let input_metadata = input_file.metadata()?;
     {
         let input = BufReader::new(input_file);
@@ -54,6 +57,7 @@ pub fn decrypt_file<'a>(
 
         let output_file = File::create(&output_path)
             .with_context(|| format!("Failed to create output file: {:?}", &output_path))?;
+
         let mut decrypted = match &options.mode {
             DecryptionMode::Passphrase(pass) => decryptor.decrypt(iter::once(
                 &age::scrypt::Identity::new(SecretString::from(pass.as_str())) as _,

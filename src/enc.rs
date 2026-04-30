@@ -6,13 +6,17 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 
-use crate::{is_encrypted_path, project::add_to_gitignore, to_decrypted_path, to_encrypted_path};
+use crate::{
+    is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path, to_encrypted_path,
+};
 
+#[derive(Clone)]
 pub enum EncryptionMode<'a> {
     Passphrase(String),
     Recipients(&'a [Box<dyn age::Recipient + Send>]),
 }
 
+#[derive(Clone)]
 pub struct EncryptOptions<'a> {
     pub mode: EncryptionMode<'a>,
     pub armor: bool,
@@ -28,7 +32,7 @@ pub fn encrypt_file<'a>(
 
     // First add to .gitignore before creating the encrypted file, because, why not!
     let gitignorefile = if !options.skip_gitignore {
-        add_to_gitignore(&output_path)?
+        append_to_gitignore_if_absent(&output_path)?
     } else {
         None
     };

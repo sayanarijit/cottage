@@ -11,4 +11,4 @@ pub use enc::{EncryptOptions, EncryptionMode, encrypt_dir, encrypt_file};
 pub use identity::load_identities;
 pub use project::{Project, is_encrypted_path, to_decrypted_path, to_encrypted_path};
 pub use recipients::load_recipients;
-pub use sync::{sync_dir, sync_file};
+pub use sync::{SyncOptions, sync_dir, sync_file};

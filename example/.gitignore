@@ -1,4 +1,2 @@
-# cottage managed secrets: start
 /.env
 /secrets/secret.yaml
-# cottage managed secrets: end
