@@ -1,4 +1,8 @@
-use crate::{is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path};
+use crate::{
+    is_encrypted_path,
+    project::{OperationResult, append_to_gitignore_if_absent},
+    to_decrypted_path,
+};
 use age::armor::ArmoredReader;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
@@ -6,7 +10,7 @@ use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::iter;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Clone)]
 pub enum DecryptionMode<'a> {
@@ -21,10 +25,7 @@ pub struct DecryptOptions<'a> {
     pub skip_timestamps: bool,
 }
 
-pub fn decrypt_file<'a>(
-    path: &'a Path,
-    options: &DecryptOptions,
-) -> Result<(&'a Path, PathBuf, Option<PathBuf>)> {
+pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<OperationResult> {
     if !is_encrypted_path(path) {
         return Err(anyhow!(
             "Input file does not have .cott.age extension: {:?}",
@@ -79,32 +80,31 @@ pub fn decrypt_file<'a>(
         )?;
     };
 
-    Ok((path, output_path, gitignorefile))
+    Ok(OperationResult {
+        input: path.to_path_buf(),
+        output: output_path,
+        gitignore: gitignorefile,
+    })
 }
 
 pub fn decrypt_dir<'a>(
     path: &'a Path,
     options: &DecryptOptions,
-) -> impl Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> {
+) -> impl Iterator<Item = Result<OperationResult>> {
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
-        .map(|e| {
-            decrypt_file(e.path(), options)
-                .map(|(input, output, gi)| (input.to_path_buf(), output, gi))
-        })
+        .map(|e| decrypt_file(e.path(), options))
 }
 
 pub fn decrypt_path<'a>(
     path: &'a Path,
     options: &'a DecryptOptions,
-) -> Box<dyn Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> + 'a> {
+) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
     if path.is_dir() {
         Box::new(decrypt_dir(path, options))
     } else {
-        Box::new(iter::once(
-            decrypt_file(path, options).map(|(i, o, g)| (i.to_path_buf(), o, g)),
-        ))
+        Box::new(iter::once(decrypt_file(path, options)))
     }
 }

@@ -5,6 +5,13 @@ use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OperationResult {
+    pub input: PathBuf,
+    pub output: PathBuf,
+    pub gitignore: Option<PathBuf>,
+}
+
 #[derive(Debug)]
 pub struct Git {
     root_gitignore: PathBuf,

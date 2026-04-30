@@ -1,3 +1,4 @@
+use crate::project::OperationResult;
 use crate::{
     DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, PendingOperation, Project,
     SyncOptions, decrypt_path, encrypt_path, load_identities, load_recipients, status_path,
@@ -68,8 +69,13 @@ struct EncryptArgs {
     #[arg(long)]
     skip_gitignore: bool,
 
-    #[arg(short, long, global = true)]
+    /// Verbose output.
+    #[arg(short, long)]
     verbose: bool,
+
+    /// Suppress all output except errors.
+    #[arg(short, long)]
+    quiet: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -94,8 +100,13 @@ struct DecryptArgs {
     #[arg(long)]
     skip_gitignore: bool,
 
-    #[arg(short, long, global = true)]
+    /// Verbose output.
+    #[arg(short, long)]
     verbose: bool,
+
+    /// Suppress all output except errors.
+    #[arg(short, long)]
+    quiet: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -133,14 +144,23 @@ struct SyncArgs {
     #[arg(long)]
     skip_gitignore: bool,
 
-    #[arg(short, long, global = true)]
+    /// Verbose output.
+    #[arg(short, long)]
     verbose: bool,
+
+    /// Suppress all output except errors.
+    #[arg(short, long)]
+    quiet: bool,
 }
 
 #[derive(clap::Args, Debug)]
 struct StatusArgs {
     /// The file to dir to check status of, defaults to project root.
     path: Vec<PathBuf>,
+
+    /// Exit with code 1 if there are pending operations.
+    #[arg(short, long)]
+    fail: bool,
 }
 
 fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
@@ -172,13 +192,17 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
 
     for path in &input {
         for res in encrypt_path(path, &options) {
-            let (input, output, gi) = res?;
+            let OperationResult {
+                input,
+                output,
+                gitignore,
+            } = res?;
             if args.verbose {
                 println!(
                     "╭─ {}",
                     input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
                 );
-                if let Some(gi) = gi {
+                if let Some(gi) = gitignore {
                     println!(
                         "├─ {}",
                         gi.strip_prefix(&proj.cwd()).unwrap_or(&gi).display()
@@ -221,13 +245,17 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
 
     for path in &input {
         for res in decrypt_path(path, &options) {
-            let (input, output, gi) = res?;
+            let OperationResult {
+                input,
+                output,
+                gitignore,
+            } = res?;
             if args.verbose {
                 println!(
                     "╭─ {}",
                     input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
                 );
-                if let Some(gi) = gi {
+                if let Some(gi) = gitignore {
                     println!(
                         "├─ {}",
                         gi.strip_prefix(proj.cwd()).unwrap_or(&gi).display()
@@ -235,6 +263,12 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
                 }
                 println!(
                     "╰─ {}",
+                    output.strip_prefix(proj.cwd()).unwrap_or(&output).display()
+                );
+            } else if !args.quiet {
+                println!(
+                    "Decrypted {} into {}",
+                    input.strip_prefix(proj.cwd()).unwrap_or(&input).display(),
                     output.strip_prefix(proj.cwd()).unwrap_or(&output).display()
                 );
             }
@@ -308,13 +342,17 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
 
     for path in &input {
         for res in sync_path(path, &sync_options) {
-            let (input, output, gi) = res?;
+            let OperationResult {
+                input,
+                output,
+                gitignore,
+            } = res?;
             if args.verbose {
                 println!(
                     "╭─ {}",
                     input.strip_prefix(proj.cwd()).unwrap_or(&input).display()
                 );
-                if let Some(gi) = gi {
+                if let Some(gi) = gitignore {
                     println!(
                         "├─ {}",
                         gi.strip_prefix(&proj.cwd()).unwrap_or(&gi).display()

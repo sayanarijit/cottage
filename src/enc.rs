@@ -5,10 +5,12 @@ use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::iter;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::{
-    is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path, to_encrypted_path,
+    is_encrypted_path,
+    project::{OperationResult, append_to_gitignore_if_absent},
+    to_decrypted_path, to_encrypted_path,
 };
 
 #[derive(Clone)]
@@ -25,10 +27,7 @@ pub struct EncryptOptions<'a> {
     pub skip_timestamps: bool,
 }
 
-pub fn encrypt_file<'a>(
-    path: &'a Path,
-    options: &EncryptOptions,
-) -> Result<(&'a Path, PathBuf, Option<PathBuf>)> {
+pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<OperationResult> {
     let output_path = to_encrypted_path(path);
 
     // First add to .gitignore before creating the encrypted file, because, why not!
@@ -75,33 +74,32 @@ pub fn encrypt_file<'a>(
         )?;
     }
 
-    Ok((path, output_path, gitignorefile))
+    Ok(OperationResult {
+        input: path.to_path_buf(),
+        output: output_path,
+        gitignore: gitignorefile,
+    })
 }
 
 pub fn encrypt_dir<'a>(
     path: &'a Path,
     options: &EncryptOptions,
-) -> impl Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> {
+) -> impl Iterator<Item = Result<OperationResult>> {
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
         .filter_map(|e| to_decrypted_path(e.path()))
-        .map(|path| {
-            encrypt_file(&path, options)
-                .map(|(input, output, gi)| (input.to_path_buf(), output, gi))
-        })
+        .map(|path| encrypt_file(&path, options))
 }
 
 pub fn encrypt_path<'a>(
     path: &'a Path,
     options: &'a EncryptOptions,
-) -> Box<dyn Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> + 'a> {
+) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
     if path.is_dir() {
         Box::new(encrypt_dir(path, options))
     } else {
-        Box::new(iter::once(
-            encrypt_file(path, options).map(|(i, o, g)| (i.to_path_buf(), o, g)),
-        ))
+        Box::new(iter::once(encrypt_file(path, options)))
     }
 }

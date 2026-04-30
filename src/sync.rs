@@ -1,8 +1,9 @@
 use crate::dec::decrypt_file;
 use crate::enc::encrypt_file;
+use crate::project::OperationResult;
 use crate::{
-    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, is_encrypted_path,
-    to_decrypted_path, to_encrypted_path,
+    is_encrypted_path, to_decrypted_path, to_encrypted_path, DecryptOptions, DecryptionMode,
+    EncryptOptions, EncryptionMode,
 };
 use anyhow::{Result, anyhow};
 use std::fs;
@@ -83,7 +84,7 @@ pub fn status_path(path: &Path) -> Box<dyn Iterator<Item = Result<PendingOperati
 pub fn perform(
     operation: &PendingOperation,
     sync_options: &SyncOptions,
-) -> Result<Option<(PathBuf, PathBuf, Option<PathBuf>)>> {
+) -> Result<Option<OperationResult>> {
     match operation {
         PendingOperation::Encrypt(src, _) => {
             let encrypt_options = EncryptOptions {
@@ -92,9 +93,7 @@ pub fn perform(
                 skip_gitignore: sync_options.skip_gitignore,
                 skip_timestamps: sync_options.skip_timestamps,
             };
-            encrypt_file(src, &encrypt_options)
-                .map(|(p1, p2, p3)| (p1.to_path_buf(), p2, p3))
-                .map(Some)
+            encrypt_file(src, &encrypt_options).map(Some)
         }
         PendingOperation::Decrypt(src, _) => {
             let decrypt_options = DecryptOptions {
@@ -102,9 +101,7 @@ pub fn perform(
                 skip_gitignore: sync_options.skip_gitignore,
                 skip_timestamps: sync_options.skip_timestamps,
             };
-            decrypt_file(src, &decrypt_options)
-                .map(|(p1, p2, p3)| (p1.to_path_buf(), p2, p3))
-                .map(Some)
+            decrypt_file(src, &decrypt_options).map(Some)
         }
     }
 }
@@ -112,7 +109,7 @@ pub fn perform(
 pub fn sync_path<'a>(
     path: &'a Path,
     sync_options: &'a SyncOptions,
-) -> Box<dyn Iterator<Item = Result<(PathBuf, PathBuf, Option<PathBuf>)>> + 'a> {
+) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
     Box::new(
         status_path(path)
             .map(move |res| res.and_then(|op| perform(&op, sync_options)))
