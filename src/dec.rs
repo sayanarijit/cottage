@@ -1,13 +1,14 @@
-use crate::OperationKind;
+use crate::{Metadata, to_metadata_path, validate_checksum};
 use crate::{
-    OperationResult, is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path,
+    OperationKind, OperationResult, is_encrypted_path, project::append_to_gitignore_if_absent,
+    to_decrypted_path,
 };
 use age::armor::ArmoredReader;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
 use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::iter;
 use std::path::Path;
 
@@ -26,7 +27,11 @@ pub struct DecryptOptions<'a> {
     pub skip_checksum_decrypted: bool,
 }
 
-pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<OperationResult> {
+pub fn decrypt_file<'a>(
+    path: &'a Path,
+    options: &DecryptOptions,
+) -> Result<Option<OperationResult>> {
+    // Just read operations for now ------------------------
     if !is_encrypted_path(path) {
         return Err(anyhow!(
             "Input file does not have .cott.age extension: {:?}",
@@ -34,31 +39,34 @@ pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<Oper
         ));
     }
 
-    let output_path = to_decrypted_path(path).ok_or_else(|| {
-        anyhow!(
-            "Failed to determine decrypted path for input file: {:?}",
-            path
-        )
-    })?;
+    let output_path = to_decrypted_path(path)
+        .with_context(|| format!("Failed to determine output path for {:?}", path))?;
+    let metadata_path = to_metadata_path(&output_path);
+    let metadata = Metadata::read_from_path(&metadata_path)
+        .with_context(|| format!("Failed to read metadata: {:?}", metadata_path))?;
 
-    // First add to .gitignore before creating the decrypted file, so that if the operation fails
-    // for some reason, we won't have a decrypted file that is not ignored.
-    let gitignorefile = if !options.skip_gitignore {
-        append_to_gitignore_if_absent(&output_path)?
-    } else {
-        None
+    let mut input_file =
+        File::open(path).with_context(|| format!("Failed to open input file: {:?}", path))?;
+    let filemtime = input_file.metadata()?.modified()?;
+
+    let input = {
+        let mut reader = BufReader::new(&input_file);
+        let mut buffer = vec![];
+        std::io::copy(&mut reader, &mut buffer)?;
+        input_file.seek(SeekFrom::Start(0))?;
+        buffer.flush()?;
+        buffer
     };
 
-    let input_file =
-        File::open(path).with_context(|| format!("Failed to open input file: {:?}", path))?;
+    if !options.skip_checksum_encrypted {
+        validate_checksum(input.as_slice(), &metadata.checksum.encrypted)?;
+    }
 
-    let input_metadata = input_file.metadata()?;
-    {
+    let output = {
         let input = BufReader::new(input_file);
         let decryptor = age::Decryptor::new_buffered(ArmoredReader::new(input))?;
 
-        let output_file = File::create(&output_path)
-            .with_context(|| format!("Failed to create output file: {:?}", &output_path))?;
+        let mut buffer = vec![];
 
         let mut decrypted = match &options.mode {
             DecryptionMode::Passphrase(pass) => decryptor.decrypt(iter::once(
@@ -69,24 +77,47 @@ pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<Oper
             }
         };
 
-        let mut writer = BufWriter::new(output_file);
-        std::io::copy(&mut decrypted, &mut writer)?;
-        writer.flush()?;
-    }
-
-    if !options.skip_timestamps {
-        set_file_mtime(
-            &output_path,
-            FileTime::from_system_time(input_metadata.modified()?),
-        )?;
+        std::io::copy(&mut decrypted, &mut buffer)?;
+        buffer.flush()?;
+        buffer
     };
 
-    Ok(OperationResult {
+    if output_path.exists() {
+        if std::fs::read(&output_path)? == output {
+            if !options.skip_timestamps {
+                set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
+            };
+            return Ok(None);
+        }
+    }
+
+    if !options.skip_checksum_decrypted {
+        validate_checksum(output.as_slice(), &metadata.checksum.decrypted)?;
+    }
+
+    // Write starts here ------------------------
+
+    // First add to .gitignore before creating the decrypted file, so that if the operation fails
+    // for some reason, we won't have a decrypted file that is not ignored.
+    let gitignorefile = if !options.skip_gitignore {
+        append_to_gitignore_if_absent(&output_path)?
+    } else {
+        None
+    };
+
+    std::fs::write(&output_path, &output)
+        .with_context(|| format!("Failed to write decrypted file: {:?}", output_path))?;
+    if !options.skip_timestamps {
+        set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
+    };
+
+    Ok(Some(OperationResult {
         kind: OperationKind::Decrypt,
         input: path.to_path_buf(),
         output: output_path,
         gitignore: gitignorefile,
-    })
+        metadata: None,
+    }))
 }
 
 pub fn decrypt_dir<'a>(
@@ -97,7 +128,7 @@ pub fn decrypt_dir<'a>(
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
-        .map(|e| decrypt_file(e.path(), options))
+        .flat_map(|e| decrypt_file(e.path(), options).transpose())
 }
 
 pub fn decrypt_path<'a>(
@@ -107,6 +138,6 @@ pub fn decrypt_path<'a>(
     if path.is_dir() {
         Box::new(decrypt_dir(path, options))
     } else {
-        Box::new(iter::once(decrypt_file(path, options)))
+        Box::new(decrypt_file(path, options).transpose().into_iter())
     }
 }

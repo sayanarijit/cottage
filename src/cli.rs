@@ -74,6 +74,10 @@ struct EncryptArgs {
     #[arg(long)]
     skip_gitignore: bool,
 
+    /// Skip matching checksum and re-encrypt every files.
+    #[arg(long)]
+    skip_checksum: bool,
+
     /// Skip preview generation.
     #[arg(long)]
     skip_preview: bool,
@@ -161,10 +165,6 @@ struct SyncArgs {
     #[arg(long)]
     skip_preview: bool,
 
-    /// Skip checksum verification.
-    #[arg(long, num_args(0..=1), value_name = "TARGET")]
-    skip_checksum: Option<Option<SkipChecksum>>,
-
     /// Verbose output.
     #[arg(short, long)]
     verbose: bool,
@@ -239,8 +239,9 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
     let options = EncryptOptions {
         mode,
         armor: args.armor,
-        skip_gitignore: args.skip_gitignore,
+        skip_gitignore: args.skip_gitignore || proj.git().is_none(),
         skip_timestamps: args.skip_timestamps,
+        skip_checksum: args.skip_checksum,
         skip_preview: args.skip_preview,
     };
 
@@ -276,7 +277,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
 
     let options = DecryptOptions {
         mode,
-        skip_gitignore: args.skip_gitignore,
+        skip_gitignore: args.skip_gitignore || proj.git().is_none(),
         skip_timestamps: args.skip_timestamps,
         skip_checksum_encrypted,
         skip_checksum_decrypted,
@@ -333,17 +334,13 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
         )
     };
 
-    let (skip_checksum_encrypted, skip_checksum_decrypted) = get_skip_checksum(&args.skip_checksum);
-
     let sync_options = SyncOptions {
         encryption_mode: enc_mode,
         decryption_mode: dec_mode,
         armor: args.armor,
-        skip_gitignore: args.skip_gitignore,
+        skip_gitignore: args.skip_gitignore || proj.git().is_none(),
         skip_timestamps: args.skip_timestamps,
         skip_preview: args.skip_preview,
-        skip_checksum_encrypted,
-        skip_checksum_decrypted,
     };
 
     for path in &input {

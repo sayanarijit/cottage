@@ -20,7 +20,9 @@ pub fn parse_recipient(s: &str) -> Result<Box<dyn age::Recipient + Send>> {
     }
 }
 
-pub fn parse_recipients_file(path: &Path) -> Result<Vec<Box<dyn age::Recipient + Send>>> {
+pub fn parse_recipients_file(
+    path: &Path,
+) -> Result<Vec<(Box<dyn age::Recipient + Send>, Vec<u8>)>> {
     let file =
         File::open(path).with_context(|| format!("Failed to open recipients file: {:?}", path))?;
     let reader = BufReader::new(file);
@@ -29,17 +31,17 @@ pub fn parse_recipients_file(path: &Path) -> Result<Vec<Box<dyn age::Recipient +
     use std::io::BufRead;
     for line in reader.lines() {
         let line = line?;
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
+        let trimmed_line = line.trim();
+        if trimmed_line.is_empty() || trimmed_line.starts_with('#') {
             continue;
         }
-        recipients.push(parse_recipient(line)?);
+        recipients.push((parse_recipient(trimmed_line)?, line.into_bytes()));
     }
 
     Ok(recipients)
 }
 
-pub fn parse_recipients_dir(path: &Path) -> Result<Vec<Box<dyn age::Recipient + Send>>> {
+pub fn parse_recipients_dir(path: &Path) -> Result<Vec<(Box<dyn age::Recipient + Send>, Vec<u8>)>> {
     let mut recipients = Vec::new();
     for entry in walkdir::WalkDir::new(path) {
         let entry = entry?;
@@ -54,7 +56,7 @@ pub fn load_recipients(
     proj: &Project,
     recipients: &[String],
     recipients_file: &Vec<PathBuf>,
-) -> Result<Vec<Box<dyn age::Recipient + Send>>> {
+) -> Result<Vec<(Box<dyn age::Recipient + Send>, Vec<u8>)>> {
     let mut result = Vec::new();
 
     if recipients.is_empty() && recipients_file.is_empty() {
@@ -66,7 +68,7 @@ pub fn load_recipients(
         }
     } else {
         for r in recipients {
-            result.push(parse_recipient(r)?);
+            result.push((parse_recipient(r)?, r.as_bytes().to_vec()));
         }
         for f in recipients_file {
             if f.is_dir() {

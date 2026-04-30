@@ -1,3 +1,4 @@
+use crate::{is_encrypted_path, to_decrypted_path};
 use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result};
 use std::fs::OpenOptions;
@@ -151,24 +152,6 @@ fn get_project_root(cwd: &Path) -> Option<PathBuf> {
         .or_else(|| get_root(cwd, ".jj/"))
 }
 
-pub fn to_encrypted_path(path: &Path) -> PathBuf {
-    path.with_added_extension("cott")
-        .with_added_extension("age")
-}
-
-pub fn is_encrypted_path(path: &Path) -> bool {
-    path.to_string_lossy().ends_with(".cott.age")
-}
-
-pub fn to_decrypted_path(path: &Path) -> Option<PathBuf> {
-    if is_encrypted_path(path) {
-        path.file_stem()
-            .and_then(|s| PathBuf::from(s).file_stem().map(|s| path.with_file_name(s)))
-    } else {
-        None
-    }
-}
-
 fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
     let line = line.trim();
     let mut file = OpenOptions::new()
@@ -236,6 +219,7 @@ pub(crate) fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBu
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::to_encrypted_path;
 
     #[test]
     fn test_get_root() {

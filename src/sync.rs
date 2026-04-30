@@ -1,8 +1,7 @@
-use crate::dec::decrypt_file;
-use crate::enc::encrypt_file;
 use crate::{
     DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, Operation, OperationKind,
-    OperationResult, is_encrypted_path, to_decrypted_path, to_encrypted_path,
+    OperationResult, dec::decrypt_file, enc::encrypt_file, is_encrypted_path, to_decrypted_path,
+    to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
 use std::fs;
@@ -15,8 +14,6 @@ pub struct SyncOptions<'e, 'd> {
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
     pub skip_preview: bool,
-    pub skip_checksum_encrypted: bool,
-    pub skip_checksum_decrypted: bool,
 }
 
 pub fn status_file(path: &Path) -> Result<Option<Operation>> {
@@ -81,7 +78,7 @@ pub fn status_path(path: &Path) -> Box<dyn Iterator<Item = Result<Operation>> + 
     }
 }
 
-fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<OperationResult> {
+fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<OperationResult>> {
     match operation.kind {
         OperationKind::Encrypt => {
             let encrypt_options = EncryptOptions {
@@ -90,6 +87,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Operatio
                 skip_gitignore: sync_options.skip_gitignore,
                 skip_timestamps: sync_options.skip_timestamps,
                 skip_preview: sync_options.skip_preview,
+                skip_checksum: false,
             };
             encrypt_file(&operation.input, &encrypt_options)
         }
@@ -98,8 +96,8 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Operatio
                 mode: sync_options.decryption_mode.clone(),
                 skip_gitignore: sync_options.skip_gitignore,
                 skip_timestamps: sync_options.skip_timestamps,
-                skip_checksum_encrypted: sync_options.skip_checksum_encrypted,
-                skip_checksum_decrypted: sync_options.skip_checksum_decrypted,
+                skip_checksum_encrypted: false,
+                skip_checksum_decrypted: false,
             };
             decrypt_file(&operation.input, &decrypt_options)
         }
@@ -110,5 +108,8 @@ pub fn sync_path<'a>(
     path: &'a Path,
     sync_options: &'a SyncOptions,
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
-    Box::new(status_path(path).map(move |res| res.and_then(|op| perform(&op, sync_options))))
+    Box::new(
+        status_path(path)
+            .filter_map(move |res| res.and_then(|op| perform(&op, sync_options)).transpose()),
+    )
 }

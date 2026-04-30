@@ -1,21 +1,22 @@
+use crate::{
+    ChecksumMetadata, Metadata, OperationKind, OperationResult, PreviewFormat, PreviewMetadata,
+    SecretMetadata, is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path,
+    to_encrypted_path, to_metadata_path,
+};
+use crate::{make_checksum, validate_checksum};
 use age::armor::ArmoredWriter;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
+use chrono::{DateTime, Utc};
 use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
-use std::io::{BufReader, BufWriter};
-use std::iter;
+use std::io::{BufReader, Write};
 use std::path::Path;
-
-use crate::{OperationKind, OperationResult};
-use crate::{
-    is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path, to_encrypted_path,
-};
 
 #[derive(Clone)]
 pub enum EncryptionMode<'a> {
     Passphrase(String),
-    Recipients(&'a [Box<dyn age::Recipient + Send>]),
+    Recipients(&'a [(Box<dyn age::Recipient + Send>, Vec<u8>)]),
 }
 
 #[derive(Clone)]
@@ -25,26 +26,29 @@ pub struct EncryptOptions<'a> {
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
     pub skip_preview: bool,
+    pub skip_checksum: bool,
 }
 
-pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<OperationResult> {
-    let output_path = to_encrypted_path(path);
-
-    // First add to .gitignore before creating the encrypted file, because, why not!
-    let gitignorefile = if !options.skip_gitignore {
-        append_to_gitignore_if_absent(&output_path)?
-    } else {
-        None
-    };
-
-    let encryptor = match &options.mode {
-        EncryptionMode::Passphrase(pass) => {
-            age::Encryptor::with_user_passphrase(SecretString::from(pass.as_str()))
-        }
-        EncryptionMode::Recipients(recipients) => {
-            age::Encryptor::with_recipients(recipients.iter().map(|r| r.as_ref() as _))
-                .map_err(|_| anyhow!("At least one recipient must be provided"))?
-        }
+pub fn encrypt_file<'a>(
+    path: &'a Path,
+    options: &EncryptOptions,
+) -> Result<Option<OperationResult>> {
+    // Just read operations for now ------------------------
+    let (encryptor, recipients_data) = match &options.mode {
+        EncryptionMode::Passphrase(pass) => (
+            age::Encryptor::with_user_passphrase(SecretString::from(pass.as_str())),
+            pass.as_bytes().to_vec(),
+        ),
+        EncryptionMode::Recipients(recipients) => (
+            age::Encryptor::with_recipients(recipients.iter().map(|(r, _)| r.as_ref() as _))
+                .map_err(|_| anyhow!("At least one recipient must be provided"))?,
+            recipients
+                .into_iter()
+                .map(|(_, r)| r)
+                .flatten()
+                .map(|b| *b)
+                .collect::<Vec<u8>>(),
+        ),
     };
 
     let format = if options.armor {
@@ -55,31 +59,86 @@ pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<Oper
 
     let input_file =
         File::open(path).with_context(|| format!("Failed to open input file: {:?}", path))?;
-    let input_metadata = input_file.metadata()?;
-    {
-        let mut output_file = File::create(&output_path)
-            .with_context(|| format!("Failed to create output file: {:?}", &output_path))?;
-        let mut output = BufWriter::new(&mut output_file);
-        let mut writer = encryptor.wrap_output(ArmoredWriter::wrap_output(&mut output, format)?)?;
 
-        let mut reader = BufReader::new(input_file);
-        std::io::copy(&mut reader, &mut writer)?;
-        writer.finish().and_then(|armor| armor.finish())?;
+    let input = {
+        let mut reader = BufReader::new(&input_file);
+        let mut buffer = vec![];
+        std::io::copy(&mut reader, &mut buffer)?;
+        buffer
+    };
+
+    let output_path = to_encrypted_path(path);
+    let metadata_path = to_metadata_path(path);
+    let filemtime = input_file.metadata()?.modified()?;
+
+    if !options.skip_checksum && metadata_path.exists() {
+        let metadata = Metadata::read_from_path(&metadata_path)
+            .with_context(|| format!("Failed to read metadata: {:?}", metadata_path))?;
+
+        if validate_checksum(&recipients_data, &metadata.checksum.recipients).is_ok()
+            && validate_checksum(input.as_slice(), &metadata.checksum.decrypted).is_ok()
+        {
+            if !options.skip_timestamps {
+                set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
+            }
+            return Ok(None);
+        }
     }
+
+    let output = {
+        let mut reader = BufReader::new(input.as_slice());
+        let mut buffer = vec![];
+        let mut enc_writer =
+            encryptor.wrap_output(ArmoredWriter::wrap_output(&mut buffer, format)?)?;
+        std::io::copy(&mut reader, &mut enc_writer)?;
+        enc_writer.finish().and_then(|armor| armor.finish())?;
+        buffer.flush()?;
+        buffer
+    };
+
+    let timestamp = DateTime::<Utc>::from(filemtime);
+    let secret = SecretMetadata { timestamp };
+    let checksum = {
+        let encrypted = make_checksum(output.as_slice());
+        let decrypted = make_checksum(input.as_slice());
+        ChecksumMetadata {
+            encrypted,
+            decrypted,
+            recipients: make_checksum(&recipients_data),
+        }
+    };
+
+    let metadata = Metadata {
+        secret,
+        checksum,
+        preview: None,
+    };
+
+    // Write starts here ------------------------
+
+    // First add to .gitignore before creating the encrypted file, because, why not!
+    let gitignore = if !options.skip_gitignore {
+        append_to_gitignore_if_absent(&path)?
+    } else {
+        None
+    };
+
+    std::fs::write(&output_path, output)
+        .with_context(|| format!("Failed to write encrypted file: {:?}", output_path))?;
 
     if !options.skip_timestamps {
-        set_file_mtime(
-            &output_path,
-            FileTime::from_system_time(input_metadata.modified()?),
-        )?;
+        set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
     }
+    std::fs::write(&metadata_path, toml::to_string(&metadata)?)
+        .with_context(|| format!("Failed to write metadata file: {:?}", metadata_path))?;
 
-    Ok(OperationResult {
+    Ok(Some(OperationResult {
         kind: OperationKind::Encrypt,
         input: path.to_path_buf(),
         output: output_path,
-        gitignore: gitignorefile,
-    })
+        gitignore: gitignore,
+        metadata: Some(metadata_path),
+    }))
 }
 
 pub fn encrypt_dir<'a>(
@@ -91,7 +150,7 @@ pub fn encrypt_dir<'a>(
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
         .filter_map(|e| to_decrypted_path(e.path()))
-        .map(|path| encrypt_file(&path, options))
+        .filter_map(|path| encrypt_file(&path, options).transpose())
 }
 
 pub fn encrypt_path<'a>(
@@ -101,6 +160,6 @@ pub fn encrypt_path<'a>(
     if path.is_dir() {
         Box::new(encrypt_dir(path, options))
     } else {
-        Box::new(iter::once(encrypt_file(path, options)))
+        Box::new(encrypt_file(path, options).transpose().into_iter())
     }
 }
