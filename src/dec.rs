@@ -1,7 +1,6 @@
+use crate::OperationKind;
 use crate::{
-    is_encrypted_path,
-    project::{OperationResult, append_to_gitignore_if_absent},
-    to_decrypted_path,
+    OperationResult, is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path,
 };
 use age::armor::ArmoredReader;
 use age::secrecy::SecretString;
@@ -23,6 +22,8 @@ pub struct DecryptOptions<'a> {
     pub mode: DecryptionMode<'a>,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
+    pub skip_checksum_encrypted: bool,
+    pub skip_checksum_decrypted: bool,
 }
 
 pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<OperationResult> {
@@ -81,6 +82,7 @@ pub fn decrypt_file<'a>(path: &'a Path, options: &DecryptOptions) -> Result<Oper
     };
 
     Ok(OperationResult {
+        kind: OperationKind::Decrypt,
         input: path.to_path_buf(),
         output: output_path,
         gitignore: gitignorefile,

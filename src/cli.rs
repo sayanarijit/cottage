@@ -1,12 +1,11 @@
-use crate::project::OperationResult;
 use crate::{
-    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, PendingOperation, Project,
+    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, OperationKind, Project,
     SyncOptions, decrypt_path, encrypt_path, load_identities, load_recipients, status_path,
     sync_path,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(clap::Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -32,6 +31,12 @@ enum Commands {
     /// See status of encrypted and decrypted files
     #[command(name = "status", aliases = ["st"])]
     Status(StatusArgs),
+}
+
+#[derive(clap::ValueEnum, Clone, Debug, PartialEq)]
+enum SkipChecksum {
+    Encrypted,
+    Decrypted,
 }
 
 #[derive(clap::Args, Debug)]
@@ -69,6 +74,10 @@ struct EncryptArgs {
     #[arg(long)]
     skip_gitignore: bool,
 
+    /// Skip preview generation.
+    #[arg(long)]
+    skip_preview: bool,
+
     /// Verbose output.
     #[arg(short, long)]
     verbose: bool,
@@ -99,6 +108,10 @@ struct DecryptArgs {
     /// Skip adding decrypted files to .gitignore.
     #[arg(long)]
     skip_gitignore: bool,
+
+    /// Skip checksum verification.
+    #[arg(long, num_args(0..=1), value_name = "TARGET")]
+    skip_checksum: Option<Option<SkipChecksum>>,
 
     /// Verbose output.
     #[arg(short, long)]
@@ -144,6 +157,14 @@ struct SyncArgs {
     #[arg(long)]
     skip_gitignore: bool,
 
+    /// Skip preview generation.
+    #[arg(long)]
+    skip_preview: bool,
+
+    /// Skip checksum verification.
+    #[arg(long, num_args(0..=1), value_name = "TARGET")]
+    skip_checksum: Option<Option<SkipChecksum>>,
+
     /// Verbose output.
     #[arg(short, long)]
     verbose: bool,
@@ -161,6 +182,38 @@ struct StatusArgs {
     /// Exit with code 1 if there are pending operations.
     #[arg(short, long)]
     fail: bool,
+}
+
+fn get_skip_checksum(arg: &Option<Option<SkipChecksum>>) -> (bool, bool) {
+    match arg {
+        None => (false, false),
+        Some(None) => (true, true),
+        Some(Some(SkipChecksum::Encrypted)) => (true, false),
+        Some(Some(SkipChecksum::Decrypted)) => (false, true),
+    }
+}
+
+fn print_result(proj: &Project, kind: OperationKind, input: &Path, output: &Path, verbose: bool) {
+    if verbose {
+        match kind {
+            OperationKind::Encrypt => {
+                println!(
+                    "encrypt {}\n   into {}",
+                    proj.relative_to_cwd(&input).display(),
+                    proj.relative_to_cwd(&output).display()
+                );
+            }
+            OperationKind::Decrypt => {
+                println!(
+                    "decrypt {}\n   into {}",
+                    proj.relative_to_cwd(&input).display(),
+                    proj.relative_to_cwd(&output).display()
+                );
+            }
+        }
+    } else {
+        println!("{}", proj.relative_to_cwd(output).display());
+    }
 }
 
 fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
@@ -184,25 +237,18 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
     };
 
     let options = EncryptOptions {
-        mode: mode,
+        mode,
         armor: args.armor,
         skip_gitignore: args.skip_gitignore,
         skip_timestamps: args.skip_timestamps,
+        skip_preview: args.skip_preview,
     };
 
     for path in &input {
         for res in encrypt_path(path, &options) {
-            let OperationResult {
-                input,
-                output,
-                gitignore,
-            } = res?;
-            if args.verbose {
-                println!("╭─ {}", proj.relative_to_cwd(&input).display());
-                if let Some(gi) = gitignore {
-                    println!("├─ {}", proj.relative_to_cwd(&gi).display());
-                }
-                println!("╰─ {}", proj.relative_to_cwd(&output).display());
+            let res = res?;
+            if !args.quiet {
+                print_result(&proj, res.kind, &res.input, &res.output, args.verbose);
             }
         }
     }
@@ -225,31 +271,22 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
     } else {
         DecryptionMode::Identities(&identities)
     };
+
+    let (skip_checksum_encrypted, skip_checksum_decrypted) = get_skip_checksum(&args.skip_checksum);
+
     let options = DecryptOptions {
-        mode: mode,
+        mode,
         skip_gitignore: args.skip_gitignore,
         skip_timestamps: args.skip_timestamps,
+        skip_checksum_encrypted,
+        skip_checksum_decrypted,
     };
 
     for path in &input {
         for res in decrypt_path(path, &options) {
-            let OperationResult {
-                input,
-                output,
-                gitignore,
-            } = res?;
-            if args.verbose {
-                println!("╭─ {}", proj.relative_to_cwd(&input).display());
-                if let Some(gi) = gitignore {
-                    println!("├─ {}", proj.relative_to_cwd(&gi).display());
-                }
-                println!("╰─ {}", proj.relative_to_cwd(&output).display());
-            } else if !args.quiet {
-                println!(
-                    "Decrypted {} into {}",
-                    proj.relative_to_cwd(&input).display(),
-                    proj.relative_to_cwd(&output).display()
-                );
+            let res = res?;
+            if !args.quiet {
+                print_result(&proj, res.kind, &res.input, &res.output, args.verbose);
             }
         }
     }
@@ -265,23 +302,8 @@ fn run_status_cmd(proj: &Project, args: StatusArgs) -> Result<()> {
 
     for path in &input {
         for res in status_path(&path) {
-            let op = res?;
-            match op {
-                PendingOperation::Encrypt(src, dst) => {
-                    println!(
-                        "encrypt {}\n   into {}",
-                        proj.relative_to_cwd(&src).display(),
-                        proj.relative_to_cwd(&dst).display()
-                    );
-                }
-                PendingOperation::Decrypt(src, dst) => {
-                    println!(
-                        "decrypt {}\n   into {}",
-                        proj.relative_to_cwd(&src).display(),
-                        proj.relative_to_cwd(&dst).display()
-                    );
-                }
-            }
+            let res = res?;
+            print_result(proj, res.kind, &res.input, &res.output, true);
         }
     }
 
@@ -311,27 +333,24 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
         )
     };
 
+    let (skip_checksum_encrypted, skip_checksum_decrypted) = get_skip_checksum(&args.skip_checksum);
+
     let sync_options = SyncOptions {
         encryption_mode: enc_mode,
         decryption_mode: dec_mode,
         armor: args.armor,
         skip_gitignore: args.skip_gitignore,
         skip_timestamps: args.skip_timestamps,
+        skip_preview: args.skip_preview,
+        skip_checksum_encrypted,
+        skip_checksum_decrypted,
     };
 
     for path in &input {
         for res in sync_path(path, &sync_options) {
-            let OperationResult {
-                input,
-                output,
-                gitignore,
-            } = res?;
-            if args.verbose {
-                println!("╭─ {}", proj.relative_to_cwd(&input).display());
-                if let Some(gi) = gitignore {
-                    println!("├─ {}", proj.relative_to_cwd(&gi).display());
-                }
-                println!("╰─ {}", proj.relative_to_cwd(&output).display());
+            let res = res?;
+            if !args.quiet {
+                print_result(&proj, res.kind, &res.input, &res.output, args.verbose);
             }
         }
     }

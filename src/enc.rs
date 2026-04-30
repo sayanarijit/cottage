@@ -7,10 +7,9 @@ use std::io::{BufReader, BufWriter};
 use std::iter;
 use std::path::Path;
 
+use crate::{OperationKind, OperationResult};
 use crate::{
-    is_encrypted_path,
-    project::{OperationResult, append_to_gitignore_if_absent},
-    to_decrypted_path, to_encrypted_path,
+    is_encrypted_path, project::append_to_gitignore_if_absent, to_decrypted_path, to_encrypted_path,
 };
 
 #[derive(Clone)]
@@ -25,6 +24,7 @@ pub struct EncryptOptions<'a> {
     pub armor: bool,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
+    pub skip_preview: bool,
 }
 
 pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<OperationResult> {
@@ -75,6 +75,7 @@ pub fn encrypt_file<'a>(path: &'a Path, options: &EncryptOptions) -> Result<Oper
     }
 
     Ok(OperationResult {
+        kind: OperationKind::Encrypt,
         input: path.to_path_buf(),
         output: output_path,
         gitignore: gitignorefile,
