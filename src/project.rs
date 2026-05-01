@@ -1,6 +1,6 @@
 use crate::{is_encrypted_path, to_decrypted_path};
 use age::secrecy::ExposeSecret;
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::fs::OpenOptions;
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -34,9 +34,12 @@ pub struct Project {
 
 impl Project {
     pub fn init() -> Result<Self> {
-        let cwd = std::env::current_dir().context("Failed to get current working directory")?;
-        let root = get_project_root(&cwd)
-            .context("Could not find project root (looking for any of .cottage/, .git/ or .jj/)")?;
+        let cwd =
+            std::env::current_dir().context(format!("failed to get current working directory"))?;
+        let root = get_project_root(&cwd).context(format!(
+            "{}: failed to find project root (looking for .cottage/, .git/, or .jj/)",
+            cwd.display()
+        ))?;
 
         let cottage_dir = root.join(".cottage");
         if !cottage_dir.exists() {
@@ -198,29 +201,84 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
     Ok(true)
 }
 
-// Very naive implementation for now
-pub fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBuf>> {
-    let gitignote_root = get_root(path, ".gitignore")
-        .or_else(|| get_root(path, ".git/"))
-        .context("Could not find .gitignore or .git directory")?;
-
-    let abs_root = std::path::absolute(&gitignote_root)?;
-    let mut abs_path = std::path::absolute(&path)?;
-    if is_encrypted_path(&abs_path) {
-        abs_path = to_decrypted_path(&abs_path)
-            .context("Failed to get decrypted path for encrypted file")?
+pub fn remove_line_if_present(path: &Path, line: &str) -> Result<bool> {
+    let line = line.trim();
+    if !path.exists() {
+        return Ok(false);
     }
 
-    let line_to_add = PathBuf::from("/")
-        .join(
-            pathdiff::diff_paths(&abs_path, &abs_root)
-                .context("Failed to get relative path for gitignore")?,
-        )
+    if !std::io::BufReader::new(std::fs::File::open(path)?)
+        .lines()
+        .filter_map(Result::ok)
+        .any(|l| l.trim() == line)
+    {
+        return Ok(false);
+    }
+
+    let lines: Vec<String> = std::io::BufReader::new(std::fs::File::open(path)?)
+        .lines()
+        .filter_map(Result::ok)
+        .filter(|l| l.trim() != line)
+        .collect();
+
+    std::fs::write(path, lines.join("\n") + "\n")?;
+    Ok(true)
+}
+
+fn get_or_create_gitignore_root(path: &Path) -> Result<PathBuf> {
+    if let Some(dir) = get_root(path, ".gitignore").or_else(|| get_root(path, ".git/")) {
+        let gi = dir.join(".gitignore");
+        if !gi.exists() {
+            std::fs::write(&gi, "")?;
+        }
+        Ok(dir)
+    } else {
+        Err(anyhow!(
+            "{}: could not find .gitignore or .git/ parent",
+            path.display(),
+        ))
+    }
+}
+
+pub fn fmt_gitignore_line(path: &Path, gitignore_root: &Path) -> Result<String> {
+    let abs_root = std::path::absolute(gitignore_root)?;
+    let mut abs_path = std::path::absolute(path)?;
+    if is_encrypted_path(&abs_path) {
+        abs_path = to_decrypted_path(&abs_path).context(format!(
+            "{}: failed to get decrypted path for encrypted file",
+            path.display()
+        ))?
+    }
+
+    Ok(PathBuf::from("/")
+        .join(pathdiff::diff_paths(&abs_path, &abs_root).context(format!(
+            "{}: failed to get relative path for gitignore",
+            path.display()
+        ))?)
         .to_string_lossy()
-        .to_string();
+        .to_string())
+}
+
+// Very naive implementation for now
+pub fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBuf>> {
+    let gitignote_root = get_or_create_gitignore_root(path)?;
+    let line_to_add = fmt_gitignore_line(path, &gitignote_root)?;
 
     let gitignore_path = gitignote_root.join(".gitignore");
     if append_line_if_absent(&gitignore_path, &line_to_add)? {
+        Ok(Some(gitignore_path))
+    } else {
+        Ok(None)
+    }
+}
+
+// Very naive implementation for now
+pub fn remove_from_gitignore_if_present(path: PathBuf) -> Result<Option<PathBuf>> {
+    let gitignote_root = get_or_create_gitignore_root(&path)?;
+    let line_to_remove = fmt_gitignore_line(&path, &gitignote_root)?;
+
+    let gitignore_path = gitignote_root.join(".gitignore");
+    if remove_line_if_present(&gitignore_path, &line_to_remove)? {
         Ok(Some(gitignore_path))
     } else {
         Ok(None)

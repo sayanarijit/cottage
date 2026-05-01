@@ -1,4 +1,4 @@
-use crate::{Project, is_encrypted_path, to_decrypted_path};
+use crate::{Project, is_encrypted_path, remove_from_gitignore_if_present, to_decrypted_path};
 use anyhow::Result;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -7,6 +7,9 @@ pub fn clean_file(path: PathBuf, dry_run: bool) -> Result<Option<PathBuf>> {
     if path.is_file() {
         if !dry_run {
             fs::remove_file(&path)?;
+            while remove_from_gitignore_if_present(path.clone())?.is_some() {
+                // Keep trying to remove from gitignore until it returns false, in case there are multiple entries for the same file
+            }
         }
         Ok(Some(path))
     } else {

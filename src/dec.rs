@@ -1,4 +1,4 @@
-use crate::{Metadata, to_metadata_path, validate_checksum};
+use crate::{Metadata, to_metadata_path, verify_checksum};
 use crate::{
     OperationKind, OperationResult, is_encrypted_path, project::append_to_gitignore_if_absent,
     to_decrypted_path,
@@ -23,8 +23,8 @@ pub struct DecryptOptions<'a> {
     pub mode: DecryptionMode<'a>,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
-    pub skip_checksum_encrypted: bool,
-    pub skip_checksum_decrypted: bool,
+    pub skip_verify_encrypted: bool,
+    pub skip_verify_decrypted: bool,
 }
 
 pub fn decrypt_into_memory(
@@ -80,8 +80,8 @@ pub fn decrypt_file<'a>(
         buffer
     };
 
-    if !options.skip_checksum_encrypted {
-        validate_checksum(input.as_slice(), &metadata.checksum.encrypted, &path)?;
+    if !options.skip_verify_encrypted {
+        verify_checksum(input.as_slice(), &metadata.checksum.encrypted, &path)?;
     }
 
     let output = decrypt_into_memory(input_file, options)?;
@@ -95,8 +95,8 @@ pub fn decrypt_file<'a>(
         }
     }
 
-    if !options.skip_checksum_decrypted {
-        validate_checksum(
+    if !options.skip_verify_decrypted {
+        verify_checksum(
             output.as_slice(),
             &metadata.checksum.decrypted,
             &output_path,

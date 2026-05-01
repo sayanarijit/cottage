@@ -1,6 +1,6 @@
 /.env
-/secrets/secret.yaml
-/secrets/secret.hcl
-/secrets/secret.ini
 /secrets/secret.json
+/secrets/secret.hcl
 /secrets/secret.toml
+/secrets/secret.yaml
+/secrets/secret.ini

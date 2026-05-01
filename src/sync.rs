@@ -16,6 +16,9 @@ pub struct SyncOptions<'e, 'd> {
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
     pub skip_preview: bool,
+    pub skip_verify_encrypted: bool,
+    pub skip_verify_decrypted: bool,
+    pub force_encrypt: bool,
 }
 
 pub fn status_file(path: &Path) -> Result<Option<Operation>> {
@@ -95,7 +98,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
                 skip_gitignore: sync_options.skip_gitignore,
                 skip_timestamps: sync_options.skip_timestamps,
                 skip_preview: sync_options.skip_preview,
-                skip_checksum: false,
+                force: sync_options.force_encrypt,
             };
             encrypt_file(&operation.input, &encrypt_options)
         }
@@ -104,8 +107,8 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
                 mode: sync_options.decryption_mode.clone(),
                 skip_gitignore: sync_options.skip_gitignore,
                 skip_timestamps: sync_options.skip_timestamps,
-                skip_checksum_encrypted: false,
-                skip_checksum_decrypted: false,
+                skip_verify_encrypted: sync_options.skip_verify_encrypted,
+                skip_verify_decrypted: sync_options.skip_verify_decrypted,
             };
             decrypt_file(&operation.input, &decrypt_options)
         }

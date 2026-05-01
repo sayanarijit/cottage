@@ -3,7 +3,7 @@ use crate::{
     SecretMetadata, decrypt_into_memory, is_encrypted_path, project::append_to_gitignore_if_absent,
     to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
-use crate::{generate_preview, is_metadata_path, make_checksum, validate_checksum};
+use crate::{generate_preview, is_metadata_path, make_checksum, verify_checksum};
 use age::armor::ArmoredWriter;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
@@ -28,7 +28,7 @@ pub struct EncryptOptions<'a> {
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
     pub skip_preview: bool,
-    pub skip_checksum: bool,
+    pub force: bool,
 }
 
 pub fn encrypt_file<'a>(
@@ -82,12 +82,12 @@ pub fn encrypt_file<'a>(
     let metadata_path = to_metadata_path(path);
     let filemtime = input_file.metadata()?.modified()?;
 
-    if !options.skip_checksum && metadata_path.exists() {
+    if !options.force && metadata_path.exists() {
         let metadata = Metadata::read_from_path(&metadata_path)
             .with_context(|| format!("{}: failed to read metadata", metadata_path.display()))?;
 
-        if validate_checksum(&recipients_data, &metadata.checksum.recipients, &path).is_ok()
-            && validate_checksum(input.as_slice(), &metadata.checksum.decrypted, &path).is_ok()
+        if verify_checksum(&recipients_data, &metadata.checksum.recipients, &path).is_ok()
+            && verify_checksum(input.as_slice(), &metadata.checksum.decrypted, &path).is_ok()
         {
             if !options.skip_timestamps {
                 set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
@@ -134,8 +134,8 @@ pub fn encrypt_file<'a>(
             },
             skip_gitignore: true,
             skip_timestamps: true,
-            skip_checksum_encrypted: true,
-            skip_checksum_decrypted: true,
+            skip_verify_encrypted: true,
+            skip_verify_decrypted: true,
         };
 
         let old_content = File::open(&output_path)

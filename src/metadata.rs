@@ -61,7 +61,7 @@ pub fn make_checksum(data: &[u8]) -> String {
     format!("blake3:{}", blake3::hash(data).to_hex().to_string())
 }
 
-pub fn validate_checksum(data: &[u8], checksum: &str, path: &Path) -> Result<()> {
+pub fn verify_checksum(data: &[u8], checksum: &str, path: &Path) -> Result<()> {
     match checksum.split_once(":") {
         Some((algo, cs)) if algo == "blake3" => {
             let enc_checksum = blake3::hash(data).to_hex().to_string();

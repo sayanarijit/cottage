@@ -21,7 +21,7 @@ fn test_diff_logic() -> Result<()> {
         armor: true,
         skip_gitignore: true,
         skip_timestamps: false,
-        skip_checksum: false,
+        force: false,
         skip_preview: true,
     };
 
@@ -41,21 +41,21 @@ fn test_diff_logic() -> Result<()> {
     // Check status
     let operations: Vec<_> = status_path(&secret_path).collect::<Result<Vec<_>>>()?;
     assert_eq!(operations.len(), 1);
-    
+
     // Simulate diff logic
     let decrypted_content = fs::read(&secret_path)?;
     let encrypted_file = fs::File::open(&encrypted_path)?;
-    
+
     let decrypt_options = cottage::DecryptOptions {
         mode: cottage::DecryptionMode::Passphrase("password".to_string()),
         skip_gitignore: true,
         skip_timestamps: true,
-        skip_checksum_encrypted: false,
-        skip_checksum_decrypted: false,
+        skip_verify_encrypted: false,
+        skip_verify_decrypted: false,
     };
-    
+
     let decrypted_from_encrypted = decrypt_into_memory(encrypted_file, &decrypt_options)?;
-    
+
     assert_ne!(decrypted_content, decrypted_from_encrypted);
     assert_eq!(decrypted_from_encrypted, b"original content\n");
     assert_eq!(decrypted_content, b"modified content\n");

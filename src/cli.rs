@@ -9,45 +9,47 @@ use crate::{
 use anyhow::{Result, anyhow};
 use clap::Parser;
 use owo_colors::OwoColorize;
+use std::io::{IsTerminal, Read, stdin};
 use std::path::{Path, PathBuf};
 
 #[derive(clap::Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None, arg_required_else_help = true)]
 struct CottageCli {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    /// The file to edit
+    /// The file to edit or sync with stdin.
     path: Option<PathBuf>,
 }
 
 #[derive(clap::Subcommand, Debug)]
 enum Commands {
-    /// Edit a secret
+    // ... (rest of the file remains same, I will use a more targeted replace)
+    /// Edit a file and encrypt it.
     #[command(name = "edit", aliases = ["ed"])]
     Edit(EditArgs),
 
-    /// Encrypt secrets
+    /// Encrypt files.
     #[command(name = "encrypt", aliases = ["e", "enc"])]
     Encrypt(EncryptArgs),
 
-    /// Decrypt secrets
+    /// Decrypt files.
     #[command(name = "decrypt", aliases = ["d", "dec"])]
     Decrypt(DecryptArgs),
 
-    /// Sync encrypted and decrypted files
+    /// Sync encrypted and decrypted files.
     #[command(name = "sync", aliases = ["s", "syn"])]
     Sync(SyncArgs),
 
-    /// See status of encrypted and decrypted files
+    /// See status of encrypted and decrypted files.
     #[command(name = "status", aliases = ["st"])]
     Status(StatusArgs),
 
-    /// See diff between encrypted and decrypted files
+    /// See diff between encrypted and decrypted files.
     #[command(name = "diff", aliases = ["df"])]
     Diff(DiffArgs),
 
-    /// Delete all secrets and identity files
+    /// Delete all secrets and identity files.
     #[command(name = "clean", aliases = ["cln"])]
     Clean(CleanArgs),
 }
@@ -108,6 +110,10 @@ struct EditArgs {
     #[arg(long)]
     skip_gitignore: bool,
 
+    /// Force re-encryption even if the decrypted file is not modified.
+    #[arg(long, short)]
+    force: bool,
+
     /// Skip preview generation.
     #[arg(long)]
     skip_preview: bool,
@@ -123,7 +129,7 @@ struct EditArgs {
 
 impl EditArgs {
     fn default_with_path(path: PathBuf) -> Self {
-        Self {
+        EditArgs {
             path,
             ..Default::default()
         }
@@ -166,8 +172,8 @@ struct EncryptArgs {
     skip_gitignore: bool,
 
     /// Skip matching checksum and re-encrypt every files.
-    #[arg(long)]
-    skip_checksum: bool,
+    #[arg(long, short)]
+    force: bool,
 
     /// Skip preview generation.
     #[arg(long)]
@@ -204,9 +210,17 @@ struct DecryptArgs {
     #[arg(long)]
     skip_gitignore: bool,
 
-    /// Skip checksum verification.
-    #[arg(long, num_args(0..=1), value_name = "TARGET")]
-    skip_checksum: Option<Option<SkipChecksum>>,
+    /// Skip checksum verification and re-decrypt every files.
+    #[arg(long, short)]
+    force: bool,
+
+    /// Skip checksum verification of encrypted files.
+    #[arg(long)]
+    skip_verify_encrypted: bool,
+
+    /// Skip checksum verification of decrypted files.
+    #[arg(long)]
+    skip_verify_decrypted: bool,
 
     /// Verbose output.
     #[arg(short, long)]
@@ -256,6 +270,22 @@ struct SyncArgs {
     #[arg(long)]
     skip_preview: bool,
 
+    /// Skip matching checksum and re-encrypt every files.
+    #[arg(long)]
+    force_encrypt: bool,
+
+    /// Skip checksum verification of encrypted files.
+    #[arg(long)]
+    skip_verify_encypted: bool,
+
+    /// Skip checksum verification of decrypted files.
+    #[arg(long)]
+    skip_verify_decrypted: bool,
+
+    /// Skip checksum verification and re-encrypt/re-decrypt every files.
+    #[arg(long, short)]
+    force: bool,
+
     /// Verbose output.
     #[arg(short, long)]
     verbose: bool,
@@ -279,12 +309,20 @@ struct DiffArgs {
     #[arg(short, long)]
     identity: Vec<PathBuf>,
 
+    // Skip checksum verification of encrypted files.
+    #[arg(long)]
+    skip_verify_encrypted: bool,
+
+    /// Skip checksum verification of decrypted files.
+    #[arg(long)]
+    skip_checksum_decrypted: bool,
+
     /// Skip checksum verification.
-    #[arg(long, num_args(0..=1), value_name = "TARGET")]
-    skip_checksum: Option<Option<SkipChecksum>>,
+    #[arg(long, short)]
+    force: bool,
 
     /// Exit with code 1 if there is any diff.
-    #[arg(short, long)]
+    #[arg(long)]
     fail: bool,
 }
 
@@ -294,17 +332,8 @@ struct StatusArgs {
     path: Vec<PathBuf>,
 
     /// Exit with code 1 if there are pending operations.
-    #[arg(short, long)]
+    #[arg(long)]
     fail: bool,
-}
-
-fn get_skip_checksum(arg: &Option<Option<SkipChecksum>>) -> (bool, bool) {
-    match arg {
-        None => (false, false),
-        Some(None) => (true, true),
-        Some(Some(SkipChecksum::Encrypted)) => (true, false),
-        Some(Some(SkipChecksum::Decrypted)) => (false, true),
-    }
 }
 
 fn print_result(proj: &Project, kind: OperationKind, input: &Path, output: &Path, verbose: bool) {
@@ -366,9 +395,9 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
         mode,
         identities: &identities,
         armor: args.armor,
-        skip_gitignore: args.skip_gitignore || proj.git().is_none(),
+        skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
-        skip_checksum: args.skip_checksum,
+        force: args.force,
         skip_preview: args.skip_preview,
     };
 
@@ -400,14 +429,12 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
         DecryptionMode::Identities(&identities)
     };
 
-    let (skip_checksum_encrypted, skip_checksum_decrypted) = get_skip_checksum(&args.skip_checksum);
-
     let options = DecryptOptions {
         mode,
-        skip_gitignore: args.skip_gitignore || proj.git().is_none(),
+        skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
-        skip_checksum_encrypted,
-        skip_checksum_decrypted,
+        skip_verify_encrypted: args.force || args.skip_verify_encrypted,
+        skip_verify_decrypted: args.force || args.skip_verify_decrypted,
     };
 
     for path in &input {
@@ -472,9 +499,12 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
         decryption_mode: dec_mode,
         identities: &identities,
         armor: args.armor,
-        skip_gitignore: args.skip_gitignore || proj.git().is_none(),
+        skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
         skip_preview: args.skip_preview,
+        skip_verify_encrypted: args.force || args.skip_verify_encypted,
+        skip_verify_decrypted: args.force || args.skip_verify_decrypted,
+        force_encrypt: args.force || args.force_encrypt,
     };
 
     for path in &input {
@@ -505,12 +535,10 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
         DecryptionMode::Identities(&identities)
     };
 
-    let (skip_checksum_encrypted, skip_checksum_decrypted) = get_skip_checksum(&args.skip_checksum);
-
     let options = DiffOptions {
         mode,
-        skip_checksum_encrypted,
-        skip_checksum_decrypted,
+        skip_verify_encrypted: args.force || args.skip_verify_encrypted,
+        skip_checksum_decrypted: args.force || args.skip_checksum_decrypted,
     };
 
     if diff(proj, &input, &options)? && args.fail {
@@ -540,9 +568,6 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs) -> Result<()> {
 
 fn run_edit_cmd(proj: &Project, args: EditArgs) -> Result<()> {
     let path = &args.path;
-    if !path.is_file() {
-        return Err(anyhow!("{}: not a file", path.display()));
-    }
     if is_metadata_path(path) {
         return Err(anyhow!("{}: cannot edit metadata file", path.display()));
     }
@@ -575,10 +600,10 @@ fn run_edit_cmd(proj: &Project, args: EditArgs) -> Result<()> {
         };
         let options = DecryptOptions {
             mode,
-            skip_gitignore: args.skip_gitignore || proj.git().is_none(),
+            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
             skip_timestamps: args.skip_timestamps,
-            skip_checksum_encrypted: false,
-            skip_checksum_decrypted: false,
+            skip_verify_encrypted: false,
+            skip_verify_decrypted: false,
         };
 
         let _ = decrypt_file(&encrypted_path, &options)?;
@@ -597,14 +622,36 @@ fn run_edit_cmd(proj: &Project, args: EditArgs) -> Result<()> {
             mode,
             identities: &identities,
             armor: args.armor,
-            skip_gitignore: args.skip_gitignore || proj.git().is_none(),
+            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
             skip_timestamps: args.skip_timestamps,
-            skip_checksum: false,
+            force: false,
             skip_preview: args.skip_preview,
         };
 
-        let _ = encrypt_file(&decrypted_path, &options)?;
+        if let Some(res) = encrypt_file(&decrypted_path, &options)? {
+            if !args.quiet {
+                print_result(proj, res.kind, &res.input, &res.output, args.verbose);
+            }
+        }
     }
+
+    Ok(())
+}
+
+fn run_pipe_cmd(proj: &Project, path: PathBuf) -> Result<()> {
+    let mut input = Vec::new();
+    stdin().read_to_end(&mut input)?;
+
+    let decrypted_path = if is_encrypted_path(&path) {
+        to_decrypted_path(&path)
+            .ok_or_else(|| anyhow!("{}: invalid encrypted path", path.display()))?
+    } else {
+        path.clone()
+    };
+
+    std::fs::write(&decrypted_path, input)?;
+
+    println!("{}", proj.relative_to_cwd(&decrypted_path).display().cyan());
 
     Ok(())
 }
@@ -623,10 +670,19 @@ pub fn run() -> Result<()> {
         Some(Commands::Edit(args)) => run_edit_cmd(&proj, args),
         None => {
             if let Some(path) = cli.path {
-                run_edit_cmd(&proj, EditArgs::default_with_path(path))
+                if !stdin().is_terminal() {
+                    run_pipe_cmd(&proj, path)
+                } else {
+                    let args = EditArgs::default_with_path(path);
+                    run_edit_cmd(&proj, args)
+                }
             } else {
-                Err(anyhow!("no command or path provided"))
+                Ok(())
             }
         }
     }
+}
+
+fn args_skip_gitignore(proj: &Project, skip_gitignore: bool) -> bool {
+    skip_gitignore || proj.git().is_none()
 }
