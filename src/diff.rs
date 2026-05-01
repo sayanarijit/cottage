@@ -3,7 +3,7 @@ use crate::{
 };
 use anyhow::Result;
 use console::Style;
-use similar::{ChangeTag, TextDiff};
+use similar::TextDiff;
 use std::fs;
 use std::path::PathBuf;
 
@@ -59,29 +59,31 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: &DiffOptions) -> Result<
                 let diff = TextDiff::from_lines(&old_str, &new_str);
 
                 let diff_path = proj.relative_to_root(&decrypted_path);
-                let styled_diff_path = Style::new().cyan().apply_to(diff_path.display());
+                let a_path = format!("a/{}", diff_path.display());
+                let b_path = format!("b/{}", diff_path.display());
 
                 println!(
                     "{}",
-                    Style::new().dim().apply_to(format!(
-                        "diff --git a/{} b/{}",
-                        diff_path.display(),
-                        diff_path.display()
-                    )),
-                );
-                println!(
-                    "{} a/{styled_diff_path}\n{} b/{styled_diff_path}",
-                    Style::new().red().apply_to("---"),
-                    Style::new().green().apply_to("+++"),
+                    Style::new().dim().apply_to(format!("diff --git {} {}", a_path, b_path)),
                 );
 
-                for change in diff.iter_all_changes() {
-                    let sign = match change.tag() {
-                        ChangeTag::Delete => Style::new().red().apply_to("-"),
-                        ChangeTag::Insert => Style::new().green().apply_to("+"),
-                        ChangeTag::Equal => Style::new().dim().apply_to(" "),
-                    };
-                    print!("{}{}", sign, change);
+                let mut unified_diff = diff.unified_diff();
+                let unified_diff = unified_diff.context_radius(3).header(&a_path, &b_path);
+
+                for line in format!("{}", unified_diff).lines() {
+                    if line.starts_with("@@") {
+                        println!("{}", Style::new().cyan().apply_to(line));
+                    } else if line.starts_with("---") {
+                        println!("{}", Style::new().red().bold().apply_to(line));
+                    } else if line.starts_with("+++") {
+                        println!("{}", Style::new().green().bold().apply_to(line));
+                    } else if line.starts_with('-') {
+                        println!("{}", Style::new().red().apply_to(line));
+                    } else if line.starts_with('+') {
+                        println!("{}", Style::new().green().apply_to(line));
+                    } else {
+                        println!("{}", line);
+                    }
                 }
             }
         }
