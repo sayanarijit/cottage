@@ -4,8 +4,3 @@
 /secrets/secret.ini
 /secrets/secret.json
 /secrets/secret.toml
-/secrets/secret.yaml.cott.toml
-/secrets/secret.hcl.cott.toml
-/secrets/secret.ini.cott.toml
-/secrets/secret.json.cott.toml
-/secrets/secret.toml.cott.toml

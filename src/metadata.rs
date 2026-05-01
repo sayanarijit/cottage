@@ -1,11 +1,10 @@
 use anyhow::{Context, Result, anyhow};
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SecretMetadata {
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -44,9 +43,9 @@ pub struct PreviewMetadata {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Metadata {
-    pub secret: SecretMetadata,
     pub checksum: ChecksumMetadata,
     pub preview: Option<PreviewMetadata>,
+    pub secret: SecretMetadata,
 }
 
 impl Metadata {

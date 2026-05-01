@@ -102,7 +102,7 @@ pub fn encrypt_file<'a>(
         buffer
     };
 
-    let timestamp = DateTime::<Utc>::from(filemtime);
+    let timestamp = DateTime::<Utc>::from(filemtime).to_rfc3339();
     let secret = SecretMetadata { timestamp };
     let checksum = {
         let encrypted = make_checksum(output.as_slice());
@@ -143,7 +143,13 @@ pub fn encrypt_file<'a>(
     };
 
     let preview = if !options.skip_preview {
-        generate_preview(path, &input, old_content.as_deref(), old_preview, timestamp)
+        generate_preview(
+            path,
+            &input,
+            old_content.as_deref(),
+            old_preview,
+            &secret.timestamp,
+        )
     } else {
         None
     };

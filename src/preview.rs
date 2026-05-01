@@ -1,12 +1,11 @@
 use crate::{PreviewFormat, PreviewMetadata};
-use chrono::{DateTime, Utc};
 use std::path::Path;
 
 fn redact_json(
     value: &mut serde_json::Value,
     old_value: Option<&serde_json::Value>,
     old_preview: Option<&serde_json::Value>,
-    now_ts: &str,
+    timestamp: &str,
 ) {
     match value {
         serde_json::Value::Object(map) => {
@@ -17,7 +16,7 @@ fn redact_json(
                     v,
                     old_map.and_then(|m| m.get(k)),
                     prev_map.and_then(|m| m.get(k)),
-                    now_ts,
+                    timestamp,
                 );
             }
         }
@@ -29,7 +28,7 @@ fn redact_json(
                     v,
                     old_arr.and_then(|a| a.get(i)),
                     prev_arr.and_then(|a| a.get(i)),
-                    now_ts,
+                    timestamp,
                 );
             }
         }
@@ -40,10 +39,10 @@ fn redact_json(
                 if let Some(prev) = old_preview {
                     *value = prev.clone();
                 } else {
-                    *value = serde_json::Value::String(now_ts.to_string());
+                    *value = serde_json::Value::String(timestamp.to_string());
                 }
             } else {
-                *value = serde_json::Value::String(now_ts.to_string());
+                *value = serde_json::Value::String(timestamp.to_string());
             }
         }
         serde_json::Value::Null => {}
@@ -54,7 +53,7 @@ fn redact_yaml(
     value: &mut serde_yaml::Value,
     old_value: Option<&serde_yaml::Value>,
     old_preview: Option<&serde_yaml::Value>,
-    now_ts: &str,
+    timestamp: &str,
 ) {
     match value {
         serde_yaml::Value::Mapping(map) => {
@@ -65,7 +64,7 @@ fn redact_yaml(
                     v,
                     old_map.and_then(|m| m.get(k)),
                     prev_map.and_then(|m| m.get(k)),
-                    now_ts,
+                    timestamp,
                 );
             }
         }
@@ -77,7 +76,7 @@ fn redact_yaml(
                     v,
                     old_seq.and_then(|s| s.get(i)),
                     prev_seq.and_then(|s| s.get(i)),
-                    now_ts,
+                    timestamp,
                 );
             }
         }
@@ -88,10 +87,10 @@ fn redact_yaml(
                 if let Some(prev) = old_preview {
                     *value = prev.clone();
                 } else {
-                    *value = serde_yaml::Value::String(now_ts.to_string());
+                    *value = serde_yaml::Value::String(timestamp.to_string());
                 }
             } else {
-                *value = serde_yaml::Value::String(now_ts.to_string());
+                *value = serde_yaml::Value::String(timestamp.to_string());
             }
         }
         serde_yaml::Value::Null => {}
@@ -114,7 +113,7 @@ fn redact_yaml(
                 &mut tagged.value,
                 old_tagged.map(|t| &t.value),
                 prev_tagged.map(|t| &t.value),
-                now_ts,
+                timestamp,
             );
         }
     }
@@ -124,7 +123,7 @@ fn redact_toml(
     value: &mut toml::Value,
     old_value: Option<&toml::Value>,
     old_preview: Option<&toml::Value>,
-    now_ts: &str,
+    timestamp: &str,
 ) {
     match value {
         toml::Value::Table(table) => {
@@ -135,7 +134,7 @@ fn redact_toml(
                     v,
                     old_table.and_then(|t| t.get(k)),
                     prev_table.and_then(|t| t.get(k)),
-                    now_ts,
+                    timestamp,
                 );
             }
         }
@@ -147,7 +146,7 @@ fn redact_toml(
                     v,
                     old_arr.and_then(|a| a.get(i)),
                     prev_arr.and_then(|a| a.get(i)),
-                    now_ts,
+                    timestamp,
                 );
             }
         }
@@ -160,10 +159,10 @@ fn redact_toml(
                 if let Some(prev) = old_preview {
                     *value = prev.clone();
                 } else {
-                    *value = toml::Value::String(now_ts.to_string());
+                    *value = toml::Value::String(timestamp.to_string());
                 }
             } else {
-                *value = toml::Value::String(now_ts.to_string());
+                *value = toml::Value::String(timestamp.to_string());
             }
         }
     }
@@ -173,7 +172,7 @@ fn redact_hcl(
     value: &mut hcl::Value,
     old_value: Option<&hcl::Value>,
     old_preview: Option<&hcl::Value>,
-    now_ts: &str,
+    timestamp: &str,
 ) {
     match value {
         hcl::Value::Object(map) => {
@@ -184,7 +183,7 @@ fn redact_hcl(
                     v,
                     old_map.and_then(|m| m.get(k)),
                     prev_map.and_then(|m| m.get(k)),
-                    now_ts,
+                    timestamp,
                 );
             }
         }
@@ -196,7 +195,7 @@ fn redact_hcl(
                     v,
                     old_arr.and_then(|a| a.get(i)),
                     prev_arr.and_then(|a| a.get(i)),
-                    now_ts,
+                    timestamp,
                 );
             }
         }
@@ -205,10 +204,10 @@ fn redact_hcl(
                 if let Some(prev) = old_preview {
                     *value = prev.clone();
                 } else {
-                    *value = hcl::Value::String(now_ts.to_string());
+                    *value = hcl::Value::String(timestamp.to_string());
                 }
             } else {
-                *value = hcl::Value::String(now_ts.to_string());
+                *value = hcl::Value::String(timestamp.to_string());
             }
         }
         hcl::Value::Null => {}
@@ -219,7 +218,7 @@ fn redact_ini(
     ini: &mut ini::Ini,
     old_ini: Option<&ini::Ini>,
     old_preview: Option<&ini::Ini>,
-    now_ts: &str,
+    timestamp: &str,
 ) {
     for (section, prop) in ini.iter_mut() {
         let section_name = section.as_deref();
@@ -231,10 +230,10 @@ fn redact_ini(
                 if let Some(prev) = prev_prop.and_then(|p| p.get(k)) {
                     *v = prev.to_string();
                 } else {
-                    *v = now_ts.to_string();
+                    *v = timestamp.to_string();
                 }
             } else {
-                *v = now_ts.to_string();
+                *v = timestamp.to_string();
             }
         }
     }
@@ -244,17 +243,17 @@ fn redact_dotenv(
     map: &mut indexmap::IndexMap<String, String>,
     old_map: Option<&indexmap::IndexMap<String, String>>,
     old_preview: Option<&indexmap::IndexMap<String, String>>,
-    now_ts: &str,
+    timestamp: &str,
 ) {
     for (k, v) in map.iter_mut() {
         if old_map.and_then(|m| m.get(k)) == Some(v) {
             if let Some(prev) = old_preview.and_then(|m| m.get(k)) {
                 *v = prev.clone();
             } else {
-                *v = now_ts.to_string();
+                *v = timestamp.to_string();
             }
         } else {
-            *v = now_ts.to_string();
+            *v = timestamp.to_string();
         }
     }
 }
@@ -264,11 +263,10 @@ pub fn generate_preview(
     content: &[u8],
     old_content: Option<&[u8]>,
     old_preview: Option<&str>,
-    timestamp: DateTime<Utc>,
+    timestamp: &str,
 ) -> Option<PreviewMetadata> {
     let filename = path.file_name()?.to_str()?;
     let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
-    let now_ts = timestamp.to_rfc3339();
 
     match extension {
         "json" => {
@@ -282,7 +280,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &now_ts,
+                &timestamp,
             );
             Some(PreviewMetadata {
                 format: PreviewFormat::Json,
@@ -300,7 +298,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &now_ts,
+                &timestamp,
             );
             Some(PreviewMetadata {
                 format: PreviewFormat::Yaml,
@@ -321,7 +319,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &now_ts,
+                &timestamp,
             );
             Some(PreviewMetadata {
                 format: PreviewFormat::Toml,
@@ -338,7 +336,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &now_ts,
+                &timestamp,
             );
             Some(PreviewMetadata {
                 format: PreviewFormat::Hcl,
@@ -358,7 +356,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &now_ts,
+                &timestamp,
             );
 
             let mut buf = Vec::new();
@@ -381,7 +379,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &now_ts,
+                &timestamp,
             );
 
             let mut preview = String::new();
