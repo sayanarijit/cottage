@@ -29,7 +29,11 @@ fn test_clean() {
     assert!(secret_path.exists());
 
     // Now we want to run clean.
-    let cleaned = clean_project(&_proj, true)
+    let opts = CleanOptions {
+        dry_run: true,
+        skip_gitignore: true,
+    };
+    let cleaned = clean_project(&_proj, &opts)
         .filter_map(|res| res.ok())
         .collect::<Vec<_>>();
 
