@@ -3,7 +3,8 @@ use crate::enc::encrypt_file;
 use crate::{
     DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode, OperationKind,
     Project, SyncOptions, clean_project, decrypt_path, diff, encrypt_path, is_encrypted_path,
-    load_identities, load_recipients, status_path, sync_path, to_decrypted_path, to_encrypted_path,
+    is_metadata_path, load_identities, load_recipients, status_path, sync_path, to_decrypted_path,
+    to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -541,6 +542,9 @@ fn run_edit_cmd(proj: &Project, args: EditArgs) -> Result<()> {
     let path = &args.path;
     if !path.is_file() {
         return Err(anyhow!("{}: not a file", path.display()));
+    }
+    if is_metadata_path(path) {
+        return Err(anyhow!("{}: cannot edit metadata file", path.display()));
     }
 
     let is_target_encrypted = is_encrypted_path(path);
