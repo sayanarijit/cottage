@@ -49,10 +49,7 @@ pub fn decrypt_into_memory(
     Ok(buffer)
 }
 
-pub fn decrypt_file<'a>(
-    path: &'a Path,
-    options: &DecryptOptions,
-) -> Result<Option<OperationResult>> {
+pub fn decrypt_file(path: &Path, options: &DecryptOptions) -> Result<Option<OperationResult>> {
     log::debug!("{}: decrypting file", path.display());
     // Just read operations for now ------------------------
     if !is_encrypted_path(path) {
@@ -83,19 +80,17 @@ pub fn decrypt_file<'a>(
     };
 
     if !options.skip_verify_encrypted {
-        verify_checksum(input.as_slice(), &metadata.checksum.encrypted, &path)?;
+        verify_checksum(input.as_slice(), &metadata.checksum.encrypted, path)?;
     }
 
     let output = decrypt_into_memory(input_file, options)?;
 
-    if output_path.exists() {
-        if std::fs::read(&output_path)? == output {
-            log::debug!("{}: skipping write: content matches", output_path.display());
-            if !options.skip_timestamps {
-                set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
-            };
-            return Ok(None);
-        }
+    if output_path.exists() && std::fs::read(&output_path)? == output {
+        log::debug!("{}: skipping write: content matches", output_path.display());
+        if !options.skip_timestamps {
+            set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
+        };
+        return Ok(None);
     }
 
     if !options.skip_verify_decrypted {

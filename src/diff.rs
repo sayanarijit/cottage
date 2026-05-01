@@ -33,13 +33,13 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: &DiffOptions) -> Result<
             };
 
             let decrypted_content = if decrypted_path.exists() {
-                fs::read(&decrypted_path)?
+                fs::read(decrypted_path)?
             } else {
                 vec![]
             };
 
             let encrypted_content = if encrypted_path.exists() {
-                let file = fs::File::open(&encrypted_path)?;
+                let file = fs::File::open(encrypted_path)?;
                 decrypt_into_memory(file, &decrypt_options)?
             } else {
                 vec![]
@@ -58,7 +58,7 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: &DiffOptions) -> Result<
 
                 let diff = TextDiff::from_lines(&old_str, &new_str);
 
-                let diff_path = proj.relative_to_root(&decrypted_path);
+                let diff_path = proj.relative_to_root(decrypted_path);
                 let a_path = format!("a/{}", diff_path.display());
                 let b_path = format!("b/{}", diff_path.display());
 

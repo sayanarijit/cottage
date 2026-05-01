@@ -30,10 +30,7 @@ pub struct EncryptOptions<'a> {
     pub force: bool,
 }
 
-pub fn encrypt_file<'a>(
-    path: &'a Path,
-    options: &EncryptOptions,
-) -> Result<Option<OperationResult>> {
+pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<OperationResult>> {
     log::debug!("{}: encrypting file", path.display());
     if is_encrypted_path(path) || is_metadata_path(path) {
         log::warn!("skipped: {}: invalid path for encryption", path.display());
@@ -50,10 +47,9 @@ pub fn encrypt_file<'a>(
             age::Encryptor::with_recipients(recipients.iter().map(|(r, _)| r.as_ref() as _))
                 .map_err(|_| anyhow!("at least one recipient must be provided"))?,
             recipients
-                .into_iter()
-                .map(|(_, r)| r)
-                .flatten()
-                .map(|b| *b)
+                .iter()
+                .flat_map(|(_, r)| r)
+                .copied()
                 .collect::<Vec<u8>>(),
         ),
     };
@@ -83,8 +79,8 @@ pub fn encrypt_file<'a>(
         let metadata = Metadata::read_from_path(&metadata_path)
             .with_context(|| format!("{}: failed to read metadata", metadata_path.display()))?;
 
-        if verify_checksum(&recipients_data, &metadata.checksum.recipients, &path).is_ok()
-            && verify_checksum(input.as_slice(), &metadata.checksum.decrypted, &path).is_ok()
+        if verify_checksum(&recipients_data, &metadata.checksum.recipients, path).is_ok()
+            && verify_checksum(input.as_slice(), &metadata.checksum.decrypted, path).is_ok()
         {
             log::debug!("{}: skipping encryption: checksums match", path.display());
             if !options.skip_timestamps {
@@ -150,7 +146,7 @@ pub fn encrypt_file<'a>(
             path,
             &input,
             old_content.as_deref(),
-            old_preview.as_deref(),
+            old_preview,
             &secret.timestamp,
         );
         if preview.is_some() {
@@ -171,7 +167,7 @@ pub fn encrypt_file<'a>(
 
     // First add to .gitignore before creating the encrypted file, because, why not!
     let gitignore = if !options.skip_gitignore {
-        append_to_gitignore_if_absent(&path)?
+        append_to_gitignore_if_absent(path)?
     } else {
         None
     };
@@ -191,7 +187,7 @@ pub fn encrypt_file<'a>(
         kind: OperationKind::Encrypt,
         input: path.to_path_buf(),
         output: output_path,
-        gitignore: gitignore,
+        gitignore,
         metadata: Some(metadata_path),
     }))
 }

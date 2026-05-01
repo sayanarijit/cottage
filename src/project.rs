@@ -34,8 +34,7 @@ pub struct Project {
 
 impl Project {
     pub fn init() -> Result<Self> {
-        let cwd =
-            std::env::current_dir().context(format!("failed to get current working directory"))?;
+        let cwd = std::env::current_dir().context("failed to get current working directory")?;
         let root = get_project_root(&cwd).context(format!(
             "{}: failed to find project root (looking for .cottage/, .git/, or .jj/)",
             cwd.display()
@@ -55,18 +54,18 @@ impl Project {
         let recipients_path = cottage_dir.join("recipients");
         let identity_path = cottage_dir.join("identity");
         if !identity_path.exists() && !recipients_path.exists() {
-            let reicipient = whoami::username().unwrap_or_else(|_| {
+            let recipient = whoami::username().unwrap_or_else(|_| {
                 SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap()
                     .as_secs()
                     .to_string()
             });
-            let recipient_path = recipients_path.join(&reicipient);
+            let recipient_path = recipients_path.join(&recipient);
             log::debug!(
                 "init: {}: creating new recipient and identity for user {}",
                 recipient_path.display(),
-                reicipient
+                recipient
             );
 
             let sk = age::x25519::Identity::generate();
@@ -188,7 +187,7 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
 
     if std::io::BufReader::new(&file)
         .lines()
-        .filter_map(Result::ok)
+        .map_while(Result::ok)
         .any(|l| l.trim() == line)
     {
         log::trace!("{}: line {:?} already present", path.display(), line);
@@ -215,14 +214,18 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
 
 pub fn remove_line_if_present(path: &Path, line: &str) -> Result<bool> {
     let line = line.trim();
-    log::trace!("{}: checking if line {:?} is present for removal", path.display(), line);
+    log::trace!(
+        "{}: checking if line {:?} is present for removal",
+        path.display(),
+        line
+    );
     if !path.exists() {
         return Ok(false);
     }
 
     if !std::io::BufReader::new(std::fs::File::open(path)?)
         .lines()
-        .filter_map(Result::ok)
+        .map_while(Result::ok)
         .any(|l| l.trim() == line)
     {
         log::trace!("{}: line {:?} not found", path.display(), line);
@@ -231,7 +234,7 @@ pub fn remove_line_if_present(path: &Path, line: &str) -> Result<bool> {
 
     let lines: Vec<String> = std::io::BufReader::new(std::fs::File::open(path)?)
         .lines()
-        .filter_map(Result::ok)
+        .map_while(Result::ok)
         .filter(|l| l.trim() != line)
         .collect();
 

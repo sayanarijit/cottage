@@ -54,14 +54,20 @@ pub fn status_file(path: &Path) -> Result<Option<Operation>> {
         let decrypted_mtime = fs::metadata(&decrypted_path)?.modified()?;
 
         if encrypted_mtime > decrypted_mtime {
-            log::debug!("{}: status: decryption required (encrypted file is newer)", encrypted_path.display());
+            log::debug!(
+                "{}: status: decryption required (encrypted file is newer)",
+                encrypted_path.display()
+            );
             Ok(Some(Operation {
                 kind: OperationKind::Decrypt,
                 input: encrypted_path,
                 output: decrypted_path,
             }))
         } else if decrypted_mtime > encrypted_mtime {
-            log::debug!("{}: status: encryption required (decrypted file is newer)", decrypted_path.display());
+            log::debug!(
+                "{}: status: encryption required (decrypted file is newer)",
+                decrypted_path.display()
+            );
             Ok(Some(Operation {
                 kind: OperationKind::Encrypt,
                 input: decrypted_path,

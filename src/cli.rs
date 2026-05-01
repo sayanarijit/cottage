@@ -338,18 +338,18 @@ fn print_result(proj: &Project, kind: OperationKind, input: &Path, output: &Path
             println!(
                 "{} {}\n   {} {}",
                 "encrypt".green(),
-                proj.relative_to_cwd(&input).display(),
+                proj.relative_to_cwd(input).display(),
                 "into".blue(),
-                proj.relative_to_cwd(&output).display()
+                proj.relative_to_cwd(output).display()
             );
         }
         (OperationKind::Decrypt, false) => {
             println!(
                 "{} {}\n   {} {}",
                 "decrypt".cyan(),
-                proj.relative_to_cwd(&input).display(),
+                proj.relative_to_cwd(input).display(),
                 "into".blue(),
-                proj.relative_to_cwd(&output).display()
+                proj.relative_to_cwd(output).display()
             );
         }
         (OperationKind::Encrypt, true) => {
@@ -368,9 +368,9 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         args.path
     };
 
-    let recipients = load_recipients(&proj, &args.recipient, &args.recipients_file)?;
+    let recipients = load_recipients(proj, &args.recipient, &args.recipients_file)?;
     log::debug!("encrypt: loaded recipients");
-    let identities = load_identities(&proj, &args.identity)?;
+    let identities = load_identities(proj, &args.identity)?;
     log::debug!("encrypt: loaded identities");
 
     let mode = if args.passphrase {
@@ -398,7 +398,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         for res in encrypt_path(path, &options) {
             let res = res?;
             if !quiet {
-                print_result(&proj, res.kind, &res.input, &res.output, args.compact);
+                print_result(proj, res.kind, &res.input, &res.output, args.compact);
             }
         }
     }
@@ -413,7 +413,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
         args.path
     };
 
-    let identities = load_identities(&proj, &args.identity)?;
+    let identities = load_identities(proj, &args.identity)?;
     log::debug!("decrypt: loaded identities");
 
     let mode = if args.passphrase {
@@ -435,7 +435,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
         for res in decrypt_path(path, &options) {
             let res = res?;
             if !quiet {
-                print_result(&proj, res.kind, &res.input, &res.output, args.compact);
+                print_result(proj, res.kind, &res.input, &res.output, args.compact);
             }
         }
     }
@@ -452,7 +452,7 @@ fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
 
     let mut has_pending = false;
     for path in &input {
-        for res in status_path(&path) {
+        for res in status_path(path) {
             let res = res?;
             has_pending = true;
             if !quiet {
@@ -475,9 +475,9 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         args.path
     };
 
-    let recipients = load_recipients(&proj, &args.recipient, &args.recipients_file)?;
+    let recipients = load_recipients(proj, &args.recipient, &args.recipients_file)?;
     log::debug!("encrypt: loaded recipients");
-    let identities = load_identities(&proj, &args.identity)?;
+    let identities = load_identities(proj, &args.identity)?;
     log::debug!("encrypt: loaded identities");
 
     let (enc_mode, dec_mode) = if args.passphrase {
@@ -510,7 +510,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         for res in sync_path(path, &sync_options) {
             let res = res?;
             if !quiet {
-                print_result(&proj, res.kind, &res.input, &res.output, args.compact);
+                print_result(proj, res.kind, &res.input, &res.output, args.compact);
             }
         }
     }
@@ -526,7 +526,7 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
         args.path
     };
 
-    let identities = load_identities(&proj, &args.identity)?;
+    let identities = load_identities(proj, &args.identity)?;
     log::debug!("diff: loaded identities");
 
     let mode = if args.passphrase {
@@ -563,8 +563,7 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
         Box::new(
             args.path
                 .iter()
-                .map(|p| clean_path(p, &opts, p == proj.identity_path()))
-                .flatten(),
+                .flat_map(|p| clean_path(p, &opts, p == proj.identity_path())),
         )
     };
 
@@ -656,10 +655,10 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             skip_preview: args.skip_preview,
         };
 
-        if let Some(res) = encrypt_file(&decrypted_path, &options)? {
-            if !quiet {
-                print_result(proj, res.kind, &res.input, &res.output, args.compact);
-            }
+        if let Some(res) = encrypt_file(&decrypted_path, &options)?
+            && !quiet
+        {
+            print_result(proj, res.kind, &res.input, &res.output, args.compact);
         }
     }
 

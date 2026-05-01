@@ -221,7 +221,7 @@ fn redact_ini(
     timestamp: &str,
 ) {
     for (section, prop) in ini.iter_mut() {
-        let section_name = section.as_deref();
+        let section_name = section;
         let old_prop = old_ini.and_then(|oi| oi.section(section_name));
         let prev_prop = old_preview.and_then(|op| op.section(section_name));
 
@@ -280,7 +280,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &timestamp,
+                timestamp,
             );
             Some(PreviewMetadata {
                 format: PreviewFormat::Json,
@@ -298,7 +298,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &timestamp,
+                timestamp,
             );
             Some(PreviewMetadata {
                 format: PreviewFormat::Yaml,
@@ -319,7 +319,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &timestamp,
+                timestamp,
             );
             Some(PreviewMetadata {
                 format: PreviewFormat::Toml,
@@ -336,7 +336,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &timestamp,
+                timestamp,
             );
             Some(PreviewMetadata {
                 format: PreviewFormat::Hcl,
@@ -356,7 +356,7 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &timestamp,
+                timestamp,
             );
 
             let mut buf = Vec::new();
@@ -366,7 +366,7 @@ pub fn generate_preview(
                 preview: String::from_utf8(buf).ok()?,
             })
         }
-        "env" | _ if filename == ".env" => {
+        "env" => {
             let content_str = std::str::from_utf8(content).ok()?;
             let mut value = parse_dotenv(content_str);
 
@@ -379,7 +379,33 @@ pub fn generate_preview(
                 &mut value,
                 old_value.as_ref(),
                 old_preview_value.as_ref(),
-                &timestamp,
+                timestamp,
+            );
+
+            let mut preview = String::new();
+            for (k, v) in value {
+                preview.push_str(&format!("{}={}\n", k, v));
+            }
+
+            Some(PreviewMetadata {
+                format: PreviewFormat::Dotenv,
+                preview,
+            })
+        }
+        _ if filename == ".env" => {
+            let content_str = std::str::from_utf8(content).ok()?;
+            let mut value = parse_dotenv(content_str);
+
+            let old_value = old_content
+                .and_then(|c| std::str::from_utf8(c).ok())
+                .map(parse_dotenv);
+            let old_preview_value = old_preview.map(parse_dotenv);
+
+            redact_dotenv(
+                &mut value,
+                old_value.as_ref(),
+                old_preview_value.as_ref(),
+                timestamp,
             );
 
             let mut preview = String::new();
@@ -398,10 +424,8 @@ pub fn generate_preview(
 
 fn parse_dotenv(content: &str) -> indexmap::IndexMap<String, String> {
     let mut map = indexmap::IndexMap::new();
-    for item in dotenvy::Iter::new(content.as_bytes()) {
-        if let Ok((k, v)) = item {
-            map.insert(k, v);
-        }
+    for (k, v) in dotenvy::Iter::new(content.as_bytes()).flatten() {
+        map.insert(k, v);
     }
     map
 }

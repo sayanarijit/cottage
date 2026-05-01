@@ -6,6 +6,8 @@ use std::str::FromStr;
 
 use crate::Project;
 
+pub type RecipientData = (Box<dyn age::Recipient + Send>, Vec<u8>);
+
 pub fn parse_recipient(s: &str) -> Result<Box<dyn age::Recipient + Send>> {
     if s.starts_with("age1") {
         let recipient = age::x25519::Recipient::from_str(s)
@@ -22,7 +24,7 @@ pub fn parse_recipient(s: &str) -> Result<Box<dyn age::Recipient + Send>> {
 
 pub fn parse_recipients_file(
     path: &Path,
-) -> Result<Vec<(Box<dyn age::Recipient + Send>, Vec<u8>)>> {
+) -> Result<Vec<RecipientData>> {
     log::debug!("{}: parsing recipients", path.display());
     let file = File::open(path)
         .with_context(|| format!("{}: failed to open recipients file", path.display()))?;
@@ -42,12 +44,12 @@ pub fn parse_recipients_file(
     Ok(recipients)
 }
 
-pub fn parse_recipients_dir(path: &Path) -> Result<Vec<(Box<dyn age::Recipient + Send>, Vec<u8>)>> {
+pub fn parse_recipients_dir(path: &Path) -> Result<Vec<RecipientData>> {
     let mut recipients = Vec::new();
     for entry in walkdir::WalkDir::new(path) {
         let entry = entry?;
         if entry.file_type().is_file() {
-            recipients.extend(parse_recipients_file(&entry.path())?);
+            recipients.extend(parse_recipients_file(entry.path())?);
         }
     }
     Ok(recipients)
@@ -56,16 +58,16 @@ pub fn parse_recipients_dir(path: &Path) -> Result<Vec<(Box<dyn age::Recipient +
 pub fn load_recipients(
     proj: &Project,
     recipients: &[String],
-    recipients_file: &Vec<PathBuf>,
-) -> Result<Vec<(Box<dyn age::Recipient + Send>, Vec<u8>)>> {
+    recipients_file: &[PathBuf],
+) -> Result<Vec<RecipientData>> {
     let mut result = Vec::new();
 
     if recipients.is_empty() && recipients_file.is_empty() {
         let default_recipients = proj.recipients_path();
         if default_recipients.is_dir() && default_recipients.read_dir()?.next().is_some() {
-            result.extend(parse_recipients_dir(&default_recipients)?);
+            result.extend(parse_recipients_dir(default_recipients)?);
         } else if default_recipients.is_file() {
-            result.extend(parse_recipients_file(&default_recipients)?);
+            result.extend(parse_recipients_file(default_recipients)?);
         }
     } else {
         for r in recipients {
@@ -73,9 +75,9 @@ pub fn load_recipients(
         }
         for f in recipients_file {
             if f.is_dir() {
-                result.extend(parse_recipients_dir(&f)?);
+                result.extend(parse_recipients_dir(f)?);
             } else if f.is_file() {
-                result.extend(parse_recipients_file(&f)?);
+                result.extend(parse_recipients_file(f)?);
             }
         }
     }

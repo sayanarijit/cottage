@@ -25,7 +25,7 @@ pub fn clean_file(
         if !opts.dry_run {
             fs::remove_file(&path)?;
             if !opts.skip_gitignore {
-                while let Some(_) = remove_from_gitignore_if_present(path.clone())? {
+                while (remove_from_gitignore_if_present(path.clone())?).is_some() {
                     //
                 }
             }

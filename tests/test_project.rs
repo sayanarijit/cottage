@@ -6,7 +6,7 @@ fn test_get_root() {
     let root = tempfile::tempdir().unwrap();
     let subdir = root.path().join("subdir");
 
-    std::fs::create_dir_all(&subdir.join(".cottage")).unwrap();
+    std::fs::create_dir_all(subdir.join(".cottage")).unwrap();
 
     assert_eq!(
         get_root(&subdir.join("foo/bar"), ".cottage/"),

@@ -59,20 +59,21 @@ impl Metadata {
 }
 
 pub fn make_checksum(data: &[u8]) -> String {
-    format!("blake3:{}", blake3::hash(data).to_hex().to_string())
+    format!("blake3:{}", blake3::hash(data).to_hex())
 }
 
 pub fn verify_checksum(data: &[u8], checksum: &str, path: &Path) -> Result<()> {
     log::debug!("{}: verifying checksum", path.display());
     match checksum.split_once(":") {
-        Some((algo, cs)) if algo == "blake3" => {
-            let enc_checksum = blake3::hash(data).to_hex().to_string();
-            if enc_checksum == cs {
+        Some(("blake3", cs)) => {
+            let enc_checksum = blake3::hash(data).to_hex();
+            if enc_checksum.as_str() == cs {
                 Ok(())
             } else {
                 Err(anyhow!(
-                    "{}: checksum mismatch: expected {cs:?}, got {enc_checksum:?}",
+                    "{}: checksum mismatch: expected {cs:?}, got {:?}",
                     path.display(),
+                    enc_checksum.as_str()
                 ))
             }
         }

@@ -28,9 +28,9 @@ pub fn parse_identities_dir(path: &Path) -> Vec<Box<dyn age::Identity>> {
         .filter_map(|e| e.ok())
     {
         if entry.file_type().is_file() {
-            match parse_identity_file(&entry.path()) {
+            match parse_identity_file(entry.path()) {
                 Ok(identity) => identities.push(identity),
-                Err(e) => log::warn!("skipped: {}: {}", entry.path().display(), e.to_string()),
+                Err(e) => log::warn!("skipped: {}: {}", entry.path().display(), e),
             }
         }
     }
@@ -39,16 +39,16 @@ pub fn parse_identities_dir(path: &Path) -> Vec<Box<dyn age::Identity>> {
 
 pub fn load_identities(
     proj: &Project,
-    identities: &Vec<PathBuf>,
+    identities: &[PathBuf],
 ) -> Result<Vec<Box<dyn age::Identity>>> {
     let mut result = Vec::new();
 
     if identities.is_empty() {
         let default_identities = proj.identity_path();
         if default_identities.is_dir() && default_identities.read_dir()?.next().is_some() {
-            result.extend(parse_identities_dir(&default_identities));
+            result.extend(parse_identities_dir(default_identities));
         } else if default_identities.is_file() {
-            result.push(parse_identity_file(&default_identities)?);
+            result.push(parse_identity_file(default_identities)?);
         } else {
             let sshdir = dirs::home_dir()
                 .ok_or_else(|| anyhow!("failed to get home directory"))?
@@ -59,10 +59,10 @@ pub fn load_identities(
         }
     } else {
         for i in identities {
-            match parse_identity_file(&i) {
+            match parse_identity_file(i) {
                 Ok(identity) => result.push(identity),
                 Err(e) => {
-                    log::warn!("skipped: {}: {}", i.display(), e.to_string());
+                    log::warn!("skipped: {}: {}", i.display(), e);
                 }
             }
         }
