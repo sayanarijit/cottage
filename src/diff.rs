@@ -2,7 +2,7 @@ use crate::{
     DecryptOptions, DecryptionMode, OperationKind, Project, decrypt_into_memory, status_path,
 };
 use anyhow::Result;
-use console::Style;
+use owo_colors::OwoColorize;
 use similar::TextDiff;
 use std::fs;
 use std::path::PathBuf;
@@ -64,7 +64,7 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: &DiffOptions) -> Result<
 
                 println!(
                     "{}",
-                    Style::new().dim().apply_to(format!("diff --git {} {}", a_path, b_path)),
+                    format!("diff --git {} {}", a_path, b_path).bright_black(),
                 );
 
                 let mut unified_diff = diff.unified_diff();
@@ -72,15 +72,15 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: &DiffOptions) -> Result<
 
                 for line in format!("{}", unified_diff).lines() {
                     if line.starts_with("@@") {
-                        println!("{}", Style::new().cyan().apply_to(line));
+                        println!("{}", line.cyan());
                     } else if line.starts_with("---") {
-                        println!("{}", Style::new().red().bold().apply_to(line));
+                        println!("{}", line.red().bold());
                     } else if line.starts_with("+++") {
-                        println!("{}", Style::new().green().bold().apply_to(line));
+                        println!("{}", line.green().bold());
                     } else if line.starts_with('-') {
-                        println!("{}", Style::new().red().apply_to(line));
+                        println!("{}", line.red());
                     } else if line.starts_with('+') {
-                        println!("{}", Style::new().green().apply_to(line));
+                        println!("{}", line.green());
                     } else {
                         println!("{}", line);
                     }

@@ -9,6 +9,7 @@ use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use filetime::{FileTime, set_file_mtime};
+use owo_colors::OwoColorize;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::path::Path;
@@ -35,7 +36,11 @@ pub fn encrypt_file<'a>(
     options: &EncryptOptions,
 ) -> Result<Option<OperationResult>> {
     if is_encrypted_path(path) || is_metadata_path(path) {
-        eprintln!("Warning: Skipping cottage file: {:?}", path.display());
+        eprintln!(
+            "{} {}: invalid path for encryption",
+            "skipped:".yellow(),
+            path.display()
+        );
         return Ok(None);
     }
 

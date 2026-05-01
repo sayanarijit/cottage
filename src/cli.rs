@@ -7,6 +7,7 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
+use owo_colors::OwoColorize;
 use std::path::{Path, PathBuf};
 
 #[derive(clap::Parser, Debug)]
@@ -310,21 +311,32 @@ fn print_result(proj: &Project, kind: OperationKind, input: &Path, output: &Path
         match kind {
             OperationKind::Encrypt => {
                 println!(
-                    "encrypt {}\n   into {}",
+                    "{} {}\n   {} {}",
+                    "encrypt".green(),
                     proj.relative_to_cwd(&input).display(),
+                    "into".blue(),
                     proj.relative_to_cwd(&output).display()
                 );
             }
             OperationKind::Decrypt => {
                 println!(
-                    "decrypt {}\n   into {}",
+                    "{} {}\n   {} {}",
+                    "decrypt".cyan(),
                     proj.relative_to_cwd(&input).display(),
+                    "into".blue(),
                     proj.relative_to_cwd(&output).display()
                 );
             }
         }
     } else {
-        println!("{}", proj.relative_to_cwd(output).display());
+        match kind {
+            OperationKind::Encrypt => {
+                println!("{}", proj.relative_to_cwd(output).display().green());
+            }
+            OperationKind::Decrypt => {
+                println!("{}", proj.relative_to_cwd(output).display().cyan());
+            }
+        }
     }
 }
 
@@ -512,9 +524,13 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs) -> Result<()> {
         let deleted = deleted?;
         if !args.quiet {
             if args.verbose {
-                println!("deleted {}", proj.relative_to_cwd(&deleted).display());
+                println!(
+                    "{} {}",
+                    "deleted".red(),
+                    proj.relative_to_cwd(&deleted).display()
+                );
             } else {
-                println!("{}", proj.relative_to_cwd(&deleted).display());
+                println!("{}", proj.relative_to_cwd(&deleted).display().red());
             }
         }
     }

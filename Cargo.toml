@@ -24,8 +24,8 @@ rust-ini = "0.21"
 chrono = { version = "0.4", features = ["serde"] }
 indexmap = { version = "2.14.0", features = ["serde"] }
 similar = "3.1.0"
-console = "0.16.3"
 edit = "0.1.5"
+owo-colors = "4.0.0"
 
 [dev-dependencies]
 tempfile = "3.27.0"

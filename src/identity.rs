@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, anyhow};
+use owo_colors::OwoColorize;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -27,7 +28,12 @@ pub fn parse_identities_dir(path: &Path) -> Vec<Box<dyn age::Identity>> {
         if entry.file_type().is_file() {
             match parse_identity_file(&entry.path()) {
                 Ok(identity) => identities.push(identity),
-                Err(e) => eprintln!("skipped: {}: {}", entry.path().display(), e),
+                Err(e) => eprintln!(
+                    "{} {}: {}",
+                    "skipped:".yellow(),
+                    entry.path().display(),
+                    e
+                ),
             }
         }
     }
@@ -59,7 +65,7 @@ pub fn load_identities(
             match parse_identity_file(&i) {
                 Ok(identity) => result.push(identity),
                 Err(e) => {
-                    eprintln!("skipped: {}: {}", i.display(), e);
+                    eprintln!("{} {}: {}", "skipped:".yellow(), i.display(), e);
                 }
             }
         }
