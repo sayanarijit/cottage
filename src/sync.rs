@@ -1,3 +1,4 @@
+use crate::is_metadata_path;
 use crate::{
     DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, Operation, OperationKind,
     OperationResult, dec::decrypt_file, enc::encrypt_file, is_encrypted_path, to_decrypted_path,
@@ -18,6 +19,10 @@ pub struct SyncOptions<'e, 'd> {
 }
 
 pub fn status_file(path: &Path) -> Result<Option<Operation>> {
+    if is_metadata_path(path) {
+        return Ok(None);
+    }
+
     let (encrypted_path, decrypted_path) = if is_encrypted_path(path) {
         let decrypted_path = to_decrypted_path(path)
             .ok_or_else(|| anyhow!("Failed to determine decrypted path for {:?}", path))?;
@@ -66,6 +71,7 @@ pub fn status_dir(path: &Path) -> impl Iterator<Item = Result<Operation>> {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
+        .filter(|e| is_metadata_path(e.path()))
         .filter_map(|e| status_file(e.path()).transpose())
 }
 

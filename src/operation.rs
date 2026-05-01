@@ -36,6 +36,10 @@ pub fn is_encrypted_path(path: &Path) -> bool {
     path.to_string_lossy().ends_with(".cott.age")
 }
 
+pub fn is_metadata_path(path: &Path) -> bool {
+    path.to_string_lossy().ends_with(".cott.toml")
+}
+
 pub fn to_decrypted_path(path: &Path) -> Option<PathBuf> {
     if is_encrypted_path(path) {
         path.file_stem()

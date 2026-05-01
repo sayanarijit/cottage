@@ -15,7 +15,7 @@ pub struct ChecksumMetadata {
     pub recipients: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PreviewFormat {
     #[serde(rename = "yaml")]
     Yaml,
@@ -25,6 +25,15 @@ pub enum PreviewFormat {
 
     #[serde(rename = "toml")]
     Toml,
+
+    #[serde(rename = "dotenv")]
+    Dotenv,
+
+    #[serde(rename = "ini")]
+    Ini,
+
+    #[serde(rename = "hcl")]
+    Hcl,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

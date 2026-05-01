@@ -17,6 +17,7 @@ fn test_diff_logic() -> Result<()> {
 
     let options = EncryptOptions {
         mode: EncryptionMode::Passphrase("password".to_string()),
+        identities: &[],
         armor: true,
         skip_gitignore: true,
         skip_timestamps: false,

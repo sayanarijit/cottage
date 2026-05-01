@@ -19,8 +19,8 @@ pub use metadata::{
     validate_checksum,
 };
 pub use operation::{
-    Operation, OperationKind, OperationResult, is_encrypted_path, to_decrypted_path,
-    to_encrypted_path, to_metadata_path,
+    Operation, OperationKind, OperationResult, is_encrypted_path, is_metadata_path,
+    to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
 pub use preview::generate_preview;
 pub use project::{

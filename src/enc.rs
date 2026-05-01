@@ -3,7 +3,7 @@ use crate::{
     SecretMetadata, decrypt_into_memory, is_encrypted_path, project::append_to_gitignore_if_absent,
     to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
-use crate::{generate_preview, make_checksum, validate_checksum};
+use crate::{generate_preview, is_metadata_path, make_checksum, validate_checksum};
 use age::armor::ArmoredWriter;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
@@ -34,6 +34,11 @@ pub fn encrypt_file<'a>(
     path: &'a Path,
     options: &EncryptOptions,
 ) -> Result<Option<OperationResult>> {
+    if is_encrypted_path(path) || is_metadata_path(path) {
+        eprintln!("Warning: Skipping cottage file: {:?}", path.display());
+        return Ok(None);
+    }
+
     // Just read operations for now ------------------------
     let (encryptor, recipients_data) = match &options.mode {
         EncryptionMode::Passphrase(pass) => (
@@ -184,6 +189,7 @@ pub fn encrypt_dir<'a>(
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
+        .filter(|e| is_metadata_path(e.path()))
         .filter_map(|e| to_decrypted_path(e.path()))
         .filter_map(|path| encrypt_file(&path, options).transpose())
 }

@@ -1,4 +1,4 @@
-use crate::{Metadata, to_metadata_path, validate_checksum};
+use crate::{Metadata, is_metadata_path, to_metadata_path, validate_checksum};
 use crate::{
     OperationKind, OperationResult, is_encrypted_path, project::append_to_gitignore_if_absent,
     to_decrypted_path,
@@ -136,6 +136,7 @@ pub fn decrypt_dir<'a>(
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| is_encrypted_path(e.path()))
+        .filter(|e| is_metadata_path(e.path()))
         .flat_map(|e| decrypt_file(e.path(), options).transpose())
 }
 
