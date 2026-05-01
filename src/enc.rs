@@ -52,7 +52,7 @@ pub fn encrypt_file<'a>(
         ),
         EncryptionMode::Recipients(recipients) => (
             age::Encryptor::with_recipients(recipients.iter().map(|(r, _)| r.as_ref() as _))
-                .map_err(|_| anyhow!("At least one recipient must be provided"))?,
+                .map_err(|_| anyhow!("at least one recipient must be provided"))?,
             recipients
                 .into_iter()
                 .map(|(_, r)| r)
@@ -68,8 +68,8 @@ pub fn encrypt_file<'a>(
         age::armor::Format::Binary
     };
 
-    let input_file =
-        File::open(path).with_context(|| format!("Failed to open input file: {:?}", path))?;
+    let input_file = File::open(path)
+        .with_context(|| format!("{}: failed to open input file", path.display()))?;
 
     let input = {
         let mut reader = BufReader::new(&input_file);
@@ -84,7 +84,7 @@ pub fn encrypt_file<'a>(
 
     if !options.skip_checksum && metadata_path.exists() {
         let metadata = Metadata::read_from_path(&metadata_path)
-            .with_context(|| format!("Failed to read metadata: {:?}", metadata_path))?;
+            .with_context(|| format!("{}: failed to read metadata", metadata_path.display()))?;
 
         if validate_checksum(&recipients_data, &metadata.checksum.recipients, &path).is_ok()
             && validate_checksum(input.as_slice(), &metadata.checksum.decrypted, &path).is_ok()
@@ -175,13 +175,13 @@ pub fn encrypt_file<'a>(
     };
 
     std::fs::write(&output_path, output)
-        .with_context(|| format!("Failed to write encrypted file: {:?}", output_path))?;
+        .with_context(|| format!("{}: failed to write encrypted file", output_path.display()))?;
 
     if !options.skip_timestamps {
         set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
     }
     std::fs::write(&metadata_path, toml::to_string(&metadata)?)
-        .with_context(|| format!("Failed to write metadata file: {:?}", metadata_path))?;
+        .with_context(|| format!("{}: failed to write metadata file", metadata_path.display()))?;
 
     Ok(Some(OperationResult {
         kind: OperationKind::Encrypt,

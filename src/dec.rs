@@ -56,19 +56,19 @@ pub fn decrypt_file<'a>(
     // Just read operations for now ------------------------
     if !is_encrypted_path(path) {
         return Err(anyhow!(
-            "Input file does not have .cott.age extension: {:?}",
-            path
+            "{}: does not have .cott.age extension",
+            path.display()
         ));
     }
 
     let output_path = to_decrypted_path(path)
-        .with_context(|| format!("Failed to determine output path for {:?}", path))?;
+        .with_context(|| format!("{}: failed to determine output path", path.display()))?;
     let metadata_path = to_metadata_path(&output_path);
     let metadata = Metadata::read_from_path(&metadata_path)
-        .with_context(|| format!("Failed to read metadata: {:?}", metadata_path))?;
+        .with_context(|| format!("{}: failed to read metadata", metadata_path.display()))?;
 
-    let mut input_file =
-        File::open(path).with_context(|| format!("Failed to open input file: {:?}", path))?;
+    let mut input_file = File::open(path)
+        .with_context(|| format!("{}: failed to open input file", path.display()))?;
     let filemtime = input_file.metadata()?.modified()?;
 
     let input = {
@@ -114,7 +114,7 @@ pub fn decrypt_file<'a>(
     };
 
     std::fs::write(&output_path, &output)
-        .with_context(|| format!("Failed to write decrypted file: {:?}", output_path))?;
+        .with_context(|| format!("{}: failed to write decrypted file", output_path.display()))?;
     if !options.skip_timestamps {
         set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
     };

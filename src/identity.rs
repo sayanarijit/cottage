@@ -7,11 +7,11 @@ use crate::Project;
 
 pub fn parse_identity_file(path: &Path) -> Result<Box<dyn age::Identity>> {
     let s = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read identity file: {:?}", path))?;
+        .with_context(|| format!("{}: failed to read identity file", path.display()))?;
 
     if s.starts_with("AGE-SECRET-KEY-1") {
         let identity = age::x25519::Identity::from_str(&s)
-            .map_err(|e| anyhow!("Failed to parse age identity: {}", e))?;
+            .map_err(|e| anyhow!("{}: failed to parse age identity", e))?;
         return Ok(Box::new(identity));
     }
 
@@ -28,12 +28,7 @@ pub fn parse_identities_dir(path: &Path) -> Vec<Box<dyn age::Identity>> {
         if entry.file_type().is_file() {
             match parse_identity_file(&entry.path()) {
                 Ok(identity) => identities.push(identity),
-                Err(e) => eprintln!(
-                    "{} {}: {}",
-                    "skipped:".yellow(),
-                    entry.path().display(),
-                    e
-                ),
+                Err(e) => eprintln!("{} {}: {}", "skipped:".yellow(), entry.path().display(), e),
             }
         }
     }
@@ -54,7 +49,7 @@ pub fn load_identities(
             result.push(parse_identity_file(&default_identities)?);
         } else {
             let sshdir = dirs::home_dir()
-                .ok_or_else(|| anyhow!("Failed to get home directory"))?
+                .ok_or_else(|| anyhow!("failed to get home directory"))?
                 .join(".ssh");
             if sshdir.is_dir() {
                 result.extend(parse_identities_dir(&sshdir));

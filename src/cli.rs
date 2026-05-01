@@ -354,7 +354,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
         let pass = rpassword::prompt_password("Enter passphrase: ")?;
         let confirm = rpassword::prompt_password("Confirm passphrase: ")?;
         if pass != confirm {
-            return Err(anyhow!("Passphrases do not match"));
+            return Err(anyhow!("passphrases do not match"));
         }
         EncryptionMode::Passphrase(pass)
     } else {
@@ -540,13 +540,14 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs) -> Result<()> {
 fn run_edit_cmd(proj: &Project, args: EditArgs) -> Result<()> {
     let path = &args.path;
     if !path.is_file() {
-        return Err(anyhow!("Not a file: {:?}", path));
+        return Err(anyhow!("{}: not a file", path.display()));
     }
 
     let is_target_encrypted = is_encrypted_path(path);
 
     let (decrypted_path, encrypted_path) = if is_target_encrypted {
-        let dec = to_decrypted_path(path).ok_or_else(|| anyhow!("Invalid encrypted path"))?;
+        let dec = to_decrypted_path(path)
+            .ok_or_else(|| anyhow!("{}: invalid encrypted path", path.display()))?;
         (dec, path.clone())
     } else {
         (path.clone(), to_encrypted_path(path))
@@ -620,7 +621,7 @@ pub fn run() -> Result<()> {
             if let Some(path) = cli.path {
                 run_edit_cmd(&proj, EditArgs::default_with_path(path))
             } else {
-                Err(anyhow!("No command or path provided"))
+                Err(anyhow!("no command or path provided"))
             }
         }
     }

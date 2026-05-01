@@ -25,7 +25,7 @@ pub fn status_file(path: &Path) -> Result<Option<Operation>> {
 
     let (encrypted_path, decrypted_path) = if is_encrypted_path(path) {
         let decrypted_path = to_decrypted_path(path)
-            .ok_or_else(|| anyhow!("Failed to determine decrypted path for {:?}", path))?;
+            .ok_or_else(|| anyhow!("{}: failed to determine decrypted path", path.display()))?;
         (path.to_path_buf(), decrypted_path)
     } else {
         let encrypted_path = to_encrypted_path(path);

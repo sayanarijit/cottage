@@ -41,7 +41,10 @@ impl Project {
         let cottage_dir = root.join(".cottage");
         if !cottage_dir.exists() {
             std::fs::create_dir(&cottage_dir).with_context(|| {
-                format!("Failed to create cottage directory at {:?}", cottage_dir)
+                format!(
+                    "{}: failed to create cottage directory",
+                    cottage_dir.display()
+                )
             })?;
         }
         let recipients_path = cottage_dir.join("recipients");
@@ -61,15 +64,19 @@ impl Project {
 
             std::fs::create_dir_all(&recipients_path).with_context(|| {
                 format!(
-                    "Failed to create recipient directory at {:?}",
-                    recipient_path.parent().unwrap()
+                    "{}: failed to create recipients directory",
+                    recipients_path.display()
                 )
             })?;
             std::fs::write(&recipient_path, pk.to_string()).with_context(|| {
-                format!("Failed to write recipient file at {:?}", recipient_path)
+                format!(
+                    "{}: failed to write recipient file",
+                    recipient_path.display()
+                )
             })?;
-            std::fs::write(&identity_path, sk.to_string().expose_secret())
-                .with_context(|| format!("Failed to write identity file at {:?}", identity_path))?;
+            std::fs::write(&identity_path, sk.to_string().expose_secret()).with_context(|| {
+                format!("{}: failed to write identity file", identity_path.display())
+            })?;
         };
 
         let git = if root.join(".git").exists() {
@@ -163,7 +170,7 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
         .read(true)
         .append(true)
         .open(path)
-        .with_context(|| format!("Failed to open {:?}", path))?;
+        .with_context(|| format!("{}: failed to open", path.display()))?;
 
     if std::io::BufReader::new(&file)
         .lines()
@@ -184,10 +191,10 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
     };
 
     if needs_nl {
-        writeln!(file).with_context(|| format!("Failed to write newline to {:?}", path))?;
+        writeln!(file).with_context(|| format!("{}: failed to write", path.display()))?;
     }
 
-    writeln!(file, "{}", line).with_context(|| format!("Failed to write to {:?}", path))?;
+    writeln!(file, "{}", line).with_context(|| format!("{}: failed to write", path.display()))?;
     Ok(true)
 }
 

@@ -9,22 +9,22 @@ use crate::Project;
 pub fn parse_recipient(s: &str) -> Result<Box<dyn age::Recipient + Send>> {
     if s.starts_with("age1") {
         let recipient = age::x25519::Recipient::from_str(s)
-            .map_err(|e| anyhow!("Failed to parse age recipient: {}", e))?;
+            .map_err(|e| anyhow!("{}: failed to parse age recipient", e))?;
         Ok(Box::new(recipient))
     } else if s.starts_with("ssh-") || s.starts_with("ecdsa-") {
         let recipient = age::ssh::Recipient::from_str(s)
-            .map_err(|e| anyhow!("Failed to parse SSH recipient: {:?}", e))?;
+            .map_err(|e| anyhow!("{:?}: failed to parse SSH recipient", e))?;
         Ok(Box::new(recipient))
     } else {
-        Err(anyhow!("Unsupported recipient format: {}", s))
+        Err(anyhow!("{}: unsupported recipient format", s))
     }
 }
 
 pub fn parse_recipients_file(
     path: &Path,
 ) -> Result<Vec<(Box<dyn age::Recipient + Send>, Vec<u8>)>> {
-    let file =
-        File::open(path).with_context(|| format!("Failed to open recipients file: {:?}", path))?;
+    let file = File::open(path)
+        .with_context(|| format!("{}: failed to open recipients file", path.display()))?;
     let reader = BufReader::new(file);
     let mut recipients = Vec::new();
 

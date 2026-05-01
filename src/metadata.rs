@@ -51,9 +51,9 @@ pub struct Metadata {
 impl Metadata {
     pub fn read_from_path(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read metadata file: {:?}", path))?;
+            .with_context(|| format!("{}: failed to read metadata file", path.display()))?;
         toml::from_str::<Metadata>(&content)
-            .with_context(|| format!("Failed to parse metadata file: {:?}", path))
+            .with_context(|| format!("{}: failed to parse metadata", path.display()))
     }
 }
 
@@ -62,20 +62,22 @@ pub fn make_checksum(data: &[u8]) -> String {
 }
 
 pub fn validate_checksum(data: &[u8], checksum: &str, path: &Path) -> Result<()> {
-    if let Some(("blake3", cs)) = checksum.split_once(":") {
-        let enc_checksum = blake3::hash(data).to_hex().to_string();
-        if enc_checksum == cs {
-            Ok(())
-        } else {
-            Err(anyhow!(
-                "Checksum mismatch: {}: expected {cs:?}, got {enc_checksum:?}",
-                path.display(),
-            ))
+    match checksum.split_once(":") {
+        Some((algo, cs)) if algo == "blake3" => {
+            let enc_checksum = blake3::hash(data).to_hex().to_string();
+            if enc_checksum == cs {
+                Ok(())
+            } else {
+                Err(anyhow!(
+                    "{}: checksum mismatch: expected {cs:?}, got {enc_checksum:?}",
+                    path.display(),
+                ))
+            }
         }
-    } else {
-        return Err(anyhow!(
-            "Unsupported checksum format in metadata: {:?}",
-            checksum
-        ));
+        Some((algo, _)) => Err(anyhow!("{algo}: unsupported checksum format in metadata",)),
+        None => Err(anyhow!(
+            "{}: invalid checksum format in metadata",
+            path.display(),
+        )),
     }
 }

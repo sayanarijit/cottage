@@ -19,13 +19,13 @@ toml = "0.8"
 serde_json = "1.0"
 serde_yaml = "0.9"
 hcl-rs = "0.19"
-dotenvy = "0.15"
 rust-ini = "0.21"
 chrono = { version = "0.4", features = ["serde"] }
 indexmap = { version = "2.14.0", features = ["serde"] }
 similar = "3.1.0"
 edit = "0.1.5"
 owo-colors = "4.0.0"
+dotenvy = "0.15.7"
 
 [dev-dependencies]
 tempfile = "3.27.0"
