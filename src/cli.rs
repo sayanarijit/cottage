@@ -544,6 +544,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs) -> Result<()> {
     };
 
     let identities = load_identities(proj, &args.identity)?;
+    let recipients = load_recipients(proj, &args.recipient, &args.recipients_file)?;
 
     if is_target_encrypted {
         let mode = if let Some(pass) = passphrase.clone() {
@@ -559,13 +560,12 @@ fn run_edit_cmd(proj: &Project, args: EditArgs) -> Result<()> {
             skip_checksum_decrypted: false,
         };
 
-        _ = decrypt_file(&encrypted_path, &options)?;
+        let _ = decrypt_file(&encrypted_path, &options)?;
     }
 
     edit::edit_file(&decrypted_path)?;
 
     {
-        let recipients = load_recipients(proj, &args.recipient, &args.recipients_file)?;
         let mode = if let Some(passphrase) = passphrase {
             EncryptionMode::Passphrase(passphrase)
         } else {
