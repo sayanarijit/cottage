@@ -3,6 +3,7 @@ use anyhow::Result;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone, Copy)]
 pub struct CleanOptions {
     pub dry_run: bool,
     pub skip_gitignore: bool,
@@ -25,7 +26,7 @@ pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<PathBuf>>
     }
 }
 
-pub fn clean_path(path: &Path, opts: &CleanOptions) -> impl Iterator<Item = Result<PathBuf>> {
+pub fn clean_dir(path: &Path, opts: &CleanOptions) -> impl Iterator<Item = Result<PathBuf>> {
     Box::new(
         walkdir::WalkDir::new(path)
             .into_iter()
@@ -38,15 +39,22 @@ pub fn clean_path(path: &Path, opts: &CleanOptions) -> impl Iterator<Item = Resu
     )
 }
 
+pub fn clean_path<'a>(
+    path: &'a Path,
+    opts: &'a CleanOptions,
+) -> Box<dyn Iterator<Item = Result<PathBuf>> + 'a> {
+    if path.is_file() {
+        Box::new(clean_file(path.to_path_buf(), opts).transpose().into_iter())
+    } else if path.is_dir() {
+        Box::new(clean_dir(path, opts))
+    } else {
+        Box::new(std::iter::empty())
+    }
+}
+
 pub fn clean_project<'a>(
     proj: &'a Project,
     opts: &'a CleanOptions,
 ) -> Box<dyn Iterator<Item = Result<PathBuf>> + 'a> {
-    Box::new(
-        clean_path(proj.root(), opts).chain(
-            clean_file(proj.identity_path().into(), opts)
-                .transpose()
-                .into_iter(),
-        ),
-    )
+    Box::new(clean_path(proj.root(), opts).chain(clean_path(proj.identity_path(), opts)))
 }

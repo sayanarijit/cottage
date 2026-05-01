@@ -2,15 +2,16 @@ use crate::dec::decrypt_file;
 use crate::enc::encrypt_file;
 use crate::{
     CleanOptions, DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode,
-    OperationKind, Project, SyncOptions, clean_project, decrypt_path, diff, encrypt_path,
-    is_encrypted_path, is_metadata_path, load_identities, load_recipients, status_path, sync_path,
-    to_decrypted_path, to_encrypted_path,
+    OperationKind, Project, SyncOptions, clean_path, clean_project, decrypt_path, diff,
+    encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
+    status_path, sync_path, to_decrypted_path, to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use owo_colors::OwoColorize;
-use std::io::{IsTerminal, Read, Write, stdin};
+use std::fs::File;
+use std::io::{IsTerminal, Write, stdin};
 use std::path::{Path, PathBuf};
 
 #[derive(clap::Parser, Debug)]
@@ -66,6 +67,9 @@ enum SkipChecksum {
 
 #[derive(clap::Args, Debug)]
 struct CleanArgs {
+    /// The file or dir to clean, defaults to project root.
+    path: Vec<PathBuf>,
+
     /// Dry run, don't actually delete anything.
     #[arg(short = 'n', long)]
     dry_run: bool,
@@ -75,7 +79,7 @@ struct CleanArgs {
     skip_gitignore: bool,
 
     /// Compact output.
-    #[arg(short, long)]
+    #[arg(long)]
     compact: bool,
 }
 
@@ -123,7 +127,7 @@ struct EditArgs {
     skip_preview: bool,
 
     /// Compact output.
-    #[arg(short, long)]
+    #[arg(long)]
     compact: bool,
 }
 
@@ -180,7 +184,7 @@ struct EncryptArgs {
     skip_preview: bool,
 
     /// Compact output.
-    #[arg(short, long)]
+    #[arg(long)]
     compact: bool,
 }
 
@@ -219,7 +223,7 @@ struct DecryptArgs {
     skip_verify_decrypted: bool,
 
     /// Compact output.
-    #[arg(short, long)]
+    #[arg(long)]
     compact: bool,
 }
 
@@ -279,7 +283,7 @@ struct SyncArgs {
     force: bool,
 
     /// Compact output.
-    #[arg(short, long)]
+    #[arg(long)]
     compact: bool,
 }
 
@@ -320,7 +324,7 @@ struct StatusArgs {
     path: Vec<PathBuf>,
 
     /// Compact output.
-    #[arg(short, long)]
+    #[arg(long)]
     compact: bool,
 
     /// Exit with code 1 if there are pending operations.
@@ -546,21 +550,31 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
 }
 
 fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
-    log::debug!("clean: starting project clean");
+    log::debug!("clean: checking paths: {:?}", args.path);
+
     let opts = CleanOptions {
         dry_run: args.dry_run,
         skip_gitignore: args.skip_gitignore,
     };
-    for deleted in clean_project(proj, &opts) {
-        let deleted = deleted?;
-        if args.compact {
-            println!(
-                "{} {}",
-                "deleted".red(),
-                proj.relative_to_cwd(&deleted).display()
-            );
-        } else if !quiet {
-            println!("{}", proj.relative_to_cwd(&deleted).display().red());
+
+    let result = if args.path.is_empty() {
+        clean_project(proj, &opts)
+    } else {
+        Box::new(args.path.iter().map(|p| clean_path(p, &opts)).flatten())
+    };
+
+    for res in result {
+        let res = res?;
+        if !quiet {
+            if args.compact {
+                println!("{}", proj.relative_to_cwd(&res).display().red());
+            } else {
+                println!(
+                    "{} {}",
+                    "deleted".red(),
+                    proj.relative_to_cwd(&res).display()
+                );
+            }
         }
     }
     Ok(())
@@ -592,24 +606,33 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
     let identities = load_identities(proj, &args.identity)?;
     let recipients = load_recipients(proj, &args.recipient, &args.recipients_file)?;
 
-    if is_target_encrypted {
-        let mode = if let Some(pass) = passphrase.clone() {
-            DecryptionMode::Passphrase(pass)
-        } else {
-            DecryptionMode::Identities(&identities)
-        };
-        let options = DecryptOptions {
-            mode,
-            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
-            skip_timestamps: args.skip_timestamps,
-            skip_verify_encrypted: false,
-            skip_verify_decrypted: false,
-        };
+    if !stdin().is_terminal() {
+        let mut outfile = File::create(&decrypted_path)?;
+        let mut writer = std::io::BufWriter::new(&mut outfile);
+        let infile = stdin().lock();
+        let mut reader = std::io::BufReader::new(infile);
+        std::io::copy(&mut reader, &mut writer)?;
+        writer.flush()?;
+    } else {
+        if is_target_encrypted {
+            let mode = if let Some(pass) = passphrase.clone() {
+                DecryptionMode::Passphrase(pass)
+            } else {
+                DecryptionMode::Identities(&identities)
+            };
+            let options = DecryptOptions {
+                mode,
+                skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+                skip_timestamps: args.skip_timestamps,
+                skip_verify_encrypted: false,
+                skip_verify_decrypted: false,
+            };
 
-        let _ = decrypt_file(&encrypted_path, &options)?;
+            let _ = decrypt_file(&encrypted_path, &options)?;
+        }
+
+        edit::edit_file(&decrypted_path)?;
     }
-
-    edit::edit_file(&decrypted_path)?;
 
     {
         let mode = if let Some(passphrase) = passphrase {
@@ -634,24 +657,6 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             }
         }
     }
-
-    Ok(())
-}
-
-fn run_pipe_cmd(proj: &Project, path: PathBuf) -> Result<()> {
-    let mut input = Vec::new();
-    stdin().read_to_end(&mut input)?;
-
-    let decrypted_path = if is_encrypted_path(&path) {
-        to_decrypted_path(&path)
-            .ok_or_else(|| anyhow!("{}: invalid encrypted path", path.display()))?
-    } else {
-        path.clone()
-    };
-
-    std::fs::write(&decrypted_path, input)?;
-
-    println!("{}", proj.relative_to_cwd(&decrypted_path).display().cyan());
 
     Ok(())
 }
@@ -693,12 +698,8 @@ pub fn run() -> Result<()> {
         Some(Commands::Edit(args)) => run_edit_cmd(&proj, args, cli.verbosity.is_silent()),
         None => {
             if let Some(path) = cli.path {
-                if !stdin().is_terminal() {
-                    run_pipe_cmd(&proj, path)
-                } else {
-                    let args = EditArgs::default_with_path(path);
-                    run_edit_cmd(&proj, args, cli.verbosity.is_silent())
-                }
+                let args = EditArgs::default_with_path(path);
+                run_edit_cmd(&proj, args, cli.verbosity.is_silent())
             } else {
                 Ok(())
             }
