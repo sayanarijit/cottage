@@ -126,6 +126,10 @@ impl Project {
     pub fn relative_to_cwd(&self, path: &Path) -> PathBuf {
         pathdiff::diff_paths(path, &self.cwd).unwrap_or_else(|| path.to_path_buf())
     }
+
+    pub fn relative_to_root(&self, path: &Path) -> PathBuf {
+        pathdiff::diff_paths(path, &self.root).unwrap_or_else(|| path.to_path_buf())
+    }
 }
 
 pub fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {

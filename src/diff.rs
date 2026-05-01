@@ -48,33 +48,40 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: &DiffOptions) -> Result<
             if decrypted_content != encrypted_content {
                 has_diff = true;
 
-                let rel_input = proj.relative_to_cwd(&op.input);
-                let rel_output = proj.relative_to_cwd(&op.output);
-
-                let old_label = format!("a/{}", rel_input.display());
-                let new_label = format!("b/{}", rel_output.display());
-
                 let encrypted_str = String::from_utf8_lossy(&encrypted_content);
                 let decrypted_str = String::from_utf8_lossy(&decrypted_content);
 
                 let (old_str, new_str) = match op.kind {
-                    OperationKind::Decrypt => (decrypted_str, encrypted_str),
                     OperationKind::Encrypt => (encrypted_str, decrypted_str),
+                    OperationKind::Decrypt => (decrypted_str, encrypted_str),
                 };
 
                 let diff = TextDiff::from_lines(&old_str, &new_str);
 
-                // println!("diff --cottage {} {}", old_label, new_label);
-                println!("--- {}", old_label);
-                println!("+++ {}", new_label);
+                let diff_path = proj.relative_to_root(&decrypted_path);
+                let styled_diff_path = Style::new().cyan().apply_to(diff_path.display());
+
+                println!(
+                    "{}",
+                    Style::new().dim().apply_to(format!(
+                        "diff --git a/{} b/{}",
+                        diff_path.display(),
+                        diff_path.display()
+                    )),
+                );
+                println!(
+                    "{} a/{styled_diff_path}\n{} b/{styled_diff_path}",
+                    Style::new().red().apply_to("---"),
+                    Style::new().green().apply_to("+++"),
+                );
 
                 for change in diff.iter_all_changes() {
-                    let (sign, style) = match change.tag() {
-                        ChangeTag::Delete => ("-", Style::new().red()),
-                        ChangeTag::Insert => ("+", Style::new().green()),
-                        ChangeTag::Equal => (" ", Style::new()),
+                    let sign = match change.tag() {
+                        ChangeTag::Delete => Style::new().red().apply_to("-"),
+                        ChangeTag::Insert => Style::new().green().apply_to("+"),
+                        ChangeTag::Equal => Style::new().dim().apply_to(" "),
                     };
-                    print!("{}{}", style.apply_to(sign), style.apply_to(change));
+                    print!("{}{}", sign, change);
                 }
             }
         }
