@@ -560,7 +560,12 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
     let result = if args.path.is_empty() {
         clean_project(proj, &opts)
     } else {
-        Box::new(args.path.iter().map(|p| clean_path(p, &opts)).flatten())
+        Box::new(
+            args.path
+                .iter()
+                .map(|p| clean_path(p, &opts, p == proj.identity_path()))
+                .flatten(),
+        )
     };
 
     for res in result {
