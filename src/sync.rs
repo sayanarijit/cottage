@@ -36,12 +36,14 @@ pub fn status_file(path: &Path) -> Result<Option<Operation>> {
     };
 
     if !encrypted_path.exists() && decrypted_path.exists() {
+        log::debug!("{}: status: encryption required", decrypted_path.display());
         Ok(Some(Operation {
             kind: OperationKind::Encrypt,
             input: decrypted_path,
             output: encrypted_path,
         }))
     } else if encrypted_path.exists() && !decrypted_path.exists() {
+        log::debug!("{}: status: decryption required", encrypted_path.display());
         Ok(Some(Operation {
             kind: OperationKind::Decrypt,
             input: encrypted_path,
@@ -52,18 +54,21 @@ pub fn status_file(path: &Path) -> Result<Option<Operation>> {
         let decrypted_mtime = fs::metadata(&decrypted_path)?.modified()?;
 
         if encrypted_mtime > decrypted_mtime {
+            log::debug!("{}: status: decryption required (encrypted file is newer)", encrypted_path.display());
             Ok(Some(Operation {
                 kind: OperationKind::Decrypt,
                 input: encrypted_path,
                 output: decrypted_path,
             }))
         } else if decrypted_mtime > encrypted_mtime {
+            log::debug!("{}: status: encryption required (decrypted file is newer)", decrypted_path.display());
             Ok(Some(Operation {
                 kind: OperationKind::Encrypt,
                 input: decrypted_path,
                 output: encrypted_path,
             }))
         } else {
+            log::debug!("{}: status: up to date", decrypted_path.display());
             Ok(None)
         }
     }
@@ -119,6 +124,7 @@ pub fn sync_path<'a>(
     path: &'a Path,
     sync_options: &'a SyncOptions,
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
+    log::debug!("{}: syncing path", path.display());
     Box::new(
         status_path(path)
             .filter_map(move |res| res.and_then(|op| perform(&op, sync_options)).transpose()),

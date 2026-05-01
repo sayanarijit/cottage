@@ -11,10 +11,11 @@ pub struct CleanOptions {
 pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<PathBuf>> {
     if path.is_file() {
         if !opts.dry_run {
+            log::debug!("{}: removing file", path.display());
             fs::remove_file(&path)?;
             if !opts.skip_gitignore {
-                while remove_from_gitignore_if_present(path.clone())?.is_some() {
-                    // Keep trying to remove from gitignore until it returns false, in case there are multiple entries for the same file
+                while let Some(_) = remove_from_gitignore_if_present(path.clone())? {
+                    //
                 }
             }
         }

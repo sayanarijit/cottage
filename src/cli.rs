@@ -8,8 +8,9 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
+use clap_verbosity_flag::{Verbosity, WarnLevel};
 use owo_colors::OwoColorize;
-use std::io::{IsTerminal, Read, stdin};
+use std::io::{IsTerminal, Read, Write, stdin};
 use std::path::{Path, PathBuf};
 
 #[derive(clap::Parser, Debug)]
@@ -20,6 +21,9 @@ struct CottageCli {
 
     /// The file to edit or sync with stdin.
     path: Option<PathBuf>,
+
+    #[command(flatten)]
+    verbosity: Verbosity<WarnLevel>,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -70,13 +74,9 @@ struct CleanArgs {
     #[arg(long)]
     skip_gitignore: bool,
 
-    /// Verbose output.
+    /// Compact output.
     #[arg(short, long)]
-    verbose: bool,
-
-    /// Suppress all output except errors.
-    #[arg(short, long)]
-    quiet: bool,
+    compact: bool,
 }
 
 #[derive(clap::Args, Debug, Default)]
@@ -122,13 +122,9 @@ struct EditArgs {
     #[arg(long)]
     skip_preview: bool,
 
-    /// Verbose output.
+    /// Compact output.
     #[arg(short, long)]
-    verbose: bool,
-
-    /// Suppress all output except errors.
-    #[arg(short, long)]
-    quiet: bool,
+    compact: bool,
 }
 
 impl EditArgs {
@@ -183,13 +179,9 @@ struct EncryptArgs {
     #[arg(long)]
     skip_preview: bool,
 
-    /// Verbose output.
+    /// Compact output.
     #[arg(short, long)]
-    verbose: bool,
-
-    /// Suppress all output except errors.
-    #[arg(short, long)]
-    quiet: bool,
+    compact: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -226,13 +218,9 @@ struct DecryptArgs {
     #[arg(long)]
     skip_verify_decrypted: bool,
 
-    /// Verbose output.
+    /// Compact output.
     #[arg(short, long)]
-    verbose: bool,
-
-    /// Suppress all output except errors.
-    #[arg(short, long)]
-    quiet: bool,
+    compact: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -290,13 +278,9 @@ struct SyncArgs {
     #[arg(long, short)]
     force: bool,
 
-    /// Verbose output.
+    /// Compact output.
     #[arg(short, long)]
-    verbose: bool,
-
-    /// Suppress all output except errors.
-    #[arg(short, long)]
-    quiet: bool,
+    compact: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -335,46 +319,45 @@ struct StatusArgs {
     /// The file to dir to check status of, defaults to project root.
     path: Vec<PathBuf>,
 
+    /// Compact output.
+    #[arg(short, long)]
+    compact: bool,
+
     /// Exit with code 1 if there are pending operations.
     #[arg(long)]
     fail: bool,
 }
 
-fn print_result(proj: &Project, kind: OperationKind, input: &Path, output: &Path, verbose: bool) {
-    if verbose {
-        match kind {
-            OperationKind::Encrypt => {
-                println!(
-                    "{} {}\n   {} {}",
-                    "encrypt".green(),
-                    proj.relative_to_cwd(&input).display(),
-                    "into".blue(),
-                    proj.relative_to_cwd(&output).display()
-                );
-            }
-            OperationKind::Decrypt => {
-                println!(
-                    "{} {}\n   {} {}",
-                    "decrypt".cyan(),
-                    proj.relative_to_cwd(&input).display(),
-                    "into".blue(),
-                    proj.relative_to_cwd(&output).display()
-                );
-            }
+fn print_result(proj: &Project, kind: OperationKind, input: &Path, output: &Path, compact: bool) {
+    match (kind, compact) {
+        (OperationKind::Encrypt, false) => {
+            println!(
+                "{} {}\n   {} {}",
+                "encrypt".green(),
+                proj.relative_to_cwd(&input).display(),
+                "into".blue(),
+                proj.relative_to_cwd(&output).display()
+            );
         }
-    } else {
-        match kind {
-            OperationKind::Encrypt => {
-                println!("{}", proj.relative_to_cwd(output).display().green());
-            }
-            OperationKind::Decrypt => {
-                println!("{}", proj.relative_to_cwd(output).display().cyan());
-            }
+        (OperationKind::Decrypt, false) => {
+            println!(
+                "{} {}\n   {} {}",
+                "decrypt".cyan(),
+                proj.relative_to_cwd(&input).display(),
+                "into".blue(),
+                proj.relative_to_cwd(&output).display()
+            );
+        }
+        (OperationKind::Encrypt, true) => {
+            println!("{}", proj.relative_to_cwd(output).display().green());
+        }
+        (OperationKind::Decrypt, true) => {
+            println!("{}", proj.relative_to_cwd(output).display().cyan());
         }
     }
 }
 
-fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
+fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()> {
     let input = if args.path.is_empty() {
         vec![proj.root().into()]
     } else {
@@ -382,7 +365,9 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
     };
 
     let recipients = load_recipients(&proj, &args.recipient, &args.recipients_file)?;
+    log::debug!("encrypt: loaded recipients");
     let identities = load_identities(&proj, &args.identity)?;
+    log::debug!("encrypt: loaded identities");
 
     let mode = if args.passphrase {
         let pass = rpassword::prompt_password("Enter passphrase: ")?;
@@ -408,8 +393,8 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
     for path in &input {
         for res in encrypt_path(path, &options) {
             let res = res?;
-            if !args.quiet {
-                print_result(&proj, res.kind, &res.input, &res.output, args.verbose);
+            if !quiet {
+                print_result(&proj, res.kind, &res.input, &res.output, args.compact);
             }
         }
     }
@@ -417,7 +402,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
     Ok(())
 }
 
-fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
+fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()> {
     let input = if args.path.is_empty() {
         vec![proj.root().into()]
     } else {
@@ -425,6 +410,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
     };
 
     let identities = load_identities(&proj, &args.identity)?;
+    log::debug!("decrypt: loaded identities");
 
     let mode = if args.passphrase {
         let pass = rpassword::prompt_password("Enter passphrase: ")?;
@@ -444,15 +430,16 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs) -> Result<()> {
     for path in &input {
         for res in decrypt_path(path, &options) {
             let res = res?;
-            if !args.quiet {
-                print_result(&proj, res.kind, &res.input, &res.output, args.verbose);
+            if !quiet {
+                print_result(&proj, res.kind, &res.input, &res.output, args.compact);
             }
         }
     }
     Ok(())
 }
 
-fn run_status_cmd(proj: &Project, args: StatusArgs) -> Result<()> {
+fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
+    log::debug!("status: checking paths: {:?}", args.path);
     let input = if args.path.is_empty() {
         vec![proj.root().into()]
     } else {
@@ -463,8 +450,10 @@ fn run_status_cmd(proj: &Project, args: StatusArgs) -> Result<()> {
     for path in &input {
         for res in status_path(&path) {
             let res = res?;
-            print_result(proj, res.kind, &res.input, &res.output, true);
             has_pending = true;
+            if !quiet {
+                print_result(proj, res.kind, &res.input, &res.output, args.compact);
+            }
         }
     }
 
@@ -475,7 +464,7 @@ fn run_status_cmd(proj: &Project, args: StatusArgs) -> Result<()> {
     Ok(())
 }
 
-fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
+fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
     let input = if args.path.is_empty() {
         vec![proj.root().into()]
     } else {
@@ -483,7 +472,9 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
     };
 
     let recipients = load_recipients(&proj, &args.recipient, &args.recipients_file)?;
+    log::debug!("encrypt: loaded recipients");
     let identities = load_identities(&proj, &args.identity)?;
+    log::debug!("encrypt: loaded identities");
 
     let (enc_mode, dec_mode) = if args.passphrase {
         let pass = rpassword::prompt_password("Enter passphrase: ")?;
@@ -514,8 +505,8 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
     for path in &input {
         for res in sync_path(path, &sync_options) {
             let res = res?;
-            if !args.quiet {
-                print_result(&proj, res.kind, &res.input, &res.output, args.verbose);
+            if !quiet {
+                print_result(&proj, res.kind, &res.input, &res.output, args.compact);
             }
         }
     }
@@ -524,6 +515,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
 }
 
 fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
+    log::debug!("diff: checking paths: {:?}", args.path);
     let input = if args.path.is_empty() {
         vec![proj.root().into()]
     } else {
@@ -531,6 +523,7 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
     };
 
     let identities = load_identities(&proj, &args.identity)?;
+    log::debug!("diff: loaded identities");
 
     let mode = if args.passphrase {
         let pass = rpassword::prompt_password("Enter passphrase: ")?;
@@ -552,29 +545,28 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
     Ok(())
 }
 
-fn run_clean_cmd(proj: &Project, args: CleanArgs) -> Result<()> {
+fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
+    log::debug!("clean: starting project clean");
     let opts = CleanOptions {
         dry_run: args.dry_run,
         skip_gitignore: args.skip_gitignore,
     };
     for deleted in clean_project(proj, &opts) {
         let deleted = deleted?;
-        if !args.quiet {
-            if args.verbose {
-                println!(
-                    "{} {}",
-                    "deleted".red(),
-                    proj.relative_to_cwd(&deleted).display()
-                );
-            } else {
-                println!("{}", proj.relative_to_cwd(&deleted).display().red());
-            }
+        if args.compact {
+            println!(
+                "{} {}",
+                "deleted".red(),
+                proj.relative_to_cwd(&deleted).display()
+            );
+        } else if !quiet {
+            println!("{}", proj.relative_to_cwd(&deleted).display().red());
         }
     }
     Ok(())
 }
 
-fn run_edit_cmd(proj: &Project, args: EditArgs) -> Result<()> {
+fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
     let path = &args.path;
     if is_metadata_path(path) {
         return Err(anyhow!("{}: cannot edit metadata file", path.display()));
@@ -637,8 +629,8 @@ fn run_edit_cmd(proj: &Project, args: EditArgs) -> Result<()> {
         };
 
         if let Some(res) = encrypt_file(&decrypted_path, &options)? {
-            if !args.quiet {
-                print_result(proj, res.kind, &res.input, &res.output, args.verbose);
+            if !quiet {
+                print_result(proj, res.kind, &res.input, &res.output, args.compact);
             }
         }
     }
@@ -666,23 +658,46 @@ fn run_pipe_cmd(proj: &Project, path: PathBuf) -> Result<()> {
 
 pub fn run() -> Result<()> {
     let cli = CottageCli::parse();
+
+    env_logger::Builder::new()
+        .filter_level(cli.verbosity.into())
+        .format(|buf, record| {
+            if record.level() <= log::Level::Warn {
+                writeln!(
+                    buf,
+                    "{}: {}",
+                    record.level().to_string().to_lowercase().yellow(),
+                    record.args()
+                )
+            } else {
+                writeln!(
+                    buf,
+                    "{} {}: {}",
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S").dimmed(),
+                    record.level().to_string().to_lowercase().yellow(),
+                    record.args()
+                )
+            }
+        })
+        .init();
+
     let proj = Project::init()?;
 
     match cli.command {
-        Some(Commands::Encrypt(args)) => run_encrypt_cmd(&proj, args),
-        Some(Commands::Decrypt(args)) => run_decrypt_cmd(&proj, args),
-        Some(Commands::Sync(args)) => run_sync_cmd(&proj, args),
-        Some(Commands::Status(args)) => run_status_cmd(&proj, args),
+        Some(Commands::Encrypt(args)) => run_encrypt_cmd(&proj, args, cli.verbosity.is_silent()),
+        Some(Commands::Decrypt(args)) => run_decrypt_cmd(&proj, args, cli.verbosity.is_silent()),
+        Some(Commands::Sync(args)) => run_sync_cmd(&proj, args, cli.verbosity.is_silent()),
+        Some(Commands::Status(args)) => run_status_cmd(&proj, args, cli.verbosity.is_silent()),
         Some(Commands::Diff(args)) => run_diff_cmd(&proj, args),
-        Some(Commands::Clean(args)) => run_clean_cmd(&proj, args),
-        Some(Commands::Edit(args)) => run_edit_cmd(&proj, args),
+        Some(Commands::Clean(args)) => run_clean_cmd(&proj, args, cli.verbosity.is_silent()),
+        Some(Commands::Edit(args)) => run_edit_cmd(&proj, args, cli.verbosity.is_silent()),
         None => {
             if let Some(path) = cli.path {
                 if !stdin().is_terminal() {
                     run_pipe_cmd(&proj, path)
                 } else {
                     let args = EditArgs::default_with_path(path);
-                    run_edit_cmd(&proj, args)
+                    run_edit_cmd(&proj, args, cli.verbosity.is_silent())
                 }
             } else {
                 Ok(())

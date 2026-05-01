@@ -1,21 +1,23 @@
 use anyhow::{Context, Result, anyhow};
-use owo_colors::OwoColorize;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::Project;
 
 pub fn parse_identity_file(path: &Path) -> Result<Box<dyn age::Identity>> {
+    log::debug!("{}: parsing identity", path.display());
     let s = std::fs::read_to_string(path)
         .with_context(|| format!("{}: failed to read identity file", path.display()))?;
 
     if s.starts_with("AGE-SECRET-KEY-1") {
         let identity = age::x25519::Identity::from_str(&s)
             .map_err(|e| anyhow!("{}: failed to parse age identity", e))?;
+        log::debug!("{}: parsed age identity", path.display());
         return Ok(Box::new(identity));
     }
 
     let identity = age::ssh::Identity::from_buffer(s.as_bytes(), None)?;
+    log::debug!("{}: parsed ssh identity", path.display());
     Ok(Box::new(identity))
 }
 
@@ -28,7 +30,7 @@ pub fn parse_identities_dir(path: &Path) -> Vec<Box<dyn age::Identity>> {
         if entry.file_type().is_file() {
             match parse_identity_file(&entry.path()) {
                 Ok(identity) => identities.push(identity),
-                Err(e) => eprintln!("{} {}: {}", "skipped:".yellow(), entry.path().display(), e),
+                Err(e) => log::warn!("skipped: {}: {}", entry.path().display(), e.to_string()),
             }
         }
     }
@@ -60,10 +62,11 @@ pub fn load_identities(
             match parse_identity_file(&i) {
                 Ok(identity) => result.push(identity),
                 Err(e) => {
-                    eprintln!("{} {}: {}", "skipped:".yellow(), i.display(), e);
+                    log::warn!("skipped: {}: {}", i.display(), e.to_string());
                 }
             }
         }
     }
+    log::debug!("loaded {} identities", result.len());
     Ok(result)
 }

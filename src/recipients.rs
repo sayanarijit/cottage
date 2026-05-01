@@ -23,6 +23,7 @@ pub fn parse_recipient(s: &str) -> Result<Box<dyn age::Recipient + Send>> {
 pub fn parse_recipients_file(
     path: &Path,
 ) -> Result<Vec<(Box<dyn age::Recipient + Send>, Vec<u8>)>> {
+    log::debug!("{}: parsing recipients", path.display());
     let file = File::open(path)
         .with_context(|| format!("{}: failed to open recipients file", path.display()))?;
     let reader = BufReader::new(file);
@@ -78,5 +79,6 @@ pub fn load_recipients(
             }
         }
     }
+    log::debug!("loaded {} recipients", result.len());
     Ok(result)
 }

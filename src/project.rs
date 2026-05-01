@@ -40,6 +40,7 @@ impl Project {
             "{}: failed to find project root (looking for .cottage/, .git/, or .jj/)",
             cwd.display()
         ))?;
+        log::debug!("{}: project root identified", root.display());
 
         let cottage_dir = root.join(".cottage");
         if !cottage_dir.exists() {
@@ -49,6 +50,7 @@ impl Project {
                     cottage_dir.display()
                 )
             })?;
+            log::debug!("{}: created directory", cottage_dir.display());
         }
         let recipients_path = cottage_dir.join("recipients");
         let identity_path = cottage_dir.join("identity");
@@ -61,6 +63,11 @@ impl Project {
                     .to_string()
             });
             let recipient_path = recipients_path.join(&reicipient);
+            log::debug!(
+                "init: {}: creating new recipient and identity for user {}",
+                recipient_path.display(),
+                reicipient
+            );
 
             let sk = age::x25519::Identity::generate();
             let pk = sk.to_public();
@@ -71,15 +78,18 @@ impl Project {
                     recipients_path.display()
                 )
             })?;
+            log::debug!("{}: created directory", recipients_path.display());
             std::fs::write(&recipient_path, pk.to_string()).with_context(|| {
                 format!(
                     "{}: failed to write recipient file",
                     recipient_path.display()
                 )
             })?;
+            log::debug!("{}: wrote file", recipient_path.display());
             std::fs::write(&identity_path, sk.to_string().expose_secret()).with_context(|| {
                 format!("{}: failed to write identity file", identity_path.display())
             })?;
+            log::debug!("{}: wrote file", identity_path.display());
         };
 
         let git = if root.join(".git").exists() {
@@ -168,6 +178,7 @@ pub fn get_project_root(cwd: &Path) -> Option<PathBuf> {
 
 pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
     let line = line.trim();
+    log::trace!("{}: checking if line {:?} is present", path.display(), line);
     let mut file = OpenOptions::new()
         .create(true)
         .read(true)
@@ -180,6 +191,7 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
         .filter_map(Result::ok)
         .any(|l| l.trim() == line)
     {
+        log::trace!("{}: line {:?} already present", path.display(), line);
         return Ok(false);
     }
 
@@ -203,6 +215,7 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
 
 pub fn remove_line_if_present(path: &Path, line: &str) -> Result<bool> {
     let line = line.trim();
+    log::trace!("{}: checking if line {:?} is present for removal", path.display(), line);
     if !path.exists() {
         return Ok(false);
     }
@@ -212,6 +225,7 @@ pub fn remove_line_if_present(path: &Path, line: &str) -> Result<bool> {
         .filter_map(Result::ok)
         .any(|l| l.trim() == line)
     {
+        log::trace!("{}: line {:?} not found", path.display(), line);
         return Ok(false);
     }
 
@@ -266,6 +280,7 @@ pub fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBuf>> {
 
     let gitignore_path = gitignote_root.join(".gitignore");
     if append_line_if_absent(&gitignore_path, &line_to_add)? {
+        log::debug!("{}: added to {}", line_to_add, gitignore_path.display());
         Ok(Some(gitignore_path))
     } else {
         Ok(None)
@@ -279,6 +294,11 @@ pub fn remove_from_gitignore_if_present(path: PathBuf) -> Result<Option<PathBuf>
 
     let gitignore_path = gitignote_root.join(".gitignore");
     if remove_line_if_present(&gitignore_path, &line_to_remove)? {
+        log::debug!(
+            "{}: removed from {}",
+            line_to_remove,
+            gitignore_path.display()
+        );
         Ok(Some(gitignore_path))
     } else {
         Ok(None)

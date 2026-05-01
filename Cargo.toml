@@ -26,6 +26,9 @@ similar = "3.1.0"
 edit = "0.1.5"
 owo-colors = "4.0.0"
 dotenvy = "0.15.7"
+clap-verbosity-flag = "3.0.4"
+env_logger = "0.11.10"
+log = "0.4.29"
 
 [dev-dependencies]
 tempfile = "3.27.0"

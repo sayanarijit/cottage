@@ -53,6 +53,7 @@ pub fn decrypt_file<'a>(
     path: &'a Path,
     options: &DecryptOptions,
 ) -> Result<Option<OperationResult>> {
+    log::debug!("{}: decrypting file", path.display());
     // Just read operations for now ------------------------
     if !is_encrypted_path(path) {
         return Err(anyhow!(
@@ -69,6 +70,7 @@ pub fn decrypt_file<'a>(
 
     let mut input_file = File::open(path)
         .with_context(|| format!("{}: failed to open input file", path.display()))?;
+    log::debug!("{}: reading encrypted file", path.display());
     let filemtime = input_file.metadata()?.modified()?;
 
     let input = {
@@ -88,6 +90,7 @@ pub fn decrypt_file<'a>(
 
     if output_path.exists() {
         if std::fs::read(&output_path)? == output {
+            log::debug!("{}: skipping write: content matches", output_path.display());
             if !options.skip_timestamps {
                 set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
             };
@@ -113,6 +116,7 @@ pub fn decrypt_file<'a>(
         None
     };
 
+    log::debug!("{}: writing decrypted file", output_path.display());
     std::fs::write(&output_path, &output)
         .with_context(|| format!("{}: failed to write decrypted file", output_path.display()))?;
     if !options.skip_timestamps {

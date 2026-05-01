@@ -9,7 +9,6 @@ use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use filetime::{FileTime, set_file_mtime};
-use owo_colors::OwoColorize;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::path::Path;
@@ -35,12 +34,9 @@ pub fn encrypt_file<'a>(
     path: &'a Path,
     options: &EncryptOptions,
 ) -> Result<Option<OperationResult>> {
+    log::debug!("{}: encrypting file", path.display());
     if is_encrypted_path(path) || is_metadata_path(path) {
-        eprintln!(
-            "{} {}: invalid path for encryption",
-            "skipped:".yellow(),
-            path.display()
-        );
+        log::warn!("skipped: {}: invalid path for encryption", path.display());
         return Ok(None);
     }
 
@@ -70,6 +66,7 @@ pub fn encrypt_file<'a>(
 
     let input_file = File::open(path)
         .with_context(|| format!("{}: failed to open input file", path.display()))?;
+    log::debug!("{}: reading input file", path.display());
 
     let input = {
         let mut reader = BufReader::new(&input_file);
@@ -89,6 +86,7 @@ pub fn encrypt_file<'a>(
         if verify_checksum(&recipients_data, &metadata.checksum.recipients, &path).is_ok()
             && verify_checksum(input.as_slice(), &metadata.checksum.decrypted, &path).is_ok()
         {
+            log::debug!("{}: skipping encryption: checksums match", path.display());
             if !options.skip_timestamps {
                 set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
             }
@@ -148,13 +146,17 @@ pub fn encrypt_file<'a>(
     };
 
     let preview = if !options.skip_preview {
-        generate_preview(
+        let preview = generate_preview(
             path,
             &input,
             old_content.as_deref(),
-            old_preview,
+            old_preview.as_deref(),
             &secret.timestamp,
-        )
+        );
+        if preview.is_some() {
+            log::debug!("{}: generated preview", path.display());
+        }
+        preview
     } else {
         None
     };
@@ -174,12 +176,14 @@ pub fn encrypt_file<'a>(
         None
     };
 
+    log::debug!("{}: writing encrypted file", output_path.display());
     std::fs::write(&output_path, output)
         .with_context(|| format!("{}: failed to write encrypted file", output_path.display()))?;
 
     if !options.skip_timestamps {
         set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
     }
+    log::debug!("{}: writing metadata file", metadata_path.display());
     std::fs::write(&metadata_path, toml::to_string(&metadata)?)
         .with_context(|| format!("{}: failed to write metadata file", metadata_path.display()))?;
 

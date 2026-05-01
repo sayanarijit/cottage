@@ -50,6 +50,7 @@ pub struct Metadata {
 
 impl Metadata {
     pub fn read_from_path(path: &Path) -> Result<Self> {
+        log::debug!("{}: reading metadata", path.display());
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("{}: failed to read metadata file", path.display()))?;
         toml::from_str::<Metadata>(&content)
@@ -62,6 +63,7 @@ pub fn make_checksum(data: &[u8]) -> String {
 }
 
 pub fn verify_checksum(data: &[u8], checksum: &str, path: &Path) -> Result<()> {
+    log::debug!("{}: verifying checksum", path.display());
     match checksum.split_once(":") {
         Some((algo, cs)) if algo == "blake3" => {
             let enc_checksum = blake3::hash(data).to_hex().to_string();
