@@ -1,3 +1,4 @@
+mod clean;
 mod dec;
 mod diff;
 mod enc;
@@ -10,6 +11,7 @@ mod recipients;
 mod sync;
 
 pub mod cli;
+pub use clean::{clean_path, clean_project};
 pub use dec::{DecryptOptions, DecryptionMode, decrypt_into_memory, decrypt_path};
 pub use diff::{DiffOptions, diff};
 pub use enc::{EncryptOptions, EncryptionMode, encrypt_path};

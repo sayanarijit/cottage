@@ -1,7 +1,7 @@
 use crate::{
     DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode, OperationKind,
-    Project, SyncOptions, decrypt_path, diff, encrypt_path, load_identities, load_recipients,
-    status_path, sync_path,
+    Project, SyncOptions, clean_project, decrypt_path, diff, encrypt_path, load_identities,
+    load_recipients, status_path, sync_path,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -35,12 +35,31 @@ enum Commands {
     /// See diff between encrypted and decrypted files
     #[command(name = "diff", aliases = ["df"])]
     Diff(DiffArgs),
+
+    /// Delete all secrets and identity files
+    #[command(name = "clean", aliases = ["cln"])]
+    Clean(CleanArgs),
 }
 
 #[derive(clap::ValueEnum, Clone, Debug, PartialEq)]
 enum SkipChecksum {
     Encrypted,
     Decrypted,
+}
+
+#[derive(clap::Args, Debug)]
+struct CleanArgs {
+    /// Dry run, don't actually delete anything.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+
+    /// Verbose output.
+    #[arg(short, long)]
+    verbose: bool,
+
+    /// Suppress all output except errors.
+    #[arg(short, long)]
+    quiet: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -422,6 +441,20 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
     Ok(())
 }
 
+fn run_clean_cmd(proj: &Project, args: CleanArgs) -> Result<()> {
+    for deleted in clean_project(proj, args.dry_run) {
+        let deleted = deleted?;
+        if !args.quiet {
+            if args.verbose {
+                println!("deleted {}", proj.relative_to_cwd(&deleted).display());
+            } else {
+                println!("{}", proj.relative_to_cwd(&deleted).display());
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn run() -> Result<()> {
     let cli = CottageCli::parse();
     let proj = Project::init()?;
@@ -432,5 +465,6 @@ pub fn run() -> Result<()> {
         Commands::Sync(args) => run_sync_cmd(&proj, args),
         Commands::Status(args) => run_status_cmd(&proj, args),
         Commands::Diff(args) => run_diff_cmd(&proj, args),
+        Commands::Clean(args) => run_clean_cmd(&proj, args),
     }
 }

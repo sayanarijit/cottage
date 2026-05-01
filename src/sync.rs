@@ -70,8 +70,8 @@ pub fn status_dir(path: &Path) -> impl Iterator<Item = Result<Operation>> {
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
         .filter(|e| is_encrypted_path(e.path()))
-        .filter(|e| is_metadata_path(e.path()))
         .filter_map(|e| status_file(e.path()).transpose())
 }
 

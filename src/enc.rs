@@ -188,8 +188,8 @@ pub fn encrypt_dir<'a>(
     walkdir::WalkDir::new(path)
         .into_iter()
         .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
         .filter(|e| is_encrypted_path(e.path()))
-        .filter(|e| is_metadata_path(e.path()))
         .filter_map(|e| to_decrypted_path(e.path()))
         .filter_map(|path| encrypt_file(&path, options).transpose())
 }
