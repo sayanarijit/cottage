@@ -1,8 +1,9 @@
 use crate::{
-    ChecksumMetadata, Metadata, OperationKind, OperationResult, SecretMetadata, is_encrypted_path,
-    project::append_to_gitignore_if_absent, to_decrypted_path, to_encrypted_path, to_metadata_path,
+    ChecksumMetadata, DecryptOptions, DecryptionMode, Metadata, OperationKind, OperationResult,
+    SecretMetadata, decrypt_into_memory, is_encrypted_path, project::append_to_gitignore_if_absent,
+    to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
-use crate::{make_checksum, validate_checksum};
+use crate::{generate_preview, make_checksum, validate_checksum};
 use age::armor::ArmoredWriter;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
@@ -21,6 +22,7 @@ pub enum EncryptionMode<'a> {
 #[derive(Clone)]
 pub struct EncryptOptions<'a> {
     pub mode: EncryptionMode<'a>,
+    pub identities: &'a [Box<dyn age::Identity>],
     pub armor: bool,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
@@ -106,11 +108,45 @@ pub fn encrypt_file<'a>(
             recipients: make_checksum(&recipients_data),
         }
     };
+    let old_metadata = if !options.skip_preview && output_path.exists() && metadata_path.exists() {
+        Metadata::read_from_path(&metadata_path).ok()
+    } else {
+        None
+    };
+
+    let (old_content, old_preview) = if let Some(old_metadata) = &old_metadata {
+        let old_preview = old_metadata.preview.as_ref().map(|p| p.preview.as_str());
+
+        let decrypt_options = DecryptOptions {
+            mode: match &options.mode {
+                EncryptionMode::Passphrase(pass) => DecryptionMode::Passphrase(pass.clone()),
+                EncryptionMode::Recipients(_) => DecryptionMode::Identities(options.identities),
+            },
+            skip_gitignore: true,
+            skip_timestamps: true,
+            skip_checksum_encrypted: true,
+            skip_checksum_decrypted: true,
+        };
+
+        let old_content = File::open(&output_path)
+            .ok()
+            .and_then(|f| decrypt_into_memory(f, &decrypt_options).ok());
+
+        (old_content, old_preview)
+    } else {
+        (None, None)
+    };
+
+    let preview = if !options.skip_preview {
+        generate_preview(path, &input, old_content.as_deref(), old_preview, timestamp)
+    } else {
+        None
+    };
 
     let metadata = Metadata {
         secret,
         checksum,
-        preview: None,
+        preview,
     };
 
     // Write starts here ------------------------

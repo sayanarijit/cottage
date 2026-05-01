@@ -251,6 +251,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
     };
 
     let recipients = load_recipients(&proj, &args.recipient, &args.recipients_file)?;
+    let identities = load_identities(&proj, &args.identity)?;
 
     let mode = if args.passphrase {
         let pass = rpassword::prompt_password("Enter passphrase: ")?;
@@ -265,6 +266,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs) -> Result<()> {
 
     let options = EncryptOptions {
         mode,
+        identities: &identities,
         armor: args.armor,
         skip_gitignore: args.skip_gitignore || proj.git().is_none(),
         skip_timestamps: args.skip_timestamps,
@@ -370,6 +372,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs) -> Result<()> {
     let sync_options = SyncOptions {
         encryption_mode: enc_mode,
         decryption_mode: dec_mode,
+        identities: &identities,
         armor: args.armor,
         skip_gitignore: args.skip_gitignore || proj.git().is_none(),
         skip_timestamps: args.skip_timestamps,

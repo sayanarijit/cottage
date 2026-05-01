@@ -10,6 +10,7 @@ use std::path::Path;
 pub struct SyncOptions<'e, 'd> {
     pub encryption_mode: EncryptionMode<'e>,
     pub decryption_mode: DecryptionMode<'d>,
+    pub identities: &'d [Box<dyn age::Identity>],
     pub armor: bool,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
@@ -83,6 +84,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
         OperationKind::Encrypt => {
             let encrypt_options = EncryptOptions {
                 mode: sync_options.encryption_mode.clone(),
+                identities: sync_options.identities,
                 armor: sync_options.armor,
                 skip_gitignore: sync_options.skip_gitignore,
                 skip_timestamps: sync_options.skip_timestamps,

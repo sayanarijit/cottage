@@ -4,6 +4,7 @@ mod enc;
 mod identity;
 mod metadata;
 mod operation;
+mod preview;
 mod project;
 mod recipients;
 mod sync;
@@ -21,6 +22,7 @@ pub use operation::{
     Operation, OperationKind, OperationResult, is_encrypted_path, to_decrypted_path,
     to_encrypted_path, to_metadata_path,
 };
+pub use preview::generate_preview;
 pub use project::{
     Project, append_line_if_absent, append_to_gitignore_if_absent, get_project_root, get_root,
 };
