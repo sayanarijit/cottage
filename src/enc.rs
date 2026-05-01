@@ -192,8 +192,8 @@ pub fn encrypt_file<'a>(
     }))
 }
 
-pub fn encrypt_dir<'a>(
-    path: &'a Path,
+pub fn encrypt_dir(
+    path: &Path,
     options: &EncryptOptions,
 ) -> impl Iterator<Item = Result<OperationResult>> {
     walkdir::WalkDir::new(path)

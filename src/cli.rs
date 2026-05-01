@@ -1,10 +1,10 @@
 use crate::dec::decrypt_file;
 use crate::enc::encrypt_file;
 use crate::{
-    DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode, OperationKind,
-    Project, SyncOptions, clean_project, decrypt_path, diff, encrypt_path, is_encrypted_path,
-    is_metadata_path, load_identities, load_recipients, status_path, sync_path, to_decrypted_path,
-    to_encrypted_path,
+    CleanOptions, DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode,
+    OperationKind, Project, SyncOptions, clean_project, decrypt_path, diff, encrypt_path,
+    is_encrypted_path, is_metadata_path, load_identities, load_recipients, status_path, sync_path,
+    to_decrypted_path, to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
 use clap::Parser;
@@ -65,6 +65,10 @@ struct CleanArgs {
     /// Dry run, don't actually delete anything.
     #[arg(short = 'n', long)]
     dry_run: bool,
+
+    /// Skip removing from .gitignore.
+    #[arg(long)]
+    skip_gitignore: bool,
 
     /// Verbose output.
     #[arg(short, long)]
@@ -549,7 +553,11 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
 }
 
 fn run_clean_cmd(proj: &Project, args: CleanArgs) -> Result<()> {
-    for deleted in clean_project(proj, args.dry_run) {
+    let opts = CleanOptions {
+        dry_run: args.dry_run,
+        skip_gitignore: args.skip_gitignore,
+    };
+    for deleted in clean_project(proj, &opts) {
         let deleted = deleted?;
         if !args.quiet {
             if args.verbose {

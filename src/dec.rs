@@ -128,8 +128,8 @@ pub fn decrypt_file<'a>(
     }))
 }
 
-pub fn decrypt_dir<'a>(
-    path: &'a Path,
+pub fn decrypt_dir(
+    path: &Path,
     options: &DecryptOptions,
 ) -> impl Iterator<Item = Result<OperationResult>> {
     walkdir::WalkDir::new(path)
