@@ -3,6 +3,11 @@ name = "cottage"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["complete"]
+man = ["dep:clap_mangen"]
+complete = ["dep:clap_complete"]
+
 [dependencies]
 age = { version = "0.11", features = ["armor", "ssh"] }
 clap = { version = "4.6", features = ["derive"] }
@@ -29,6 +34,8 @@ clap-verbosity-flag = "3.0.4"
 env_logger = "0.11.10"
 log = "0.4.29"
 toml = "1.1.2"
+clap_mangen = { version = "0.3.0", optional = true }
+clap_complete = { version = "4.6.3", optional = true }
 
 [dev-dependencies]
 assert_fs = "1.1.3"

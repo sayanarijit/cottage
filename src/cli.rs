@@ -7,6 +7,7 @@ use crate::{
     status_path, sync_path, to_decrypted_path, to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
+use clap::CommandFactory;
 use clap::Parser;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use owo_colors::OwoColorize;
@@ -57,6 +58,16 @@ enum Command {
     /// Delete all secrets and identity files.
     #[command(name = "clean", aliases = ["cln"])]
     Clean(CleanArgs),
+
+    #[cfg(feature = "complete")]
+    /// Generate shell completions.
+    /// Example: `eval "$(cottage completions bash)"` to load completions for bash.
+    #[command(name = "complete")]
+    Complete {
+        /// The shell to generate completions for.
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
 }
 
 #[derive(clap::ValueEnum, Clone, Debug, PartialEq)]
@@ -656,6 +667,13 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
     Ok(())
 }
 
+fn run_complete_cmd(shell: clap_complete::Shell) -> Result<()> {
+    let mut cmd = CottageCli::command();
+    let mut out = std::io::stdout();
+    clap_complete::generate(shell, &mut cmd, "cottage", &mut out);
+    Ok(())
+}
+
 pub fn run() -> Result<()> {
     let cli = CottageCli::parse();
 
@@ -696,6 +714,7 @@ pub fn run() -> Result<()> {
         Command::Diff(args) => run_diff_cmd(&proj, args),
         Command::Clean(args) => run_clean_cmd(&proj, args, cli.verbosity.is_silent()),
         Command::Edit(args) => run_edit_cmd(&proj, args, cli.verbosity.is_silent()),
+        Command::Complete { shell } => run_complete_cmd(shell),
     }
 }
 
