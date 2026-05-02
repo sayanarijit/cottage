@@ -18,18 +18,18 @@ use std::path::{Path, PathBuf};
 #[command(author, version, about, long_about = None, arg_required_else_help = true)]
 struct CottageCli {
     #[command(subcommand)]
-    command: Option<Commands>,
-
-    /// The file to edit or sync with stdin.
-    path: Option<PathBuf>,
+    command: Command,
 
     #[command(flatten)]
     verbosity: Verbosity<WarnLevel>,
 }
 
 #[derive(clap::Subcommand, Debug)]
-enum Commands {
-    // ... (rest of the file remains same, I will use a more targeted replace)
+enum Command {
+    /// Initialize cottage in the current project.
+    #[command(name = "init")]
+    Init,
+
     /// Edit a file and encrypt it.
     #[command(name = "edit", aliases = ["ed"])]
     Edit(EditArgs),
@@ -129,15 +129,6 @@ struct EditArgs {
     /// Compact output.
     #[arg(long)]
     compact: bool,
-}
-
-impl EditArgs {
-    fn default_with_path(path: PathBuf) -> Self {
-        EditArgs {
-            path,
-            ..Default::default()
-        }
-    }
 }
 
 #[derive(clap::Args, Debug)]
@@ -690,24 +681,21 @@ pub fn run() -> Result<()> {
         })
         .init();
 
-    let proj = Project::init()?;
+    let proj = if matches!(cli.command, Command::Init) {
+        Project::init()?
+    } else {
+        Project::load()?
+    };
 
     match cli.command {
-        Some(Commands::Encrypt(args)) => run_encrypt_cmd(&proj, args, cli.verbosity.is_silent()),
-        Some(Commands::Decrypt(args)) => run_decrypt_cmd(&proj, args, cli.verbosity.is_silent()),
-        Some(Commands::Sync(args)) => run_sync_cmd(&proj, args, cli.verbosity.is_silent()),
-        Some(Commands::Status(args)) => run_status_cmd(&proj, args, cli.verbosity.is_silent()),
-        Some(Commands::Diff(args)) => run_diff_cmd(&proj, args),
-        Some(Commands::Clean(args)) => run_clean_cmd(&proj, args, cli.verbosity.is_silent()),
-        Some(Commands::Edit(args)) => run_edit_cmd(&proj, args, cli.verbosity.is_silent()),
-        None => {
-            if let Some(path) = cli.path {
-                let args = EditArgs::default_with_path(path);
-                run_edit_cmd(&proj, args, cli.verbosity.is_silent())
-            } else {
-                Ok(())
-            }
-        }
+        Command::Init => Ok(()), // already initialized above
+        Command::Encrypt(args) => run_encrypt_cmd(&proj, args, cli.verbosity.is_silent()),
+        Command::Decrypt(args) => run_decrypt_cmd(&proj, args, cli.verbosity.is_silent()),
+        Command::Sync(args) => run_sync_cmd(&proj, args, cli.verbosity.is_silent()),
+        Command::Status(args) => run_status_cmd(&proj, args, cli.verbosity.is_silent()),
+        Command::Diff(args) => run_diff_cmd(&proj, args),
+        Command::Clean(args) => run_clean_cmd(&proj, args, cli.verbosity.is_silent()),
+        Command::Edit(args) => run_edit_cmd(&proj, args, cli.verbosity.is_silent()),
     }
 }
 

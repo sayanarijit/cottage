@@ -34,6 +34,23 @@ pub struct Project {
 
 impl Project {
     pub fn init() -> Result<Self> {
+        Self::load().or_else(|_| {
+            log::debug!("project root not found, initializing new project");
+            let root =
+                std::env::current_dir().context("failed to get current working directory")?;
+            let cottage_dir = root.join(".cottage");
+            std::fs::create_dir(&cottage_dir).with_context(|| {
+                format!(
+                    "{}: failed to create cottage directory",
+                    cottage_dir.display()
+                )
+            })?;
+            log::debug!("{}: created directory", cottage_dir.display());
+            Self::load().context("failed to load project after initialization")
+        })
+    }
+
+    pub fn load() -> Result<Self> {
         let cwd = std::env::current_dir().context("failed to get current working directory")?;
         let root = get_project_root(&cwd).context(format!(
             "{}: failed to find project root (looking for .cottage/, .git/, or .jj/)",
