@@ -113,7 +113,7 @@ pub fn load_identities(
                     Box::new(std::iter::empty())
                 }
             } else {
-                log::debug!("no home directory found, cannot look for identities in ~/.ssh");
+                log::debug!("no home directory found, could not look for identities in ~/.ssh");
                 Box::new(std::iter::empty())
             }
         }

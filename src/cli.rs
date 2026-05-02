@@ -33,6 +33,16 @@ struct CottageCli {
     verbosity: Verbosity<WarnLevel>,
 }
 
+#[derive(clap::Parser, Debug)]
+#[command(author, version, about, styles = STYLES, long_about = None, arg_required_else_help = true)]
+struct CottageXCli {
+    #[command(flatten)]
+    run: RunArgs,
+
+    #[command(flatten)]
+    verbosity: Verbosity<WarnLevel>,
+}
+
 #[derive(clap::Subcommand, Debug)]
 enum Command {
     /// Initialize cottage in the current directory.
@@ -67,9 +77,13 @@ enum Command {
     #[command(name = "clean", aliases = ["cl"])]
     Clean(CleanArgs),
 
+    /// Decrypt secrets, run a command and delete decrypted secrets.
+    #[command(name = "run", trailing_var_arg = true)]
+    Run(RunArgs),
+
     #[cfg(feature = "autocomplete")]
     /// Generate shell completions.
-    /// Example: `eval "$(cottage autocomplete bash)"` to load completions for bash.
+    /// Example: `eval "$(ctg autocomplete bash)"` to load completions for bash.
     #[command(name = "autocomplete")]
     AutoComplete {
         /// The shell to generate completions for.
@@ -253,6 +267,39 @@ struct DecryptArgs {
 }
 
 #[derive(clap::Args, Debug)]
+struct RunArgs {
+    /// The command to run.
+    #[arg(required = true)]
+    command: Vec<String>,
+
+    /// Decrypt with a passphrase.
+    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for passphrase.
+    #[arg(short, long)]
+    passphrase: bool,
+
+    /// Use the identity file at PATH. Can be repeated.
+    /// Defaults to .cottage/identity or ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
+    identity: Vec<PathBuf>,
+
+    /// Skip checksum verification and re-decrypt all files.
+    #[arg(long, short, env = "COTTAGE_FORCE")]
+    force: bool,
+
+    /// Skip checksum verification of encrypted files.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
+    skip_verify_encrypted: bool,
+
+    /// Skip checksum verification of decrypted files.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_DECRYPTED")]
+    skip_verify_decrypted: bool,
+
+    /// Compact output.
+    #[arg(long, env = "COTTAGE_COMPACT")]
+    compact: bool,
+}
+
+#[derive(clap::Args, Debug)]
 struct SyncArgs {
     /// The file or dir to sync, defaults to project root.
     path: Vec<PathBuf>,
@@ -413,60 +460,69 @@ fn choose_decryption_mode(
     }
 }
 
-fn print_edits(proj: &Project, op: &OperationResult) {
-    op.metadata
-        .iter()
-        .chain(op.gitignore.iter())
-        .for_each(|path| {
-            println!(
-                "   {} {}",
-                "edit".yellow(),
-                proj.relative_to_cwd(path).display()
-            );
-        });
+fn print_edits(mut file: impl Write, proj: &Project, op: &OperationResult) -> Result<()> {
+    for path in op.metadata.iter().chain(op.gitignore.iter()) {
+        writeln!(
+            file,
+            "   {} {}",
+            "edit".yellow(),
+            proj.relative_to_cwd(path).display()
+        )?;
+    }
+    Ok(())
 }
 
-fn print_result(proj: &Project, op: &OperationResult, compact: bool) {
+fn print_result(
+    mut file: impl Write,
+    proj: &Project,
+    op: &OperationResult,
+    compact: bool,
+) -> Result<()> {
     match (op.kind, compact) {
         (OperationKind::Encrypt, false) => {
-            println!(
+            writeln!(
+                file,
                 "{} {}\n   {} {}",
                 "encrypt".green(),
                 proj.relative_to_cwd(&op.input).display(),
                 "into".blue(),
                 proj.relative_to_cwd(&op.output).display()
-            );
-            print_edits(proj, op);
+            )?;
+            print_edits(file, proj, op)?;
         }
         (OperationKind::Decrypt, false) => {
-            println!(
+            writeln!(
+                file,
                 "{} {}\n   {} {}",
                 "decrypt".cyan(),
                 proj.relative_to_cwd(&op.input).display(),
                 "into".blue(),
                 proj.relative_to_cwd(&op.output).display()
-            );
-            print_edits(proj, op);
+            )?;
+            print_edits(file, proj, op)?;
         }
         (OperationKind::Encrypt, true) => {
-            println!(
+            writeln!(
+                file,
                 "{}",
                 proj.relative_to_cwd(&op.output)
                     .display()
                     .to_string()
                     .green()
-            );
+            )?;
         }
         (OperationKind::Decrypt, true) => {
-            println!(
+            writeln!(
+                file,
                 "{}",
                 proj.relative_to_cwd(&op.output)
                     .display()
                     .to_string()
                     .cyan()
-            );
+            )?;
         }
     }
+    Ok(())
 }
 
 fn get_input_paths(proj: &Project, path: Vec<PathBuf>) -> Vec<PathBuf> {
@@ -479,6 +535,7 @@ fn get_input_paths(proj: &Project, path: Vec<PathBuf>) -> Vec<PathBuf> {
 
 fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
+    let mut stdout = std::io::stdout();
 
     let mode = choose_encryption_mode(
         proj,
@@ -511,7 +568,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         for res in encrypt_path(path, &options) {
             let res = res?;
             if !quiet {
-                print_result(proj, &res, args.compact);
+                print_result(&mut stdout, proj, &res, args.compact)?;
             }
         }
     }
@@ -531,11 +588,12 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
         skip_verify_decrypted: args.force || args.skip_verify_decrypted,
     };
 
+    let mut stdout = std::io::stdout();
     for path in &input {
         for res in decrypt_path(path, &options) {
             let res = res?;
             if !quiet {
-                print_result(proj, &res, args.compact);
+                print_result(&mut stdout, proj, &res, args.compact)?;
             }
         }
     }
@@ -544,6 +602,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
 
 fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
+    let mut stdout = std::io::stdout();
 
     let mut has_pending = false;
     for path in &input {
@@ -551,7 +610,7 @@ fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
             let res = res?;
             has_pending = true;
             if !quiet {
-                print_result(proj, &res.into(), args.compact);
+                print_result(&mut stdout, proj, &res.into(), args.compact)?;
             }
         }
     }
@@ -594,11 +653,12 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         force_encrypt: args.force || args.force_encrypt,
     };
 
+    let mut stdout = std::io::stdout();
     for path in &input {
         for res in sync_path(path, &sync_options) {
             let res = res?;
             if !quiet {
-                print_result(proj, &res, args.compact);
+                print_result(&mut stdout, proj, &res, args.compact)?;
             }
         }
     }
@@ -626,7 +686,7 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
 fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
     let opts = CleanOptions {
         dry_run: args.dry_run,
-        skip_gitignore: args.skip_gitignore,
+        skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
     };
 
     let result = if args.path.is_empty() {
@@ -656,10 +716,103 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
     Ok(())
 }
 
+fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
+    let mut input_paths = vec![];
+    let mut modified_args = vec![];
+    for arg in args.command.iter().skip(1) {
+        let p = PathBuf::from(arg);
+        if is_encrypted_path(&p) && p.exists() {
+            if let Some(dec) = to_decrypted_path(&p) {
+                modified_args.push(dec.to_string_lossy().to_string());
+            } else {
+                modified_args.push(arg.clone());
+            }
+            input_paths.push(p);
+        } else if to_encrypted_path(&p).exists() {
+            modified_args.push(arg.clone());
+            input_paths.push(to_encrypted_path(&p));
+        } else if p.is_dir() {
+            modified_args.push(arg.clone());
+            input_paths.push(p);
+        } else {
+            modified_args.push(arg.clone());
+        }
+    }
+
+    log::debug!(
+        "original args: {:?}",
+        args.command[1..]
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+    );
+    log::debug!("modified args: {:?}", modified_args);
+    log::debug!("input paths: {:?}", input_paths);
+
+    let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity)?;
+    let options = DecryptOptions {
+        mode,
+        skip_gitignore: true,
+        skip_timestamps: true,
+        skip_verify_encrypted: args.force || args.skip_verify_encrypted,
+        skip_verify_decrypted: args.force || args.skip_verify_decrypted,
+    };
+
+    let input = get_input_paths(proj, input_paths.clone());
+    let mut stderr = std::io::stderr();
+    for path in &input {
+        for res in decrypt_path(path, &options) {
+            let res = res?;
+            if !quiet {
+                print_result(&mut stderr, proj, &res, args.compact)?;
+            }
+        }
+    }
+
+    let mut cmd = std::process::Command::new(&args.command[0]);
+    cmd.args(&modified_args);
+    let status = cmd.status();
+
+    let clean_opts = CleanOptions {
+        dry_run: false,
+        skip_gitignore: true,
+    };
+
+    for path in input.iter().map(|p| {
+        if p.is_file() && is_encrypted_path(p) {
+            to_decrypted_path(p).unwrap_or_else(|| p.clone())
+        } else {
+            p.clone()
+        }
+    }) {
+        for res in clean_path(&path, &clean_opts, false) {
+            let res = res?;
+            if !quiet {
+                if args.compact {
+                    eprintln!("{}", proj.relative_to_cwd(&res).display().to_string().red());
+                } else {
+                    eprintln!(
+                        "{} {}",
+                        "deleted".red(),
+                        proj.relative_to_cwd(&res).display()
+                    );
+                }
+            }
+        }
+    }
+
+    let status = status?;
+    if !status.success() {
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    Ok(())
+}
+
 fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
     let path = &args.path;
     if is_metadata_path(path) {
-        return Err(anyhow!("{}: cannot edit metadata file", path.display()));
+        return Err(anyhow!("{}: could not edit metadata file", path.display()));
     }
 
     let is_target_encrypted = is_encrypted_path(path);
@@ -724,10 +877,11 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             skip_preview: args.skip_preview,
         };
 
+        let mut stdout = std::io::stdout();
         if let Some(res) = encrypt_file(&decrypted_path, &options)?
             && !quiet
         {
-            print_result(proj, &res, args.compact);
+            print_result(&mut stdout, proj, &res, args.compact)?;
         }
     }
 
@@ -773,27 +927,39 @@ fn setup_logging(verbosity: Verbosity<WarnLevel>) {
         .init();
 }
 
-pub fn run() -> Result<()> {
-    let cli = CottageCli::parse();
-    setup_logging(cli.verbosity);
+fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
+    setup_logging(verbosity);
 
-    let proj = if matches!(cli.command, Command::Init) {
+    let proj = if matches!(cmd, Command::Init) {
         Project::init()?
     } else {
         Project::load()?
     };
 
-    match cli.command {
+    let is_silent = verbosity.is_silent();
+
+    match cmd {
         Command::Init => Ok(()), // already initialized above
-        Command::Encrypt(args) => run_encrypt_cmd(&proj, args, cli.verbosity.is_silent()),
-        Command::Decrypt(args) => run_decrypt_cmd(&proj, args, cli.verbosity.is_silent()),
-        Command::Sync(args) => run_sync_cmd(&proj, args, cli.verbosity.is_silent()),
-        Command::Status(args) => run_status_cmd(&proj, args, cli.verbosity.is_silent()),
+        Command::Encrypt(args) => run_encrypt_cmd(&proj, args, is_silent),
+        Command::Decrypt(args) => run_decrypt_cmd(&proj, args, is_silent),
+        Command::Sync(args) => run_sync_cmd(&proj, args, is_silent),
+        Command::Status(args) => run_status_cmd(&proj, args, is_silent),
         Command::Diff(args) => run_diff_cmd(&proj, args),
-        Command::Clean(args) => run_clean_cmd(&proj, args, cli.verbosity.is_silent()),
-        Command::Edit(args) => run_edit_cmd(&proj, args, cli.verbosity.is_silent()),
+        Command::Clean(args) => run_clean_cmd(&proj, args, is_silent),
+        Command::Edit(args) => run_edit_cmd(&proj, args, is_silent),
+        Command::Run(args) => run_run_cmd(&proj, args, is_silent),
         Command::AutoComplete { shell } => run_complete_cmd(shell),
     }
+}
+
+pub fn runx() -> Result<()> {
+    let cli = CottageXCli::parse();
+    run_run_cmd(&Project::load()?, cli.run, cli.verbosity.is_silent())
+}
+
+pub fn run() -> Result<()> {
+    let cli = CottageCli::parse();
+    run_cmd(cli.command, cli.verbosity)
 }
 
 fn args_skip_gitignore(proj: &Project, skip_gitignore: bool) -> bool {
