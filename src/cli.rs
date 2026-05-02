@@ -954,7 +954,8 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
 
 pub fn runx() -> Result<()> {
     let cli = CottageXCli::parse();
-    run_run_cmd(&Project::load()?, cli.run, cli.verbosity.is_silent())
+    let cmd = Command::Run(cli.run);
+    run_cmd(cmd, cli.verbosity)
 }
 
 pub fn run() -> Result<()> {
