@@ -138,6 +138,14 @@ struct EditArgs {
     #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
+    /// Skip checksum verification of encrypted files.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
+    skip_verify_encrypted: bool,
+
+    /// Skip checksum verification of decrypted files.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_DECRYPTED")]
+    skip_verify_decrypted: bool,
+
     /// Skip preview generation.
     #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
     skip_preview: bool,
@@ -673,8 +681,8 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
                 mode,
                 skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
                 skip_timestamps: args.skip_timestamps,
-                skip_verify_encrypted: true,
-                skip_verify_decrypted: true,
+                skip_verify_encrypted: args.force || args.skip_verify_encrypted,
+                skip_verify_decrypted: args.force || args.skip_verify_decrypted,
             };
             let _ = decrypt_file(&encrypted_path, &options)?;
         }
@@ -701,7 +709,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             armor: args.armor,
             skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
             skip_timestamps: args.skip_timestamps,
-            force: false,
+            force: args.force,
             skip_preview: args.skip_preview,
         };
 
@@ -722,11 +730,9 @@ fn run_complete_cmd(shell: clap_complete::Shell) -> Result<()> {
     Ok(())
 }
 
-pub fn run() -> Result<()> {
-    let cli = CottageCli::parse();
-
+fn setup_logging(verbosity: Verbosity<WarnLevel>) {
     env_logger::Builder::new()
-        .filter_level(cli.verbosity.into())
+        .filter_level(verbosity.into())
         .format(|buf, record| {
             if record.level() <= log::Level::Warn {
                 writeln!(
@@ -746,6 +752,11 @@ pub fn run() -> Result<()> {
             }
         })
         .init();
+}
+
+pub fn run() -> Result<()> {
+    let cli = CottageCli::parse();
+    setup_logging(cli.verbosity);
 
     let proj = if matches!(cli.command, Command::Init) {
         Project::init()?
