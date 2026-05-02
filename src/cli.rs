@@ -332,13 +332,13 @@ struct DiffArgs {
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
-    // Skip checksum verification of encrypted files.
+    /// Skip checksum verification of encrypted files.
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
     skip_verify_encrypted: bool,
 
     /// Skip checksum verification of decrypted files.
-    #[arg(long, env = "COTTAGE_SKIP_CHECKSUM_DECRYPTED")]
-    skip_checksum_decrypted: bool,
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_DECRYPTED")]
+    skip_verify_decrypted: bool,
 
     /// Skip checksum verification.
     #[arg(long, short, env = "COTTAGE_FORCE")]
@@ -446,12 +446,16 @@ fn print_result(proj: &Project, kind: OperationKind, input: &Path, output: &Path
     }
 }
 
-fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()> {
-    let input = if args.path.is_empty() {
+fn get_input_paths(proj: &Project, path: Vec<PathBuf>) -> Vec<PathBuf> {
+    if path.is_empty() {
         vec![proj.root().into()]
     } else {
-        args.path
-    };
+        path
+    }
+}
+
+fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()> {
+    let input = get_input_paths(proj, args.path);
 
     let mode = choose_encryption_mode(
         proj,
@@ -493,11 +497,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
 }
 
 fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()> {
-    let input = if args.path.is_empty() {
-        vec![proj.root().into()]
-    } else {
-        args.path
-    };
+    let input = get_input_paths(proj, args.path);
 
     let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity)?;
     let options = DecryptOptions {
@@ -520,11 +520,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
 }
 
 fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
-    let input = if args.path.is_empty() {
-        vec![proj.root().into()]
-    } else {
-        args.path
-    };
+    let input = get_input_paths(proj, args.path);
 
     let mut has_pending = false;
     for path in &input {
@@ -545,11 +541,7 @@ fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
 }
 
 fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
-    let input = if args.path.is_empty() {
-        vec![proj.root().into()]
-    } else {
-        args.path
-    };
+    let input = get_input_paths(proj, args.path);
 
     let encryption_mode = choose_encryption_mode(
         proj,
@@ -592,17 +584,13 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
 }
 
 fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
-    let input = if args.path.is_empty() {
-        vec![proj.root().into()]
-    } else {
-        args.path
-    };
+    let input = get_input_paths(proj, args.path);
 
     let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity)?;
     let options = DiffOptions {
         mode,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
-        skip_checksum_decrypted: args.force || args.skip_checksum_decrypted,
+        skip_verify_decrypted: args.force || args.skip_verify_decrypted,
     };
 
     if diff(proj, &input, options)? && args.fail {
@@ -734,18 +722,18 @@ fn setup_logging(verbosity: Verbosity<WarnLevel>) {
     env_logger::Builder::new()
         .filter_level(verbosity.into())
         .format(|buf, record| {
+            let level = match record.level() {
+                log::Level::Error => record.level().to_string().to_lowercase().red().to_string(),
+                log::Level::Warn => record.level().to_string().to_lowercase().yellow().to_string(),
+                _ => record.level().to_string().to_lowercase(),
+            };
             if record.level() <= log::Level::Warn {
-                writeln!(
-                    buf,
-                    "{}: {}",
-                    record.level().to_string().to_lowercase().yellow(),
-                    record.args()
-                )
+                writeln!(buf, "{}: {}", level, record.args())
             } else {
                 writeln!(
                     buf,
                     "{} {}: {}",
-                    record.level().to_string().to_lowercase().yellow(),
+                    level,
                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S").dimmed(),
                     record.args()
                 )

@@ -71,8 +71,9 @@ pub fn verify_checksum(data: &[u8], checksum: &str, path: &Path) -> Result<()> {
                 Ok(())
             } else {
                 Err(anyhow!(
-                    "{}: checksum mismatch: expected {cs:?}, got {:?}",
+                    "{}: checksum mismatch: expected {}, got {}",
                     path.display(),
+                    cs,
                     enc_checksum.as_str()
                 ))
             }

@@ -10,7 +10,7 @@ use std::path::PathBuf;
 pub struct DiffOptions {
     pub mode: DecryptionMode,
     pub skip_verify_encrypted: bool,
-    pub skip_checksum_decrypted: bool,
+    pub skip_verify_decrypted: bool,
 }
 
 pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<bool> {
@@ -21,7 +21,7 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
         skip_gitignore: true,
         skip_timestamps: true,
         skip_verify_encrypted: options.skip_verify_encrypted,
-        skip_verify_decrypted: options.skip_checksum_decrypted,
+        skip_verify_decrypted: options.skip_verify_decrypted,
     };
 
     for path in paths {

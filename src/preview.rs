@@ -366,33 +366,7 @@ pub fn generate_preview(
                 preview: String::from_utf8(buf).ok()?,
             })
         }
-        "env" => {
-            let content_str = std::str::from_utf8(content).ok()?;
-            let mut value = parse_dotenv(content_str);
-
-            let old_value = old_content
-                .and_then(|c| std::str::from_utf8(c).ok())
-                .map(parse_dotenv);
-            let old_preview_value = old_preview.map(parse_dotenv);
-
-            redact_dotenv(
-                &mut value,
-                old_value.as_ref(),
-                old_preview_value.as_ref(),
-                timestamp,
-            );
-
-            let mut preview = String::new();
-            for (k, v) in value {
-                preview.push_str(&format!("{}={}\n", k, v));
-            }
-
-            Some(PreviewMetadata {
-                format: PreviewFormat::Dotenv,
-                preview,
-            })
-        }
-        _ if filename == ".env" => {
+        "env" | _ if filename == ".env" => {
             let content_str = std::str::from_utf8(content).ok()?;
             let mut value = parse_dotenv(content_str);
 

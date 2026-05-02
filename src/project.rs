@@ -295,10 +295,10 @@ pub fn fmt_gitignore_line(path: &Path, gitignore_root: &Path) -> Result<String> 
 
 // Very naive implementation for now
 pub fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBuf>> {
-    let gitignote_root = get_or_create_gitignore_root(path)?;
-    let line_to_add = fmt_gitignore_line(path, &gitignote_root)?;
+    let gitignore_root = get_or_create_gitignore_root(path)?;
+    let line_to_add = fmt_gitignore_line(path, &gitignore_root)?;
 
-    let gitignore_path = gitignote_root.join(".gitignore");
+    let gitignore_path = gitignore_root.join(".gitignore");
     if append_line_if_absent(&gitignore_path, &line_to_add)? {
         log::debug!("{}: added to {}", line_to_add, gitignore_path.display());
         Ok(Some(gitignore_path))
@@ -308,11 +308,11 @@ pub fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBuf>> {
 }
 
 // Very naive implementation for now
-pub fn remove_from_gitignore_if_present(path: PathBuf) -> Result<Option<PathBuf>> {
-    let gitignote_root = get_or_create_gitignore_root(&path)?;
-    let line_to_remove = fmt_gitignore_line(&path, &gitignote_root)?;
+pub fn remove_from_gitignore_if_present(path: &Path) -> Result<Option<PathBuf>> {
+    let gitignore_root = get_or_create_gitignore_root(path)?;
+    let line_to_remove = fmt_gitignore_line(path, &gitignore_root)?;
 
-    let gitignore_path = gitignote_root.join(".gitignore");
+    let gitignore_path = gitignore_root.join(".gitignore");
     if remove_line_if_present(&gitignore_path, &line_to_remove)? {
         log::debug!(
             "{}: removed from {}",

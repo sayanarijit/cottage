@@ -4,7 +4,7 @@ use crate::{
 };
 use age::armor::ArmoredReader;
 use age::secrecy::SecretString;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
 use std::io::{BufReader, Seek, SeekFrom, Write};
@@ -52,10 +52,8 @@ pub fn decrypt_file(path: &Path, options: &DecryptOptions) -> Result<Option<Oper
     log::debug!("{}: decrypting file", path.display());
     // Just read operations for now ------------------------
     if !is_encrypted_path(path) {
-        return Err(anyhow!(
-            "{}: does not have .cott.age extension",
-            path.display()
-        ));
+        log::warn!("skipped: {}: invalid path for decryption", path.display());
+        return Ok(None);
     }
 
     let output_path = to_decrypted_path(path)
