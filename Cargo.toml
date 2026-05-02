@@ -8,14 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/sayanarijit/cottage"
 authors = ["Arijit Basu <hi@arijitbasu.in>"]
 keywords = ["age", "git", "secrets", "cli", "command-line"]
-categories = [
-  "command-line-utilities",
-  "encryption",
-  "git",
-  "security",
-  "team-collaboration",
-  "devops",
-]
+categories = ["command-line-utilities", "filesystem", "development-tools"]
 
 
 [features]
