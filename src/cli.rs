@@ -406,6 +406,23 @@ fn choose_decryption_mode(
     }
 }
 
+fn print_edits(proj: &Project, op: &OperationResult) {
+    if let Some(meta) = &op.metadata {
+        println!(
+            "   {} {}",
+            "edit".yellow(),
+            proj.relative_to_cwd(meta).display()
+        );
+    }
+    if let Some(gitignore) = &op.gitignore {
+        println!(
+            "{} {}",
+            "edit".yellow(),
+            proj.relative_to_cwd(gitignore).display()
+        );
+    }
+}
+
 fn print_result(proj: &Project, op: &OperationResult, compact: bool) {
     match (op.kind, compact) {
         (OperationKind::Encrypt, false) => {
@@ -416,6 +433,7 @@ fn print_result(proj: &Project, op: &OperationResult, compact: bool) {
                 "into".blue(),
                 proj.relative_to_cwd(&op.output).display()
             );
+            print_edits(proj, op);
         }
         (OperationKind::Decrypt, false) => {
             println!(
@@ -425,6 +443,7 @@ fn print_result(proj: &Project, op: &OperationResult, compact: bool) {
                 "into".blue(),
                 proj.relative_to_cwd(&op.output).display()
             );
+            print_edits(proj, op);
         }
         (OperationKind::Encrypt, true) => {
             println!("{}", proj.relative_to_cwd(&op.output).display().green());
