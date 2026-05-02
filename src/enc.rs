@@ -61,7 +61,7 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
     };
 
     let input_file = File::open(path)
-        .with_context(|| format!("{}: failed to open input file", path.display()))?;
+        .with_context(|| format!("{}: could not open input file", path.display()))?;
     log::debug!("{}: reading input file", path.display());
 
     let input = {
@@ -77,7 +77,7 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
 
     if !options.force && metadata_path.exists() {
         let metadata = Metadata::read_from_path(&metadata_path)
-            .with_context(|| format!("{}: failed to read metadata", metadata_path.display()))?;
+            .with_context(|| format!("{}: could not read metadata", metadata_path.display()))?;
 
         if verify_checksum(&recipients_data, &metadata.checksum.recipients, path).is_ok()
             && verify_checksum(input.as_slice(), &metadata.checksum.decrypted, path).is_ok()
@@ -162,14 +162,14 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
 
     log::debug!("{}: writing encrypted file", output_path.display());
     std::fs::write(&output_path, output)
-        .with_context(|| format!("{}: failed to write encrypted file", output_path.display()))?;
+        .with_context(|| format!("{}: could not write encrypted file", output_path.display()))?;
 
     if !options.skip_timestamps {
         set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
     }
     log::debug!("{}: writing metadata file", metadata_path.display());
     std::fs::write(&metadata_path, toml::to_string(&metadata)?)
-        .with_context(|| format!("{}: failed to write metadata file", metadata_path.display()))?;
+        .with_context(|| format!("{}: could not write metadata file", metadata_path.display()))?;
 
     Ok(Some(OperationResult {
         kind: OperationKind::Encrypt,

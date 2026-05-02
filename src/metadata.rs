@@ -52,9 +52,9 @@ impl Metadata {
     pub fn read_from_path(path: &Path) -> Result<Self> {
         log::debug!("{}: reading metadata", path.display());
         let content = std::fs::read_to_string(path)
-            .with_context(|| format!("{}: failed to read metadata file", path.display()))?;
+            .with_context(|| format!("{}: could not read metadata file", path.display()))?;
         toml::from_str::<Metadata>(&content)
-            .with_context(|| format!("{}: failed to parse metadata", path.display()))
+            .with_context(|| format!("{}: could not parse metadata", path.display()))
     }
 }
 

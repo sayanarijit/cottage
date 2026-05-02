@@ -32,11 +32,11 @@ impl AsRef<dyn age::Identity> for Identity {
 pub fn parse_identity_file(path: &Path) -> Result<Identity> {
     log::debug!("{}: parsing identity", path.display());
     let s = std::fs::read_to_string(path)
-        .with_context(|| format!("{}: failed to read identity file", path.display()))?;
+        .with_context(|| format!("{}: could not read identity file", path.display()))?;
 
     if s.starts_with("AGE-SECRET-KEY-1") {
         let identity = age::x25519::Identity::from_str(&s)
-            .map_err(|e| anyhow!("{}: failed to parse age identity", e))?;
+            .map_err(|e| anyhow!("{}: could not parse age identity", e))?;
         log::debug!("{}: parsed age identity", path.display());
         return Ok(Identity::X25519(identity));
     }
@@ -92,7 +92,7 @@ pub fn load_identities(
                 Ok(identity) => Box::new(std::iter::once(identity)),
                 Err(e) => {
                     log::warn!(
-                        "{}: failed to parse default identity: {}",
+                        "{}: could not parse default identity: {}",
                         default_identities_path.display(),
                         e
                     );

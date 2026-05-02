@@ -37,23 +37,23 @@ impl Project {
         Self::load().or_else(|_| {
             log::debug!("project root not found, initializing new project");
             let root =
-                std::env::current_dir().context("failed to get current working directory")?;
+                std::env::current_dir().context("could not get current working directory")?;
             let cottage_dir = root.join(".cottage");
             std::fs::create_dir(&cottage_dir).with_context(|| {
                 format!(
-                    "{}: failed to create cottage directory",
+                    "{}: could not create cottage directory",
                     cottage_dir.display()
                 )
             })?;
             log::debug!("{}: created directory", cottage_dir.display());
-            Self::load().context("failed to load project after initialization")
+            Self::load().context("could not load project after initialization")
         })
     }
 
     pub fn load() -> Result<Self> {
-        let cwd = std::env::current_dir().context("failed to get current working directory")?;
+        let cwd = std::env::current_dir().context("could not get current working directory")?;
         let root = get_project_root(&cwd).context(format!(
-            "{}: failed to find project root (looking for .cottage/, .git/, or .jj/)",
+            "{}: could not find project root (looking for .cottage/, .git/, or .jj/)",
             cwd.display()
         ))?;
         log::debug!("{}: project root identified", root.display());
@@ -62,7 +62,7 @@ impl Project {
         if !cottage_dir.exists() {
             std::fs::create_dir(&cottage_dir).with_context(|| {
                 format!(
-                    "{}: failed to create cottage directory",
+                    "{}: could not create cottage directory",
                     cottage_dir.display()
                 )
             })?;
@@ -90,20 +90,20 @@ impl Project {
 
             std::fs::create_dir_all(&recipients_path).with_context(|| {
                 format!(
-                    "{}: failed to create recipients directory",
+                    "{}: could not create recipients directory",
                     recipients_path.display()
                 )
             })?;
             log::debug!("{}: created directory", recipients_path.display());
             std::fs::write(&recipient_path, pk.to_string()).with_context(|| {
                 format!(
-                    "{}: failed to write recipient file",
+                    "{}: could not write recipient file",
                     recipient_path.display()
                 )
             })?;
             log::debug!("{}: wrote file", recipient_path.display());
             std::fs::write(&identity_path, sk.to_string().expose_secret()).with_context(|| {
-                format!("{}: failed to write identity file", identity_path.display())
+                format!("{}: could not write identity file", identity_path.display())
             })?;
             log::debug!("{}: wrote file", identity_path.display());
         };
@@ -200,7 +200,7 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
         .read(true)
         .append(true)
         .open(path)
-        .with_context(|| format!("{}: failed to open", path.display()))?;
+        .with_context(|| format!("{}: could not open", path.display()))?;
 
     if std::io::BufReader::new(&file)
         .lines()
@@ -222,10 +222,10 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
     };
 
     if needs_nl {
-        writeln!(file).with_context(|| format!("{}: failed to write", path.display()))?;
+        writeln!(file).with_context(|| format!("{}: could not write", path.display()))?;
     }
 
-    writeln!(file, "{}", line).with_context(|| format!("{}: failed to write", path.display()))?;
+    writeln!(file, "{}", line).with_context(|| format!("{}: could not write", path.display()))?;
     Ok(true)
 }
 
@@ -279,14 +279,14 @@ pub fn fmt_gitignore_line(path: &Path, gitignore_root: &Path) -> Result<String> 
     let mut abs_path = std::path::absolute(path)?;
     if is_encrypted_path(&abs_path) {
         abs_path = to_decrypted_path(&abs_path).context(format!(
-            "{}: failed to get decrypted path for encrypted file",
+            "{}: could not get decrypted path for encrypted file",
             path.display()
         ))?
     }
 
     Ok(PathBuf::from("/")
         .join(pathdiff::diff_paths(&abs_path, &abs_root).context(format!(
-            "{}: failed to get relative path for gitignore",
+            "{}: could not get relative path for gitignore",
             path.display()
         ))?)
         .to_string_lossy()

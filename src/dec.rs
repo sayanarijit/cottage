@@ -59,13 +59,13 @@ pub fn decrypt_file(path: &Path, options: &DecryptOptions) -> Result<Option<Oper
     }
 
     let output_path = to_decrypted_path(path)
-        .with_context(|| format!("{}: failed to determine output path", path.display()))?;
+        .with_context(|| format!("{}: could not determine output path", path.display()))?;
     let metadata_path = to_metadata_path(&output_path);
     let metadata = Metadata::read_from_path(&metadata_path)
-        .with_context(|| format!("{}: failed to read metadata", metadata_path.display()))?;
+        .with_context(|| format!("{}: could not read metadata", metadata_path.display()))?;
 
     let mut input_file = File::open(path)
-        .with_context(|| format!("{}: failed to open input file", path.display()))?;
+        .with_context(|| format!("{}: could not open input file", path.display()))?;
     log::debug!("{}: reading encrypted file", path.display());
     let filemtime = input_file.metadata()?.modified()?;
 
@@ -112,7 +112,7 @@ pub fn decrypt_file(path: &Path, options: &DecryptOptions) -> Result<Option<Oper
 
     log::debug!("{}: writing decrypted file", output_path.display());
     std::fs::write(&output_path, &output)
-        .with_context(|| format!("{}: failed to write decrypted file", output_path.display()))?;
+        .with_context(|| format!("{}: could not write decrypted file", output_path.display()))?;
     if !options.skip_timestamps {
         set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
     };

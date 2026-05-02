@@ -37,11 +37,11 @@ pub type RecipientData = (Recipient, Vec<u8>);
 pub fn parse_recipient(s: &str) -> Result<Recipient> {
     if s.starts_with("age1") {
         let recipient = age::x25519::Recipient::from_str(s)
-            .map_err(|e| anyhow!("{}: failed to parse age recipient", e))?;
+            .map_err(|e| anyhow!("{}: could not parse age recipient", e))?;
         Ok(Recipient::X25519(recipient))
     } else if s.starts_with("ssh-") || s.starts_with("ecdsa-") {
         let recipient = age::ssh::Recipient::from_str(s)
-            .map_err(|e| anyhow!("{:?}: failed to parse SSH recipient", e))?;
+            .map_err(|e| anyhow!("{:?}: could not parse SSH recipient", e))?;
         Ok(Recipient::Ssh(recipient))
     } else {
         Err(anyhow!("{}: unsupported recipient format", s))
@@ -51,7 +51,7 @@ pub fn parse_recipient(s: &str) -> Result<Recipient> {
 pub fn parse_recipients_file(path: PathBuf) -> Result<Box<dyn Iterator<Item = RecipientData>>> {
     log::debug!("{}: parsing recipients", path.display());
     let file = File::open(&path)
-        .with_context(|| format!("{}: failed to open recipients file", path.display()))?;
+        .with_context(|| format!("{}: could not open recipients file", path.display()))?;
     let reader = BufReader::new(file);
     let iter = reader.lines().filter_map(move |line| match line {
         Ok(line) => {
@@ -62,14 +62,14 @@ pub fn parse_recipients_file(path: PathBuf) -> Result<Box<dyn Iterator<Item = Re
                 match parse_recipient(trimmed_line) {
                     Ok(recipient) => Some((recipient, line.into_bytes())),
                     Err(e) => {
-                        log::warn!("{}: failed to parse recipient: {}", path.display(), e);
+                        log::warn!("{}: could not parse recipient: {}", path.display(), e);
                         None
                     }
                 }
             }
         }
         Err(e) => {
-            log::warn!("{}: failed to read line: {}", path.display(), e);
+            log::warn!("{}: could not read line: {}", path.display(), e);
             None
         }
     });
@@ -86,7 +86,7 @@ pub fn parse_recipients_dir(path: PathBuf) -> Box<dyn Iterator<Item = RecipientD
             Ok(iter) => iter,
             Err(err) => {
                 log::warn!(
-                    "{}: failed to parse recipients file: {}",
+                    "{}: could not parse recipients file: {}",
                     e.path().display(),
                     err
                 );
@@ -126,7 +126,7 @@ pub fn load_recipients(
                 Ok(iter) => iter,
                 Err(err) => {
                     log::warn!(
-                        "{}: failed to parse default recipients file: {}",
+                        "{}: could not parse default recipients file: {}",
                         default_recipients_path.display(),
                         err
                     );
@@ -144,7 +144,7 @@ pub fn load_recipients(
             .filter_map(|r| match parse_recipient(&r) {
                 Ok(recipient) => Some((recipient, r.as_bytes().to_vec())),
                 Err(e) => {
-                    log::warn!("{}: failed to parse recipient: {}", r, e);
+                    log::warn!("{}: could not parse recipient: {}", r, e);
                     None
                 }
             })
@@ -153,7 +153,7 @@ pub fn load_recipients(
                 false => match parse_recipients_file(f.to_path_buf()) {
                     Ok(iter) => iter,
                     Err(err) => {
-                        log::warn!("{}: failed to parse recipients file: {}", f.display(), err);
+                        log::warn!("{}: could not parse recipients file: {}", f.display(), err);
                         Box::new(std::iter::empty())
                     }
                 },
