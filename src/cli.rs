@@ -2,8 +2,8 @@ use crate::dec::decrypt_file;
 use crate::enc::encrypt_file;
 use crate::{
     CleanOptions, DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode,
-    OperationKind, Project, SyncOptions, clean_path, clean_project, decrypt_path, diff,
-    encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
+    OperationKind, OperationResult, Project, SyncOptions, clean_path, clean_project, decrypt_path,
+    diff, encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
     status_path, sync_path, to_decrypted_path, to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
@@ -14,7 +14,7 @@ use owo_colors::OwoColorize;
 use std::env::VarError;
 use std::fs::File;
 use std::io::{IsTerminal, Write, stdin};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(clap::Parser, Debug)]
 #[command(author, version, about, long_about = None, arg_required_else_help = true)]
@@ -110,15 +110,12 @@ struct EditArgs {
     recipient: Vec<String>,
 
     /// Encrypt to recipients listed at PATH. Can be repeated.
-    /// Defaults to recipients in .cottage/recipients if not specified.
+    /// Defaults to recipients in .cottage/recipients.
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
-    /// identities and use the passphrase.
-    /// Else tries to load from .cottage/identity.
-    /// Finally, falls back to loading all identities in ~/.ssh.
+    ///. and COTTAGE_PASSPHRASE environment variable is set, it will skip using
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -137,6 +134,10 @@ struct EditArgs {
     /// Force re-encryption even if the decrypted file is not modified.
     #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
+
+    /// Skip matching checksum and re-encrypt all files.
+    #[arg(long, env = "COTTAGE_FORCE_ENCRYPT")]
+    force_encrypt: bool,
 
     /// Skip checksum verification of encrypted files.
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
@@ -170,15 +171,12 @@ struct EncryptArgs {
     recipient: Vec<String>,
 
     /// Encrypt to recipients listed at PATH. Can be repeated.
-    /// Defaults to recipients in .cottage/recipients if not specified.
+    /// Defaults to recipients in .cottage/recipients.
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
-    /// identities and use the passphrase.
-    /// Else tries to load from .cottage/identity.
-    /// Finally, falls back to loading all identities in ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -218,10 +216,7 @@ struct DecryptArgs {
     passphrase: bool,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
-    /// identities and use the passphrase.
-    /// Else tries to load from .cottage/identity.
-    /// Finally, falls back to loading all identities in ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -265,15 +260,12 @@ struct SyncArgs {
     recipient: Vec<String>,
 
     /// Encrypt to recipients listed at PATH. Can be repeated.
-    /// Defaults to recipients in .cottage/recipients if not specified.
+    /// Defaults to recipients in .cottage/recipients.
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
-    /// identities and use the passphrase.
-    /// Else tries to load from .cottage/identity.
-    /// Finally, falls back to loading all identities in ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -294,7 +286,7 @@ struct SyncArgs {
     skip_preview: bool,
 
     /// Skip matching checksum and re-encrypt all files.
-    #[arg(long, short, env = "COTTAGE_FORCE_ENCRYPT")]
+    #[arg(long, env = "COTTAGE_FORCE_ENCRYPT")]
     force_encrypt: bool,
 
     /// Skip checksum verification of encrypted files.
@@ -325,10 +317,7 @@ struct DiffArgs {
     passphrase: bool,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
-    /// identities and use the passphrase.
-    /// Else tries to load from .cottage/identity.
-    /// Finally, falls back to loading all identities in ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -417,31 +406,31 @@ fn choose_decryption_mode(
     }
 }
 
-fn print_result(proj: &Project, kind: OperationKind, input: &Path, output: &Path, compact: bool) {
-    match (kind, compact) {
+fn print_result(proj: &Project, op: &OperationResult, compact: bool) {
+    match (op.kind, compact) {
         (OperationKind::Encrypt, false) => {
             println!(
                 "{} {}\n   {} {}",
                 "encrypt".green(),
-                proj.relative_to_cwd(input).display(),
+                proj.relative_to_cwd(&op.input).display(),
                 "into".blue(),
-                proj.relative_to_cwd(output).display()
+                proj.relative_to_cwd(&op.output).display()
             );
         }
         (OperationKind::Decrypt, false) => {
             println!(
                 "{} {}\n   {} {}",
                 "decrypt".cyan(),
-                proj.relative_to_cwd(input).display(),
+                proj.relative_to_cwd(&op.input).display(),
                 "into".blue(),
-                proj.relative_to_cwd(output).display()
+                proj.relative_to_cwd(&op.output).display()
             );
         }
         (OperationKind::Encrypt, true) => {
-            println!("{}", proj.relative_to_cwd(output).display().green());
+            println!("{}", proj.relative_to_cwd(&op.output).display().green());
         }
         (OperationKind::Decrypt, true) => {
-            println!("{}", proj.relative_to_cwd(output).display().cyan());
+            println!("{}", proj.relative_to_cwd(&op.output).display().cyan());
         }
     }
 }
@@ -488,7 +477,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         for res in encrypt_path(path, &options) {
             let res = res?;
             if !quiet {
-                print_result(proj, res.kind, &res.input, &res.output, args.compact);
+                print_result(proj, &res, args.compact);
             }
         }
     }
@@ -512,7 +501,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
         for res in decrypt_path(path, &options) {
             let res = res?;
             if !quiet {
-                print_result(proj, res.kind, &res.input, &res.output, args.compact);
+                print_result(proj, &res, args.compact);
             }
         }
     }
@@ -528,7 +517,7 @@ fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
             let res = res?;
             has_pending = true;
             if !quiet {
-                print_result(proj, res.kind, &res.input, &res.output, args.compact);
+                print_result(proj, &res.into(), args.compact);
             }
         }
     }
@@ -575,7 +564,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         for res in sync_path(path, &sync_options) {
             let res = res?;
             if !quiet {
-                print_result(proj, res.kind, &res.input, &res.output, args.compact);
+                print_result(proj, &res, args.compact);
             }
         }
     }
@@ -697,14 +686,14 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             armor: args.armor,
             skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
             skip_timestamps: args.skip_timestamps,
-            force: args.force,
+            force: args.force || args.force_encrypt,
             skip_preview: args.skip_preview,
         };
 
         if let Some(res) = encrypt_file(&decrypted_path, &options)?
             && !quiet
         {
-            print_result(proj, res.kind, &res.input, &res.output, args.compact);
+            print_result(proj, &res, args.compact);
         }
     }
 
@@ -724,7 +713,12 @@ fn setup_logging(verbosity: Verbosity<WarnLevel>) {
         .format(|buf, record| {
             let level = match record.level() {
                 log::Level::Error => record.level().to_string().to_lowercase().red().to_string(),
-                log::Level::Warn => record.level().to_string().to_lowercase().yellow().to_string(),
+                log::Level::Warn => record
+                    .level()
+                    .to_string()
+                    .to_lowercase()
+                    .yellow()
+                    .to_string(),
                 _ => record.level().to_string().to_lowercase(),
             };
             if record.level() <= log::Level::Warn {

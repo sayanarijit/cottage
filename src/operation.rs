@@ -22,6 +22,18 @@ pub struct OperationResult {
     pub gitignore: Option<PathBuf>,
 }
 
+impl From<Operation> for OperationResult {
+    fn from(op: Operation) -> Self {
+        Self {
+            kind: op.kind,
+            input: op.input,
+            output: op.output,
+            metadata: None,
+            gitignore: None,
+        }
+    }
+}
+
 pub fn to_encrypted_path(path: &Path) -> PathBuf {
     path.with_added_extension("cott")
         .with_added_extension("age")
