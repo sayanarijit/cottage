@@ -2,10 +2,11 @@
 
 Cottage is a tool for teams to manage [age-encrypted](https://age-encryption.org/) secrets in git repositories.
 
-It provides a simple workflow to encrypt secrets, manage recipients, and keep secrets out
-of the repo while still allowing for easy sharing and collaboration. Cottage also
+It provides a simple workflow to encrypt/decrypt secrets, manage recipients, and keep
+secrets out of the repo while still allowing for easy sharing via VCS. Cottage also
 generates redacted previews of encrypted secrets for better visibility and supports both
-persistent and temporary decryption workflows.
+persistent and temporary decryption workflows, while ensuring secrets are never committed
+in plaintext.
 
 ## Features
 
