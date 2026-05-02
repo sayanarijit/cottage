@@ -11,9 +11,9 @@ pub enum Identity {
     Ssh(ssh::Identity),
 }
 
-impl Into<Box<dyn age::Identity>> for Identity {
-    fn into(self) -> Box<dyn age::Identity> {
-        match self {
+impl From<Identity> for Box<dyn age::Identity> {
+    fn from(val: Identity) -> Self {
+        match val {
             Identity::X25519(id) => Box::new(id),
             Identity::Ssh(id) => Box::new(id),
         }
@@ -53,14 +53,13 @@ pub fn parse_identities_dir(path: &Path) -> Box<dyn Iterator<Item = Identity>> {
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file() && !e.file_name().to_string_lossy().ends_with(".pub"))
         .map(|entry| entry.path().to_path_buf())
-        .map(move |p| match parse_identity_file(&p) {
+        .filter_map(move |p| match parse_identity_file(&p) {
             Ok(identity) => Some(identity),
             Err(e) => {
                 log::warn!("skipped: {}: {}", p.display(), e);
                 None
             }
-        })
-        .filter_map(|x| x);
+        });
     Box::new(iter)
 }
 

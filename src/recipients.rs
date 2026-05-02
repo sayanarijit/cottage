@@ -14,9 +14,9 @@ pub enum Recipient {
     Ssh(ssh::Recipient),
 }
 
-impl Into<Box<dyn age::Recipient>> for Recipient {
-    fn into(self) -> Box<dyn age::Recipient> {
-        match self {
+impl From<Recipient> for Box<dyn age::Recipient> {
+    fn from(val: Recipient) -> Self {
+        match val {
             Recipient::X25519(r) => Box::new(r),
             Recipient::Ssh(r) => Box::new(r),
         }

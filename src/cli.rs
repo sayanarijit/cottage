@@ -115,7 +115,7 @@ struct EditArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
     /// identities and use the passphrase.
     /// Else tries to load from .cottage/identity.
     /// Finally, falls back to loading all identities in ~/.ssh.
@@ -175,7 +175,7 @@ struct EncryptArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
     /// identities and use the passphrase.
     /// Else tries to load from .cottage/identity.
     /// Finally, falls back to loading all identities in ~/.ssh.
@@ -194,7 +194,7 @@ struct EncryptArgs {
     #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
     skip_gitignore: bool,
 
-    /// Skip matching checksum and re-encrypt every files.
+    /// Skip matching checksum and re-encrypt all files.
     #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
@@ -209,7 +209,7 @@ struct EncryptArgs {
 
 #[derive(clap::Args, Debug)]
 struct DecryptArgs {
-    /// The file to dir to decrypt, defaults to project root.
+    /// The file or dir to decrypt, defaults to project root.
     path: Vec<PathBuf>,
 
     /// Decrypt with a passphrase.
@@ -218,7 +218,7 @@ struct DecryptArgs {
     passphrase: bool,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
     /// identities and use the passphrase.
     /// Else tries to load from .cottage/identity.
     /// Finally, falls back to loading all identities in ~/.ssh.
@@ -233,7 +233,7 @@ struct DecryptArgs {
     #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
     skip_gitignore: bool,
 
-    /// Skip checksum verification and re-decrypt every files.
+    /// Skip checksum verification and re-decrypt all files.
     #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
@@ -252,7 +252,7 @@ struct DecryptArgs {
 
 #[derive(clap::Args, Debug)]
 struct SyncArgs {
-    /// The file to dir to sync, defaults to project root.
+    /// The file or dir to sync, defaults to project root.
     path: Vec<PathBuf>,
 
     /// Encrypt with a passphrase.
@@ -270,7 +270,7 @@ struct SyncArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
     /// identities and use the passphrase.
     /// Else tries to load from .cottage/identity.
     /// Finally, falls back to loading all identities in ~/.ssh.
@@ -293,19 +293,19 @@ struct SyncArgs {
     #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
     skip_preview: bool,
 
-    /// Skip matching checksum and re-encrypt every files.
+    /// Skip matching checksum and re-encrypt all files.
     #[arg(long, short, env = "COTTAGE_FORCE_ENCRYPT")]
     force_encrypt: bool,
 
     /// Skip checksum verification of encrypted files.
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
-    skip_verify_encypted: bool,
+    skip_verify_encrypted: bool,
 
     /// Skip checksum verification of decrypted files.
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_DECRYPTED")]
     skip_verify_decrypted: bool,
 
-    /// Skip checksum verification and re-encrypt/re-decrypt every files.
+    /// Skip checksum verification and re-encrypt/re-decrypt all files.
     #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
@@ -325,7 +325,7 @@ struct DiffArgs {
     passphrase: bool,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// If not specified, and COTTAGE_PASSPHRASE environment variable is set, it will skip using
     /// identities and use the passphrase.
     /// Else tries to load from .cottage/identity.
     /// Finally, falls back to loading all identities in ~/.ssh.
@@ -351,7 +351,7 @@ struct DiffArgs {
 
 #[derive(clap::Args, Debug)]
 struct StatusArgs {
-    /// The file to dir to check status of, defaults to project root.
+    /// The file or dir to check status of, defaults to project root.
     path: Vec<PathBuf>,
 
     /// Compact output.
@@ -568,13 +568,13 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
     let decryption_mode = choose_decryption_mode(proj, args.passphrase, passphrase, args.identity)?;
 
     let sync_options = SyncOptions {
-        encryption_mode: encryption_mode,
-        decryption_mode: decryption_mode,
+        encryption_mode,
+        decryption_mode,
         armor: args.armor,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
         skip_preview: args.skip_preview,
-        skip_verify_encrypted: args.force || args.skip_verify_encypted,
+        skip_verify_encrypted: args.force || args.skip_verify_encrypted,
         skip_verify_decrypted: args.force || args.skip_verify_decrypted,
         force_encrypt: args.force || args.force_encrypt,
     };

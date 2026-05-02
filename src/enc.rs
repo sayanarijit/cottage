@@ -130,14 +130,13 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
                 .ok()
                 .and_then(|f| decrypt_into_memory(f, &decrypt_options).ok());
 
-            let preview = generate_preview(
+            generate_preview(
                 path,
                 &input,
                 old_content.as_deref(),
                 old_preview,
                 &secret.timestamp,
-            );
-            preview
+            )
         } else {
             None
         }
