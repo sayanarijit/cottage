@@ -16,6 +16,8 @@ generates redacted previews of encrypted secrets for better visibility and suppo
 persistent and temporary decryption workflows, while ensuring secrets are never committed
 in plaintext.
 
+![Intro Demo](https://vhs.charm.sh/vhs-IGhLl9r53QKGaOvsv9Na2.gif)
+
 ## Features
 
 - **Team-friendly**: Share public keys (recipients) in the repo, keep private keys (identities) local.
@@ -63,7 +65,7 @@ Create or edit a secret.
 
 ```bash
 ctg edit secret.yml --clean      # Opens secret.yml in $EDITOR
-ctg encrypt secret.yml  --clean  # Another way to encrypt secrets
+ctg encrypt secret.yml --clean  # Another way to encrypt secrets
 # encrypt secret.yml
 #    into secret.yml.cott.age
 #    edit secret.yml.cott.toml
