@@ -407,20 +407,16 @@ fn choose_decryption_mode(
 }
 
 fn print_edits(proj: &Project, op: &OperationResult) {
-    if let Some(meta) = &op.metadata {
-        println!(
-            "   {} {}",
-            "edit".yellow(),
-            proj.relative_to_cwd(meta).display()
-        );
-    }
-    if let Some(gitignore) = &op.gitignore {
-        println!(
-            "   {} {}",
-            "edit".yellow(),
-            proj.relative_to_cwd(gitignore).display()
-        );
-    }
+    op.metadata
+        .iter()
+        .chain(op.gitignore.iter())
+        .for_each(|path| {
+            println!(
+                "   {} {}",
+                "edit".yellow(),
+                proj.relative_to_cwd(path).display()
+            );
+        });
 }
 
 fn print_result(proj: &Project, op: &OperationResult, compact: bool) {
