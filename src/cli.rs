@@ -27,7 +27,7 @@ struct CottageCli {
 
 #[derive(clap::Subcommand, Debug)]
 enum Command {
-    /// Initialize cottage in the current project.
+    /// Initialize cottage in the current directory.
     #[command(name = "init")]
     Init,
 
@@ -36,15 +36,15 @@ enum Command {
     Edit(EditArgs),
 
     /// Encrypt files.
-    #[command(name = "encrypt", aliases = ["e", "enc"])]
+    #[command(name = "encrypt", aliases = ["en", "enc"])]
     Encrypt(EncryptArgs),
 
     /// Decrypt files.
-    #[command(name = "decrypt", aliases = ["d", "dec"])]
+    #[command(name = "decrypt", aliases = ["de", "dec"])]
     Decrypt(DecryptArgs),
 
     /// Sync encrypted and decrypted files.
-    #[command(name = "sync", aliases = ["s", "syn"])]
+    #[command(name = "sync", aliases = ["sy", "syn"])]
     Sync(SyncArgs),
 
     /// See status of encrypted and decrypted files.
@@ -52,11 +52,11 @@ enum Command {
     Status(StatusArgs),
 
     /// See diff between encrypted and decrypted files.
-    #[command(name = "diff", aliases = ["df"])]
+    #[command(name = "diff", aliases = ["di"])]
     Diff(DiffArgs),
 
     /// Delete all secrets and identity files.
-    #[command(name = "clean", aliases = ["cln"])]
+    #[command(name = "clean", aliases = ["cl"])]
     Clean(CleanArgs),
 
     #[cfg(feature = "autocomplete")]
