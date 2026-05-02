@@ -30,7 +30,7 @@ fn test_clean() {
     // Now we want to run clean.
     let opts = CleanOptions {
         dry_run: true,
-        skip_gitignore: true,
+        gitignore: false,
     };
     let cleaned = clean_path(&_proj.root(), &opts)
         .filter_map(|res| res.ok())

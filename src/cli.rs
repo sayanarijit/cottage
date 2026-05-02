@@ -108,8 +108,8 @@ struct CleanArgs {
     dry_run: bool,
 
     /// Skip removing from .gitignore.
-    #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
-    skip_gitignore: bool,
+    #[arg(long, env = "COTTAGE_CLEAN_GITIGNORE")]
+    gitignore: bool,
 
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
@@ -584,7 +584,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
     if args.clean {
         let clean_opts = CleanOptions {
             dry_run: false,
-            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+            gitignore: false,
         };
 
         for res in input.iter().flat_map(|p| clean_path(p, &clean_opts)) {
@@ -718,7 +718,7 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
 
     let opts = CleanOptions {
         dry_run: args.dry_run,
-        skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+        gitignore: args.gitignore && proj.git().is_some(),
     };
 
     for res in input.iter().flat_map(|p| clean_path(p, &opts)) {
@@ -797,7 +797,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
 
     let clean_opts = CleanOptions {
         dry_run: false,
-        skip_gitignore: true,
+        gitignore: false,
     };
 
     for path in input.iter().map(|p| {
@@ -923,7 +923,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
     if args.clean {
         let clean_opts = CleanOptions {
             dry_run: false,
-            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+            gitignore: false,
         };
 
         for res in clean_path(&decrypted_path, &clean_opts) {

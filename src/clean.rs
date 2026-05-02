@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Copy)]
 pub struct CleanOptions {
     pub dry_run: bool,
-    pub skip_gitignore: bool,
+    pub gitignore: bool,
 }
 
 pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<PathBuf>> {
@@ -19,7 +19,7 @@ pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<PathBuf>>
         log::debug!("{}: removing file", path.display());
         if !opts.dry_run {
             fs::remove_file(&path)?;
-            if !opts.skip_gitignore {
+            if opts.gitignore {
                 while (remove_from_gitignore_if_present(&path)?).is_some() {}
             }
         }
