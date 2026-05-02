@@ -3,15 +3,14 @@ use cottage::{
     EncryptOptions, EncryptionMode, Project, decrypt_into_memory, encrypt_path, status_path,
 };
 use std::fs;
-use tempfile::tempdir;
 
 #[test]
 fn test_diff_logic() -> Result<()> {
-    let dir = tempdir()?;
+    let dir = assert_fs::TempDir::new()?;
     std::env::set_current_dir(&dir)?;
     fs::create_dir(dir.path().join(".cottage"))?;
 
-    let _proj = Project::init()?;
+    let _proj = Project::load()?;
     let secret_path = dir.path().join("secret.txt");
     fs::write(&secret_path, "original content\n")?;
 

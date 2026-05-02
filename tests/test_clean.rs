@@ -1,17 +1,16 @@
 use cottage::*;
 use std::fs;
-use tempfile::tempdir;
 
 #[test]
 fn test_clean() {
-    let dir = tempdir().unwrap();
+    let dir = assert_fs::TempDir::new().unwrap();
     let proj_dir = dir.path();
 
     // Initialize project
     std::env::set_current_dir(proj_dir).unwrap();
     std::fs::create_dir_all(proj_dir.join(".cottage")).unwrap(); // Ensure
 
-    let _proj = Project::init().unwrap();
+    let _proj = Project::load().unwrap();
 
     let secret_path = proj_dir.join("secret.txt");
     fs::write(&secret_path, "top secret").unwrap();

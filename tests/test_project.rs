@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 #[test]
 fn test_get_root() {
-    let root = tempfile::tempdir().unwrap();
+    let root = assert_fs::TempDir::new().unwrap();
     let subdir = root.path().join("subdir");
 
     std::fs::create_dir_all(subdir.join(".cottage")).unwrap();
@@ -62,7 +62,7 @@ fn test_to_decrypted_path() {
 
 #[test]
 fn test_add_to_gitignore() {
-    let parent_dir = tempfile::tempdir().unwrap();
+    let parent_dir = assert_fs::TempDir::new().unwrap();
     let git_dir = parent_dir.path().join(".git");
     std::fs::create_dir_all(&git_dir).unwrap();
 
@@ -123,7 +123,7 @@ fn test_add_to_gitignore() {
 
 #[test]
 fn test_add_line_if_absent() {
-    let temp_file = tempfile::NamedTempFile::new().unwrap();
+    let temp_file = assert_fs::NamedTempFile::new("test.txt").unwrap();
     let path = temp_file.path();
 
     // Test adding a line to an empty file

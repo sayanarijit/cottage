@@ -673,8 +673,8 @@ pub fn run() -> Result<()> {
                 writeln!(
                     buf,
                     "{} {}: {}",
-                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S").dimmed(),
                     record.level().to_string().to_lowercase().yellow(),
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S").dimmed(),
                     record.args()
                 )
             }
