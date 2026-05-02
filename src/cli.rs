@@ -416,7 +416,7 @@ fn print_edits(proj: &Project, op: &OperationResult) {
     }
     if let Some(gitignore) = &op.gitignore {
         println!(
-            "{} {}",
+            "   {} {}",
             "edit".yellow(),
             proj.relative_to_cwd(gitignore).display()
         );
