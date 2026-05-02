@@ -270,39 +270,107 @@ pub fn generate_preview(
 
     match extension {
         "json" => {
-            let mut value: serde_json::Value = serde_json::from_slice(content).ok()?;
-            let old_value: Option<serde_json::Value> =
-                old_content.and_then(|c| serde_json::from_slice(c).ok());
-            let old_preview_value: Option<serde_json::Value> =
-                old_preview.and_then(|p| serde_json::from_str(p).ok());
+            let values: Vec<serde_json::Value> = if let Ok(v) = serde_json::from_slice(content) {
+                vec![v]
+            } else {
+                let s = std::str::from_utf8(content).ok()?;
+                s.lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .map(|l| serde_json::from_str(l).ok())
+                    .collect::<Option<Vec<_>>>()?
+            };
 
-            redact_json(
-                &mut value,
-                old_value.as_ref(),
-                old_preview_value.as_ref(),
-                timestamp,
-            );
+            let old_values: Vec<serde_json::Value> = old_content
+                .and_then(|c| {
+                    if let Ok(v) = serde_json::from_slice(c) {
+                        Some(vec![v])
+                    } else {
+                        let s = std::str::from_utf8(c).ok()?;
+                        s.lines()
+                            .filter(|l| !l.trim().is_empty())
+                            .map(|l| serde_json::from_str(l).ok())
+                            .collect::<Option<Vec<_>>>()
+                    }
+                })
+                .unwrap_or_default();
+
+            let old_preview_values: Vec<serde_json::Value> = old_preview
+                .and_then(|p| {
+                    if let Ok(v) = serde_json::from_str(p) {
+                        Some(vec![v])
+                    } else {
+                        p.lines()
+                            .filter(|l| !l.trim().is_empty())
+                            .map(|l| serde_json::from_str(l).ok())
+                            .collect::<Option<Vec<_>>>()
+                    }
+                })
+                .unwrap_or_default();
+
+            let mut preview = String::new();
+            let len = values.len();
+            for (i, mut value) in values.into_iter().enumerate() {
+                redact_json(
+                    &mut value,
+                    old_values.get(i),
+                    old_preview_values.get(i),
+                    timestamp,
+                );
+                if i > 0 {
+                    preview.push('\n');
+                }
+                if len == 1 {
+                    preview.push_str(&serde_json::to_string_pretty(&value).ok()?);
+                } else {
+                    preview.push_str(&serde_json::to_string(&value).ok()?);
+                }
+            }
+
             Some(PreviewMetadata {
                 format: PreviewFormat::Json,
-                preview: serde_json::to_string_pretty(&value).ok()?,
+                preview,
             })
         }
         "yaml" | "yml" => {
-            let mut value: serde_yaml::Value = serde_yaml::from_slice(content).ok()?;
-            let old_value: Option<serde_yaml::Value> =
-                old_content.and_then(|c| serde_yaml::from_slice(c).ok());
-            let old_preview_value: Option<serde_yaml::Value> =
-                old_preview.and_then(|p| serde_yaml::from_str(p).ok());
+            use serde::Deserialize;
+            let values: Vec<serde_yaml::Value> = serde_yaml::Deserializer::from_slice(content)
+                .map(|d| serde_yaml::Value::deserialize(d).ok())
+                .collect::<Option<Vec<_>>>()?;
 
-            redact_yaml(
-                &mut value,
-                old_value.as_ref(),
-                old_preview_value.as_ref(),
-                timestamp,
-            );
+            let old_values: Vec<serde_yaml::Value> = old_content
+                .and_then(|c| {
+                    serde_yaml::Deserializer::from_slice(c)
+                        .map(|d| serde_yaml::Value::deserialize(d).ok())
+                        .collect::<Option<Vec<_>>>()
+                })
+                .unwrap_or_default();
+
+            let old_preview_values: Vec<serde_yaml::Value> = old_preview
+                .and_then(|p| {
+                    serde_yaml::Deserializer::from_str(p)
+                        .map(|d| serde_yaml::Value::deserialize(d).ok())
+                        .collect::<Option<Vec<_>>>()
+                })
+                .unwrap_or_default();
+
+            let mut preview = String::new();
+            for (i, mut value) in values.into_iter().enumerate() {
+                redact_yaml(
+                    &mut value,
+                    old_values.get(i),
+                    old_preview_values.get(i),
+                    timestamp,
+                );
+                let doc_str = serde_yaml::to_string(&value).ok()?;
+                if i > 0 {
+                    preview.push_str("---\n");
+                }
+                preview.push_str(&doc_str);
+            }
+
             Some(PreviewMetadata {
                 format: PreviewFormat::Yaml,
-                preview: serde_yaml::to_string(&value).ok()?,
+                preview,
             })
         }
         "toml" => {
