@@ -2,7 +2,7 @@ use crate::{
     DecryptOptions, DecryptionMode, OperationKind, Project, decrypt_into_memory, status_path,
 };
 use anyhow::Result;
-use owo_colors::OwoColorize;
+use colored::Colorize;
 use similar::TextDiff;
 use std::fs;
 use std::path::PathBuf;

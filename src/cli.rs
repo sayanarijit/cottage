@@ -9,15 +9,22 @@ use crate::{
 use anyhow::{Result, anyhow};
 use clap::CommandFactory;
 use clap::Parser;
+use clap::builder::styling::*;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
-use owo_colors::OwoColorize;
+use colored::Colorize;
 use std::env::VarError;
 use std::fs::File;
 use std::io::{IsTerminal, Write, stdin};
 use std::path::PathBuf;
 
+const STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Green.on_default().bold())
+    .usage(AnsiColor::Green.on_default().bold())
+    .literal(AnsiColor::Cyan.on_default().bold())
+    .placeholder(AnsiColor::Cyan.on_default().dimmed());
+
 #[derive(clap::Parser, Debug)]
-#[command(author, version, about, long_about = None, arg_required_else_help = true)]
+#[command(author, version, about, styles = STYLES, long_about = None, arg_required_else_help = true)]
 struct CottageCli {
     #[command(subcommand)]
     command: Command,
@@ -442,10 +449,22 @@ fn print_result(proj: &Project, op: &OperationResult, compact: bool) {
             print_edits(proj, op);
         }
         (OperationKind::Encrypt, true) => {
-            println!("{}", proj.relative_to_cwd(&op.output).display().green());
+            println!(
+                "{}",
+                proj.relative_to_cwd(&op.output)
+                    .display()
+                    .to_string()
+                    .green()
+            );
         }
         (OperationKind::Decrypt, true) => {
-            println!("{}", proj.relative_to_cwd(&op.output).display().cyan());
+            println!(
+                "{}",
+                proj.relative_to_cwd(&op.output)
+                    .display()
+                    .to_string()
+                    .cyan()
+            );
         }
     }
 }
@@ -624,7 +643,7 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
         let res = res?;
         if !quiet {
             if args.compact {
-                println!("{}", proj.relative_to_cwd(&res).display().red());
+                println!("{}", proj.relative_to_cwd(&res).display().to_string().red());
             } else {
                 println!(
                     "{} {}",
@@ -743,7 +762,10 @@ fn setup_logging(verbosity: Verbosity<WarnLevel>) {
                     buf,
                     "{} {}: {}",
                     level,
-                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S").dimmed(),
+                    chrono::Local::now()
+                        .format("%Y-%m-%d %H:%M:%S")
+                        .to_string()
+                        .dimmed(),
                     record.args()
                 )
             }

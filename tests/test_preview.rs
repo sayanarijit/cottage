@@ -52,8 +52,16 @@ fn test_generate_preview_jsonl() {
         .to_rfc3339();
     let preview = generate_preview(path, content, None, None, &timestamp).unwrap();
     assert_eq!(preview.format, PreviewFormat::Json);
-    assert!(preview.preview.contains("{\"a\":\"2026-05-01T12:00:00+00:00\"}"));
-    assert!(preview.preview.contains("{\"c\":\"2026-05-01T12:00:00+00:00\"}"));
+    assert!(
+        preview
+            .preview
+            .contains("{\"a\":\"2026-05-01T12:00:00+00:00\"}")
+    );
+    assert!(
+        preview
+            .preview
+            .contains("{\"c\":\"2026-05-01T12:00:00+00:00\"}")
+    );
 }
 
 #[test]
