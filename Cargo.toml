@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-default = ["complete"]
+default = ["autocomplete"]
 man = ["dep:clap_mangen"]
-complete = ["dep:clap_complete"]
+autocomplete = ["dep:clap_complete"]
 
 [dependencies]
 age = { version = "0.11", features = ["armor", "ssh"] }

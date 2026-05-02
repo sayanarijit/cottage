@@ -59,11 +59,11 @@ enum Command {
     #[command(name = "clean", aliases = ["cln"])]
     Clean(CleanArgs),
 
-    #[cfg(feature = "complete")]
+    #[cfg(feature = "autocomplete")]
     /// Generate shell completions.
-    /// Example: `eval "$(cottage completions bash)"` to load completions for bash.
-    #[command(name = "complete")]
-    Complete {
+    /// Example: `eval "$(cottage autocomplete bash)"` to load completions for bash.
+    #[command(name = "autocomplete")]
+    AutoComplete {
         /// The shell to generate completions for.
         #[arg(value_enum)]
         shell: clap_complete::Shell,
@@ -714,7 +714,7 @@ pub fn run() -> Result<()> {
         Command::Diff(args) => run_diff_cmd(&proj, args),
         Command::Clean(args) => run_clean_cmd(&proj, args, cli.verbosity.is_silent()),
         Command::Edit(args) => run_edit_cmd(&proj, args, cli.verbosity.is_silent()),
-        Command::Complete { shell } => run_complete_cmd(shell),
+        Command::AutoComplete { shell } => run_complete_cmd(shell),
     }
 }
 
