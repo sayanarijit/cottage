@@ -1,7 +1,6 @@
-use crate::{Metadata, to_metadata_path, verify_checksum};
 use crate::{
-    OperationKind, OperationResult, is_encrypted_path, project::append_to_gitignore_if_absent,
-    to_decrypted_path,
+    Identity, Metadata, OperationKind, OperationResult, is_encrypted_path,
+    project::append_to_gitignore_if_absent, to_decrypted_path, to_metadata_path, verify_checksum,
 };
 use age::armor::ArmoredReader;
 use age::secrecy::SecretString;
@@ -13,14 +12,14 @@ use std::iter;
 use std::path::Path;
 
 #[derive(Clone)]
-pub enum DecryptionMode<'a> {
+pub enum DecryptionMode {
     Passphrase(String),
-    Identities(&'a [Box<dyn age::Identity>]),
+    Identities(Vec<Identity>),
 }
 
 #[derive(Clone)]
-pub struct DecryptOptions<'a> {
-    pub mode: DecryptionMode<'a>,
+pub struct DecryptOptions {
+    pub mode: DecryptionMode,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
     pub skip_verify_encrypted: bool,
@@ -40,7 +39,7 @@ pub fn decrypt_into_memory(
             &age::scrypt::Identity::new(SecretString::from(pass.as_str())) as _,
         ))?,
         DecryptionMode::Identities(identities) => {
-            decryptor.decrypt(identities.iter().map(|i| i.as_ref()))?
+            decryptor.decrypt(identities.iter().map(|id| id.as_ref() as _))?
         }
     };
 

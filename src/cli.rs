@@ -11,6 +11,7 @@ use clap::CommandFactory;
 use clap::Parser;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use owo_colors::OwoColorize;
+use std::env::VarError;
 use std::fs::File;
 use std::io::{IsTerminal, Write, stdin};
 use std::path::{Path, PathBuf};
@@ -86,11 +87,11 @@ struct CleanArgs {
     dry_run: bool,
 
     /// Skip removing from .gitignore.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
     skip_gitignore: bool,
 
     /// Compact output.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
 }
 
@@ -100,45 +101,49 @@ struct EditArgs {
     path: PathBuf,
 
     /// Encrypt/decrypt with a passphrase.
+    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for passphrase.
     #[arg(short, long)]
     passphrase: bool,
 
     /// Encrypt to the specified RECIPIENT. Can be repeated.
-    #[arg(short, long)]
+    #[arg(short, long, env = "COTTAGE_RECIPIENT")]
     recipient: Vec<String>,
 
     /// Encrypt to recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients if not specified.
-    #[arg(short = 'R', long)]
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to identity in .cottage/identity if not specified.
-    #[arg(short, long)]
+    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// identities and use the passphrase.
+    /// Else tries to load from .cottage/identity.
+    /// Finally, falls back to loading all identities in ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
     /// Encrypt to a PEM encoded format.
-    #[arg(short, long)]
+    #[arg(short, long, env = "COTTAGE_ARMOR")]
     armor: bool,
 
     /// Skip updating timestamps on encrypted and decrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_TIMESTAMPS")]
     skip_timestamps: bool,
 
     /// Skip adding encrypted and decrypted files to .gitignore.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
     skip_gitignore: bool,
 
     /// Force re-encryption even if the decrypted file is not modified.
-    #[arg(long, short)]
+    #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
     /// Skip preview generation.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
     skip_preview: bool,
 
     /// Compact output.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
 }
 
@@ -148,45 +153,49 @@ struct EncryptArgs {
     path: Vec<PathBuf>,
 
     /// Encrypt with a passphrase.
+    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for passphrase.
     #[arg(short, long)]
     passphrase: bool,
 
     /// Encrypt to the specified RECIPIENT. Can be repeated.
-    #[arg(short, long)]
+    #[arg(short, long, env = "COTTAGE_RECIPIENT")]
     recipient: Vec<String>,
 
     /// Encrypt to recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients if not specified.
-    #[arg(short = 'R', long)]
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to identity in .cottage/identity if not specified.
-    #[arg(short, long)]
+    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// identities and use the passphrase.
+    /// Else tries to load from .cottage/identity.
+    /// Finally, falls back to loading all identities in ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
     /// Encrypt to a PEM encoded format.
-    #[arg(short, long)]
+    #[arg(short, long, env = "COTTAGE_ARMOR")]
     armor: bool,
 
     /// Skip updating timestamps on encrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_TIMESTAMPS")]
     skip_timestamps: bool,
 
     /// Skip adding encrypted files to .gitignore.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
     skip_gitignore: bool,
 
     /// Skip matching checksum and re-encrypt every files.
-    #[arg(long, short)]
+    #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
     /// Skip preview generation.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
     skip_preview: bool,
 
     /// Compact output.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
 }
 
@@ -196,36 +205,40 @@ struct DecryptArgs {
     path: Vec<PathBuf>,
 
     /// Decrypt with a passphrase.
+    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for passphrase.
     #[arg(short, long)]
     passphrase: bool,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to identity in .cottage/identity if not specified.
-    #[arg(short, long)]
+    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// identities and use the passphrase.
+    /// Else tries to load from .cottage/identity.
+    /// Finally, falls back to loading all identities in ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
     /// Skip updating timestamps on decrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_TIMESTAMPS")]
     skip_timestamps: bool,
 
     /// Skip adding decrypted files to .gitignore.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
     skip_gitignore: bool,
 
     /// Skip checksum verification and re-decrypt every files.
-    #[arg(long, short)]
+    #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
     /// Skip checksum verification of encrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
     skip_verify_encrypted: bool,
 
     /// Skip checksum verification of decrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_DECRYPTED")]
     skip_verify_decrypted: bool,
 
     /// Compact output.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
 }
 
@@ -235,57 +248,61 @@ struct SyncArgs {
     path: Vec<PathBuf>,
 
     /// Encrypt with a passphrase.
+    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for passphrase.
     #[arg(short, long)]
     passphrase: bool,
 
     /// Encrypt to the specified RECIPIENT. Can be repeated.
-    #[arg(short, long)]
+    #[arg(short, long, env = "COTTAGE_RECIPIENT")]
     recipient: Vec<String>,
 
     /// Encrypt to recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients if not specified.
-    #[arg(short = 'R', long)]
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to identity in .cottage/identity if not specified.
-    #[arg(short, long)]
+    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// identities and use the passphrase.
+    /// Else tries to load from .cottage/identity.
+    /// Finally, falls back to loading all identities in ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
     /// Encrypt to a PEM encoded format.
-    #[arg(short, long)]
+    #[arg(short, long, env = "COTTAGE_ARMOR")]
     armor: bool,
 
     /// Skip updating timestamps on encrypted and decrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_TIMESTAMPS")]
     skip_timestamps: bool,
 
     /// Skip adding encrypted and decrypted files to .gitignore.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
     skip_gitignore: bool,
 
     /// Skip preview generation.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
     skip_preview: bool,
 
     /// Skip matching checksum and re-encrypt every files.
-    #[arg(long)]
+    #[arg(long, short, env = "COTTAGE_FORCE_ENCRYPT")]
     force_encrypt: bool,
 
     /// Skip checksum verification of encrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
     skip_verify_encypted: bool,
 
     /// Skip checksum verification of decrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_DECRYPTED")]
     skip_verify_decrypted: bool,
 
     /// Skip checksum verification and re-encrypt/re-decrypt every files.
-    #[arg(long, short)]
+    #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
     /// Compact output.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
 }
 
@@ -295,28 +312,32 @@ struct DiffArgs {
     path: Vec<PathBuf>,
 
     /// Decrypt with a passphrase.
+    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for passphrase.
     #[arg(short, long)]
     passphrase: bool,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to identity in .cottage/identity if not specified.
-    #[arg(short, long)]
+    /// If not specified, and COTTAGE_PASSPHRASE envronment variable is set, it will skip using
+    /// identities and use the passphrase.
+    /// Else tries to load from .cottage/identity.
+    /// Finally, falls back to loading all identities in ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
     // Skip checksum verification of encrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
     skip_verify_encrypted: bool,
 
     /// Skip checksum verification of decrypted files.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_SKIP_CHECKSUM_DECRYPTED")]
     skip_checksum_decrypted: bool,
 
     /// Skip checksum verification.
-    #[arg(long, short)]
+    #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
     /// Exit with code 1 if there is any diff.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_FAIL")]
     fail: bool,
 }
 
@@ -326,12 +347,66 @@ struct StatusArgs {
     path: Vec<PathBuf>,
 
     /// Compact output.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
 
     /// Exit with code 1 if there are pending operations.
-    #[arg(long)]
+    #[arg(long, env = "COTTAGE_FAIL")]
     fail: bool,
+}
+
+fn prompt_passphrase() -> Result<String> {
+    let pass = rpassword::prompt_password("Enter passphrase: ")?;
+    let confirm = rpassword::prompt_password("Confirm passphrase: ")?;
+    if pass != confirm {
+        return Err(anyhow!("mismatch: passphrase confirmation does not match"));
+    }
+    Ok(pass)
+}
+
+fn choose_encryption_mode(
+    proj: &Project,
+    use_passphrase: bool,
+    passphrase: Option<String>,
+    recipients: Vec<String>,
+    recipients_file: Vec<PathBuf>,
+) -> Result<EncryptionMode> {
+    let env_passphrase = std::env::var("COTTAGE_PASSPHRASE");
+    match (use_passphrase, passphrase, env_passphrase) {
+        (true, Some(pass), _) => Ok(EncryptionMode::Passphrase(pass)),
+        (true, None, Ok(pass)) => Ok(EncryptionMode::Passphrase(pass)),
+        (true, None, Err(VarError::NotPresent)) => {
+            let pass = prompt_passphrase()?;
+            Ok(EncryptionMode::Passphrase(pass))
+        }
+        (true, _, Err(e)) => Err(anyhow!(e.to_string())),
+        (false, _, _) => {
+            let recips = load_recipients(proj, recipients, recipients_file).collect();
+            Ok(EncryptionMode::Recipients(recips))
+        }
+    }
+}
+
+fn choose_decryption_mode(
+    proj: &Project,
+    use_passphrase: bool,
+    passphrase: Option<String>,
+    identities: Vec<PathBuf>,
+) -> Result<DecryptionMode> {
+    let env_passphrase = std::env::var("COTTAGE_PASSPHRASE");
+    match (use_passphrase, passphrase, env_passphrase) {
+        (true, Some(pass), _) => Ok(DecryptionMode::Passphrase(pass)),
+        (true, None, Ok(pass)) => Ok(DecryptionMode::Passphrase(pass)),
+        (true, None, Err(VarError::NotPresent)) => {
+            let pass = prompt_passphrase()?;
+            Ok(DecryptionMode::Passphrase(pass))
+        }
+        (true, _, Err(e)) => Err(anyhow!(e.to_string())),
+        (false, _, _) => {
+            let ids = load_identities(proj, identities).collect();
+            Ok(DecryptionMode::Identities(ids))
+        }
+    }
 }
 
 fn print_result(proj: &Project, kind: OperationKind, input: &Path, output: &Path, compact: bool) {
@@ -370,25 +445,26 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         args.path
     };
 
-    let recipients = load_recipients(proj, &args.recipient, &args.recipients_file)?;
-    log::debug!("encrypt: loaded recipients");
-    let identities = load_identities(proj, &args.identity)?;
-    log::debug!("encrypt: loaded identities");
+    let mode = choose_encryption_mode(
+        proj,
+        args.passphrase,
+        None,
+        args.recipient,
+        args.recipients_file,
+    )?;
 
-    let mode = if args.passphrase {
-        let pass = rpassword::prompt_password("Enter passphrase: ")?;
-        let confirm = rpassword::prompt_password("Confirm passphrase: ")?;
-        if pass != confirm {
-            return Err(anyhow!("passphrases do not match"));
-        }
-        EncryptionMode::Passphrase(pass)
+    let passphrase = if let EncryptionMode::Passphrase(pass) = &mode {
+        Some(pass.clone())
     } else {
-        EncryptionMode::Recipients(&recipients)
+        None
     };
+
+    let opt_dec_mode =
+        choose_decryption_mode(proj, args.passphrase, passphrase, args.identity).ok();
 
     let options = EncryptOptions {
         mode,
-        identities: &identities,
+        decryption_mode: opt_dec_mode,
         armor: args.armor,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
@@ -415,16 +491,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
         args.path
     };
 
-    let identities = load_identities(proj, &args.identity)?;
-    log::debug!("decrypt: loaded identities");
-
-    let mode = if args.passphrase {
-        let pass = rpassword::prompt_password("Enter passphrase: ")?;
-        DecryptionMode::Passphrase(pass)
-    } else {
-        DecryptionMode::Identities(&identities)
-    };
-
+    let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity)?;
     let options = DecryptOptions {
         mode,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
@@ -445,7 +512,6 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
 }
 
 fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
-    log::debug!("status: checking paths: {:?}", args.path);
     let input = if args.path.is_empty() {
         vec![proj.root().into()]
     } else {
@@ -477,28 +543,25 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         args.path
     };
 
-    let recipients = load_recipients(proj, &args.recipient, &args.recipients_file)?;
-    log::debug!("encrypt: loaded recipients");
-    let identities = load_identities(proj, &args.identity)?;
-    log::debug!("encrypt: loaded identities");
+    let encryption_mode = choose_encryption_mode(
+        proj,
+        args.passphrase,
+        None,
+        args.recipient,
+        args.recipients_file,
+    )?;
 
-    let (enc_mode, dec_mode) = if args.passphrase {
-        let pass = rpassword::prompt_password("Enter passphrase: ")?;
-        (
-            EncryptionMode::Passphrase(pass.clone()),
-            DecryptionMode::Passphrase(pass),
-        )
+    let passphrase = if let EncryptionMode::Passphrase(pass) = &encryption_mode {
+        Some(pass.clone())
     } else {
-        (
-            EncryptionMode::Recipients(&recipients),
-            DecryptionMode::Identities(&identities),
-        )
+        None
     };
 
+    let decryption_mode = choose_decryption_mode(proj, args.passphrase, passphrase, args.identity)?;
+
     let sync_options = SyncOptions {
-        encryption_mode: enc_mode,
-        decryption_mode: dec_mode,
-        identities: &identities,
+        encryption_mode: encryption_mode,
+        decryption_mode: decryption_mode,
         armor: args.armor,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
@@ -521,30 +584,20 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
 }
 
 fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
-    log::debug!("diff: checking paths: {:?}", args.path);
     let input = if args.path.is_empty() {
         vec![proj.root().into()]
     } else {
         args.path
     };
 
-    let identities = load_identities(proj, &args.identity)?;
-    log::debug!("diff: loaded identities");
-
-    let mode = if args.passphrase {
-        let pass = rpassword::prompt_password("Enter passphrase: ")?;
-        DecryptionMode::Passphrase(pass)
-    } else {
-        DecryptionMode::Identities(&identities)
-    };
-
+    let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity)?;
     let options = DiffOptions {
         mode,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
         skip_checksum_decrypted: args.force || args.skip_checksum_decrypted,
     };
 
-    if diff(proj, &input, &options)? && args.fail {
+    if diff(proj, &input, options)? && args.fail {
         std::process::exit(1);
     }
 
@@ -552,8 +605,6 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
 }
 
 fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
-    log::debug!("clean: checking paths: {:?}", args.path);
-
     let opts = CleanOptions {
         dry_run: args.dry_run,
         skip_gitignore: args.skip_gitignore,
@@ -602,54 +653,51 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
         (path.clone(), to_encrypted_path(path))
     };
 
-    let passphrase = if args.passphrase {
-        let pass = rpassword::prompt_password("Enter passphrase: ")?;
-        Some(pass)
-    } else {
-        None
-    };
-
-    let identities = load_identities(proj, &args.identity)?;
-    let recipients = load_recipients(proj, &args.recipient, &args.recipients_file)?;
-
-    if !stdin().is_terminal() {
+    let passphrase = if !stdin().is_terminal() {
         let mut outfile = File::create(&decrypted_path)?;
         let mut writer = std::io::BufWriter::new(&mut outfile);
         let infile = stdin().lock();
         let mut reader = std::io::BufReader::new(infile);
         std::io::copy(&mut reader, &mut writer)?;
         writer.flush()?;
+        None
     } else {
+        let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity.clone())?;
+        let passphrase = if let DecryptionMode::Passphrase(pass) = &mode {
+            Some(pass.clone())
+        } else {
+            None
+        };
         if is_target_encrypted {
-            let mode = if let Some(pass) = passphrase.clone() {
-                DecryptionMode::Passphrase(pass)
-            } else {
-                DecryptionMode::Identities(&identities)
-            };
             let options = DecryptOptions {
                 mode,
                 skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
                 skip_timestamps: args.skip_timestamps,
-                skip_verify_encrypted: false,
-                skip_verify_decrypted: false,
+                skip_verify_encrypted: true,
+                skip_verify_decrypted: true,
             };
-
             let _ = decrypt_file(&encrypted_path, &options)?;
         }
 
         edit::edit_file(&decrypted_path)?;
-    }
+        passphrase
+    };
 
     {
-        let mode = if let Some(passphrase) = passphrase {
-            EncryptionMode::Passphrase(passphrase)
-        } else {
-            EncryptionMode::Recipients(&recipients)
-        };
+        let mode = choose_encryption_mode(
+            proj,
+            args.passphrase,
+            passphrase.clone(),
+            args.recipient,
+            args.recipients_file,
+        )?;
+
+        let dec_mode_for_preview =
+            choose_decryption_mode(proj, args.passphrase, passphrase.clone(), args.identity).ok();
 
         let options = EncryptOptions {
             mode,
-            identities: &identities,
+            decryption_mode: dec_mode_for_preview,
             armor: args.armor,
             skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
             skip_timestamps: args.skip_timestamps,

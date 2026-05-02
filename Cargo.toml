@@ -9,7 +9,7 @@ autocomplete = ["dep:clap_complete"]
 
 [dependencies]
 age = { version = "0.11", features = ["armor", "ssh"] }
-clap = { version = "4.6", features = ["derive"] }
+clap = { version = "4.6", features = ["derive", "env"] }
 anyhow = "1.0"
 rpassword = "7.3"
 walkdir = "2.5"

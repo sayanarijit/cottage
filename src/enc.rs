@@ -3,7 +3,7 @@ use crate::{
     SecretMetadata, decrypt_into_memory, is_encrypted_path, project::append_to_gitignore_if_absent,
     to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
-use crate::{generate_preview, is_metadata_path, make_checksum, verify_checksum};
+use crate::{RecipientData, generate_preview, is_metadata_path, make_checksum, verify_checksum};
 use age::armor::ArmoredWriter;
 use age::secrecy::SecretString;
 use anyhow::{Context, Result, anyhow};
@@ -13,16 +13,16 @@ use std::fs::File;
 use std::io::{BufReader, Write};
 use std::path::Path;
 
-#[derive(Clone)]
-pub enum EncryptionMode<'a> {
+#[derive(Debug, Clone)]
+pub enum EncryptionMode {
     Passphrase(String),
-    Recipients(&'a [(Box<dyn age::Recipient + Send>, Vec<u8>)]),
+    Recipients(Vec<RecipientData>),
 }
 
 #[derive(Clone)]
-pub struct EncryptOptions<'a> {
-    pub mode: EncryptionMode<'a>,
-    pub identities: &'a [Box<dyn age::Identity>],
+pub struct EncryptOptions {
+    pub mode: EncryptionMode,
+    pub decryption_mode: Option<DecryptionMode>,
     pub armor: bool,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
@@ -44,11 +44,11 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
             pass.as_bytes().to_vec(),
         ),
         EncryptionMode::Recipients(recipients) => (
-            age::Encryptor::with_recipients(recipients.iter().map(|(r, _)| r.as_ref() as _))
+            age::Encryptor::with_recipients(recipients.iter().map(|(r, _)| r.as_ref()))
                 .map_err(|_| anyhow!("at least one recipient must be provided"))?,
             recipients
                 .iter()
-                .flat_map(|(_, r)| r)
+                .flat_map(|(_, data)| data)
                 .copied()
                 .collect::<Vec<u8>>(),
         ),
@@ -112,47 +112,35 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
             recipients: make_checksum(&recipients_data),
         }
     };
-    let old_metadata = if !options.skip_preview && output_path.exists() && metadata_path.exists() {
-        Metadata::read_from_path(&metadata_path).ok()
-    } else {
-        None
-    };
 
-    let (old_content, old_preview) = if let Some(old_metadata) = &old_metadata {
-        let old_preview = old_metadata.preview.as_ref().map(|p| p.preview.as_str());
+    let preview = if !options.skip_preview && output_path.exists() && metadata_path.exists() {
+        if let Some(dec_mode) = options.decryption_mode.clone() {
+            let old_metadata = Metadata::read_from_path(&metadata_path)?;
+            let old_preview = old_metadata.preview.as_ref().map(|p| p.preview.as_str());
 
-        let decrypt_options = DecryptOptions {
-            mode: match &options.mode {
-                EncryptionMode::Passphrase(pass) => DecryptionMode::Passphrase(pass.clone()),
-                EncryptionMode::Recipients(_) => DecryptionMode::Identities(options.identities),
-            },
-            skip_gitignore: true,
-            skip_timestamps: true,
-            skip_verify_encrypted: true,
-            skip_verify_decrypted: true,
-        };
+            let decrypt_options = DecryptOptions {
+                mode: dec_mode,
+                skip_gitignore: true,
+                skip_timestamps: true,
+                skip_verify_encrypted: true,
+                skip_verify_decrypted: true,
+            };
 
-        let old_content = File::open(&output_path)
-            .ok()
-            .and_then(|f| decrypt_into_memory(f, &decrypt_options).ok());
+            let old_content = File::open(&output_path)
+                .ok()
+                .and_then(|f| decrypt_into_memory(f, &decrypt_options).ok());
 
-        (old_content, old_preview)
-    } else {
-        (None, None)
-    };
-
-    let preview = if !options.skip_preview {
-        let preview = generate_preview(
-            path,
-            &input,
-            old_content.as_deref(),
-            old_preview,
-            &secret.timestamp,
-        );
-        if preview.is_some() {
-            log::debug!("{}: generated preview", path.display());
+            let preview = generate_preview(
+                path,
+                &input,
+                old_content.as_deref(),
+                old_preview,
+                &secret.timestamp,
+            );
+            preview
+        } else {
+            None
         }
-        preview
     } else {
         None
     };

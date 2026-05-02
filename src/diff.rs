@@ -7,17 +7,17 @@ use similar::TextDiff;
 use std::fs;
 use std::path::PathBuf;
 
-pub struct DiffOptions<'a> {
-    pub mode: DecryptionMode<'a>,
+pub struct DiffOptions {
+    pub mode: DecryptionMode,
     pub skip_verify_encrypted: bool,
     pub skip_checksum_decrypted: bool,
 }
 
-pub fn diff(proj: &Project, paths: &[PathBuf], options: &DiffOptions) -> Result<bool> {
+pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<bool> {
     let mut has_diff = false;
 
     let decrypt_options = DecryptOptions {
-        mode: options.mode.clone(),
+        mode: options.mode,
         skip_gitignore: true,
         skip_timestamps: true,
         skip_verify_encrypted: options.skip_verify_encrypted,

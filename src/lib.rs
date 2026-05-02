@@ -15,7 +15,7 @@ pub use clean::{CleanOptions, clean_dir, clean_path, clean_project};
 pub use dec::{DecryptOptions, DecryptionMode, decrypt_into_memory, decrypt_path};
 pub use diff::{DiffOptions, diff};
 pub use enc::{EncryptOptions, EncryptionMode, encrypt_path};
-pub use identity::load_identities;
+pub use identity::{Identity, load_identities};
 pub use metadata::{
     ChecksumMetadata, Metadata, PreviewFormat, PreviewMetadata, SecretMetadata, make_checksum,
     verify_checksum,
@@ -29,5 +29,5 @@ pub use project::{
     Project, append_line_if_absent, append_to_gitignore_if_absent, get_project_root, get_root,
     remove_from_gitignore_if_present, remove_line_if_present,
 };
-pub use recipients::load_recipients;
+pub use recipients::{Recipient, RecipientData, load_recipients};
 pub use sync::{SyncOptions, status_path, sync_path};
