@@ -434,7 +434,7 @@ pub fn generate_preview(
                 preview: String::from_utf8(buf).ok()?,
             })
         }
-        "env" | _ if filename == ".env" => {
+        ext if ext == "env" || filename == ".env" => {
             let content_str = std::str::from_utf8(content).ok()?;
             let mut value = parse_dotenv(content_str);
 

@@ -32,13 +32,13 @@ fn test_clean() {
         dry_run: true,
         skip_gitignore: true,
     };
-    let cleaned = clean_project(&_proj, &opts)
+    let cleaned = clean_path(&_proj.root(), &opts)
         .filter_map(|res| res.ok())
         .collect::<Vec<_>>();
 
-    assert!(cleaned.len() == 2);
+    assert!(cleaned.len() == 1);
     assert!(cleaned.contains(&secret_path));
-    assert!(cleaned.contains(&identity_path));
+    assert!(!cleaned.contains(&identity_path));
     assert!(!cleaned.contains(&encrypted_path));
     assert!(!cleaned.contains(&metadata_path));
 }

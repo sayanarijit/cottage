@@ -113,13 +113,19 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
         }
     };
 
-    let preview = if !options.skip_preview && output_path.exists() && metadata_path.exists() {
-        if let Some(dec_mode) = options.decryption_mode.clone() {
-            let old_metadata = Metadata::read_from_path(&metadata_path)?;
-            let old_preview = old_metadata.preview.as_ref().map(|p| p.preview.as_str());
+    let preview = if !options.skip_preview {
+        let (old_content, old_preview) = if let Some(dec_mode) = &options.decryption_mode
+            && output_path.exists()
+            && metadata_path.exists()
+        {
+            let old_metadata = Metadata::read_from_path(&metadata_path).ok();
+            let old_preview = old_metadata
+                .as_ref()
+                .and_then(|m| m.preview.as_ref())
+                .map(|p| p.preview.clone());
 
             let decrypt_options = DecryptOptions {
-                mode: dec_mode,
+                mode: dec_mode.clone(),
                 skip_gitignore: true,
                 skip_timestamps: true,
                 skip_verify_encrypted: true,
@@ -130,16 +136,18 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
                 .ok()
                 .and_then(|f| decrypt_into_memory(f, &decrypt_options).ok());
 
-            generate_preview(
-                path,
-                &input,
-                old_content.as_deref(),
-                old_preview,
-                &secret.timestamp,
-            )
+            (old_content, old_preview)
         } else {
-            None
-        }
+            (None, None)
+        };
+
+        generate_preview(
+            path,
+            &input,
+            old_content.as_deref(),
+            old_preview.as_deref(),
+            &secret.timestamp,
+        )
     } else {
         None
     };

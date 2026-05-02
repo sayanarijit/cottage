@@ -11,7 +11,7 @@ mod project;
 mod recipients;
 mod sync;
 
-pub use clean::{CleanOptions, clean_dir, clean_path, clean_project};
+pub use clean::{CleanOptions, clean_dir, clean_path};
 pub use dec::{DecryptOptions, DecryptionMode, decrypt_into_memory, decrypt_path};
 pub use diff::{DiffOptions, diff};
 pub use enc::{EncryptOptions, EncryptionMode, encrypt_path};

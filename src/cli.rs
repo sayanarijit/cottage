@@ -2,8 +2,8 @@ use crate::dec::decrypt_file;
 use crate::enc::encrypt_file;
 use crate::{
     CleanOptions, DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode,
-    OperationKind, OperationResult, Project, SyncOptions, clean_path, clean_project, decrypt_path,
-    diff, encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
+    OperationKind, OperationResult, Project, SyncOptions, clean_path, decrypt_path, diff,
+    encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
     status_path, sync_path, to_decrypted_path, to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
@@ -136,7 +136,7 @@ struct EditArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    ///. and COTTAGE_PASSPHRASE environment variable is set, it will skip using
+    /// Defaults to .cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -175,6 +175,10 @@ struct EditArgs {
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
+
+    /// Delete decrypted files after editing and encrypting.
+    #[arg(long, env = "COTTAGE_CLEAN")]
+    clean: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -224,6 +228,10 @@ struct EncryptArgs {
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
+
+    /// Delete decrypted files after encrypting.
+    #[arg(long, env = "COTTAGE_CLEAN")]
+    clean: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -573,6 +581,28 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         }
     }
 
+    if args.clean {
+        let clean_opts = CleanOptions {
+            dry_run: false,
+            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+        };
+
+        for res in input.iter().flat_map(|p| clean_path(p, &clean_opts)) {
+            let res = res?;
+            if !quiet {
+                if args.compact {
+                    println!("{}", proj.relative_to_cwd(&res).display().to_string().red());
+                } else {
+                    println!(
+                        "{} {}",
+                        "delete".red(),
+                        proj.relative_to_cwd(&res).display()
+                    );
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -684,22 +714,14 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
 }
 
 fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
+    let input = get_input_paths(proj, args.path);
+
     let opts = CleanOptions {
         dry_run: args.dry_run,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
     };
 
-    let result = if args.path.is_empty() {
-        clean_project(proj, &opts)
-    } else {
-        Box::new(
-            args.path
-                .iter()
-                .flat_map(|p| clean_path(p, &opts, p == proj.identity_path())),
-        )
-    };
-
-    for res in result {
+    for res in input.iter().flat_map(|p| clean_path(p, &opts)) {
         let res = res?;
         if !quiet {
             if args.compact {
@@ -707,7 +729,7 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
             } else {
                 println!(
                     "{} {}",
-                    "deleted".red(),
+                    "delete".red(),
                     proj.relative_to_cwd(&res).display()
                 );
             }
@@ -785,7 +807,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
             p.clone()
         }
     }) {
-        for res in clean_path(&path, &clean_opts, false) {
+        for res in clean_path(&path, &clean_opts) {
             let res = res?;
             if !quiet {
                 if args.compact {
@@ -793,7 +815,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
                 } else {
                     eprintln!(
                         "{} {}",
-                        "deleted".red(),
+                        "delete".red(),
                         proj.relative_to_cwd(&res).display()
                     );
                 }
@@ -825,14 +847,14 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
         (path.clone(), to_encrypted_path(path))
     };
 
-    let passphrase = if !stdin().is_terminal() {
+    let (status1, passphrase) = if !stdin().is_terminal() {
         let mut outfile = File::create(&decrypted_path)?;
         let mut writer = std::io::BufWriter::new(&mut outfile);
         let infile = stdin().lock();
         let mut reader = std::io::BufReader::new(infile);
         std::io::copy(&mut reader, &mut writer)?;
         writer.flush()?;
-        None
+        (Ok(()), None)
     } else {
         let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity.clone())?;
         let passphrase = if let DecryptionMode::Passphrase(pass) = &mode {
@@ -849,43 +871,80 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
                 skip_verify_decrypted: args.force || args.skip_verify_decrypted,
             };
             let _ = decrypt_file(&encrypted_path, &options)?;
+            // Cant't fail from now on
         }
 
-        edit::edit_file(&decrypted_path)?;
-        passphrase
+        let status = edit::edit_file(&decrypted_path);
+        (status, passphrase)
     };
 
-    {
-        let mode = choose_encryption_mode(
+    let status2 = {
+        let maybe_mode = choose_encryption_mode(
             proj,
             args.passphrase,
             passphrase.clone(),
             args.recipient,
             args.recipients_file,
-        )?;
+        );
 
-        let dec_mode_for_preview =
-            choose_decryption_mode(proj, args.passphrase, passphrase.clone(), args.identity).ok();
+        match maybe_mode {
+            Ok(mode) => {
+                let dec_mode_for_preview = choose_decryption_mode(
+                    proj,
+                    args.passphrase,
+                    passphrase.clone(),
+                    args.identity,
+                )
+                .ok();
 
-        let options = EncryptOptions {
-            mode,
-            decryption_mode: dec_mode_for_preview,
-            armor: args.armor,
+                let options = EncryptOptions {
+                    mode,
+                    decryption_mode: dec_mode_for_preview,
+                    armor: args.armor,
+                    skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+                    skip_timestamps: args.skip_timestamps,
+                    force: args.force || args.force_encrypt,
+                    skip_preview: args.skip_preview,
+                };
+
+                let mut stdout = std::io::stdout();
+                let enc_status = encrypt_file(&decrypted_path, &options);
+                match enc_status {
+                    Ok(Some(res)) if !quiet => print_result(&mut stdout, proj, &res, args.compact),
+                    Ok(Some(_)) => Ok(()),
+                    Ok(None) => Ok(()),
+                    Err(e) => Err(e),
+                }
+            }
+            Err(e) => Err(e),
+        }
+    };
+
+    if args.clean {
+        let clean_opts = CleanOptions {
+            dry_run: false,
             skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
-            skip_timestamps: args.skip_timestamps,
-            force: args.force || args.force_encrypt,
-            skip_preview: args.skip_preview,
         };
 
-        let mut stdout = std::io::stdout();
-        if let Some(res) = encrypt_file(&decrypted_path, &options)?
-            && !quiet
-        {
-            print_result(&mut stdout, proj, &res, args.compact)?;
+        for res in clean_path(&decrypted_path, &clean_opts) {
+            let res = res?;
+            if !quiet {
+                if args.compact {
+                    eprintln!("{}", proj.relative_to_cwd(&res).display().to_string().red());
+                } else {
+                    eprintln!(
+                        "{} {}",
+                        "delete".red(),
+                        proj.relative_to_cwd(&res).display()
+                    );
+                }
+            }
         }
     }
 
-    Ok(())
+    // Now fail
+    status1?;
+    status2
 }
 
 fn run_complete_cmd(shell: clap_complete::Shell) -> Result<()> {

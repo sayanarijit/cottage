@@ -2,7 +2,7 @@
 name = "cottage"
 version = "0.1.0"
 edition = "2024"
-description = "A modern tool for teams to manage age-encrypted secrets in git."
+description = "A modern git based age-encrypted secrets manager for teams."
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/sayanarijit/cottage"
