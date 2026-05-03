@@ -96,10 +96,10 @@ pub fn status_path(path: &Path) -> Box<dyn Iterator<Item = Result<Operation>> + 
     } else if path.is_dir() {
         Box::new(status_dir(path))
     } else {
-        return Box::new(std::iter::once(Err(anyhow!(
+        Box::new(std::iter::once(Err(anyhow!(
             "{}: path does not exist",
             path.display()
-        ))));
+        ))))
     }
 }
 

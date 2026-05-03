@@ -94,13 +94,13 @@ pub fn load_identities(
         log::debug!("no identities provided, looking for defaults");
         let local_identity_path = proj.identity_path();
         let global_identity_path = proj.global_identity_path();
-        if let Some(ids) = parse_identities_path(&local_identity_path) {
+        if let Some(ids) = parse_identities_path(local_identity_path) {
             log::debug!(
                 "found default identities in {}",
                 local_identity_path.display()
             );
             ids
-        } else if let Some(ids) = parse_identities_path(&global_identity_path) {
+        } else if let Some(ids) = parse_identities_path(global_identity_path) {
             log::debug!(
                 "found default identities in {}",
                 global_identity_path.display()
@@ -116,7 +116,7 @@ pub fn load_identities(
                     .map(|mut i| i.next().is_some())
                     .unwrap_or(false)
             {
-                Box::new(parse_identities_dir(&sshdir))
+                Box::new(parse_identities_dir(sshdir))
             } else {
                 log::debug!("no identities found in ~/.ssh");
                 Box::new(std::iter::empty())
