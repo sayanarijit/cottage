@@ -1,6 +1,6 @@
 [package]
 name = "cottage"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A modern git based age-encrypted secrets manager for teams."
 readme = "README.md"
@@ -10,6 +10,10 @@ authors = ["Arijit Basu <hi@arijitbasu.in>"]
 keywords = ["age", "git", "secrets", "cli", "command-line"]
 categories = ["command-line-utilities", "filesystem", "development-tools"]
 
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"
+bin-dir = "{ name }-{ target }-v{ version }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
 
 [features]
 default = ["autocomplete"]
