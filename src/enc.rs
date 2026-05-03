@@ -33,12 +33,14 @@ pub struct EncryptOptions {
 
 pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<OperationResult>> {
     log::debug!("{}: encrypting file", path.display());
-    if is_encrypted_path(path)
-        || is_metadata_path(path)
-        || path
-            .canonicalize()?
-            .starts_with(options.identity_path.canonicalize()?)
-    {
+    let is_identity = (|| {
+        let p = path.canonicalize().ok()?;
+        let i = options.identity_path.canonicalize().ok()?;
+        Some(p.starts_with(i))
+    })()
+    .unwrap_or(false);
+
+    if is_encrypted_path(path) || is_metadata_path(path) || is_identity {
         log::warn!("skipped: {}: invalid path for encryption", path.display());
         return Ok(None);
     }

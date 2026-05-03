@@ -22,6 +22,7 @@ fn test_diff_logic() -> Result<()> {
         skip_timestamps: false,
         force: false,
         skip_preview: true,
+        identity_path: _proj.identity_path().to_path_buf(),
     };
 
     for res in encrypt_path(&secret_path, &options) {
