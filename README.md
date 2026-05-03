@@ -34,10 +34,13 @@ in plaintext.
 
 ```bash
 # rust
-cargo install cottage
+cargo install --locked cottage
 
-# python
+# python pip
 pip install cottage
+
+# python uv
+uv pip install cottage
 ```
 
 ## Quick Start
