@@ -1,7 +1,5 @@
 <p align="center">
     <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://github.com/sayanarijit/cottage/blob/main/logo/cottage-dark.svg">
-        <source media="(prefers-color-scheme: light)" srcset="https://github.com/sayanarijit/cottage/blob/main/logo/cottage.svg">
         <img alt="The cottage logo" width="600" src="https://github.com/sayanarijit/cottage/blob/main/logo/cottage.svg">
     </picture>
 </p>
