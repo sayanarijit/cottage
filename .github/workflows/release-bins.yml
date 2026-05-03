@@ -72,6 +72,7 @@ jobs:
           archive: cottage-$target-${{ github.event.release.tag_name }}.tgz
           target: ${{ matrix.target }}
           tar: all
+          checksum: sha256
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/attest-build-provenance@v1
         with:
