@@ -13,6 +13,7 @@ categories = ["command-line-utilities", "filesystem", "development-tools"]
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"
 bin-dir = "{ name }-{ target }-v{ version }/{ bin }{ binary-ext }"
+archive-suffix = "tar.gz"
 pkg-fmt = "tgz"
 
 [features]
