@@ -49,6 +49,9 @@ pub fn clean_path<'a>(
     } else if path.is_dir() {
         Box::new(clean_dir(path, opts))
     } else {
-        Box::new(std::iter::empty())
+        Box::new(std::iter::once(Err(anyhow::anyhow!(
+            "{}: path does not exist",
+            path.display()
+        ))))
     }
 }

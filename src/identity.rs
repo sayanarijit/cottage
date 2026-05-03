@@ -63,6 +63,28 @@ pub fn parse_identities_dir(path: &Path) -> Box<dyn Iterator<Item = Identity>> {
     Box::new(iter)
 }
 
+pub fn parse_identities_path(path: &Path) -> Option<Box<dyn Iterator<Item = Identity>>> {
+    if path.is_dir()
+        && path
+            .read_dir()
+            .map(|mut i| i.next().is_some())
+            .unwrap_or(false)
+    {
+        Some(parse_identities_dir(path))
+    } else if path.is_file() {
+        match parse_identity_file(path) {
+            Ok(identity) => Some(Box::new(std::iter::once(identity))),
+            Err(e) => {
+                log::warn!("{}: could not parse identity file: {}", path.display(), e);
+                None
+            }
+        }
+    } else {
+        log::debug!("{}: path does not exist", path.display());
+        None
+    }
+}
+
 pub fn load_identities(
     proj: &Project,
     identities: Vec<PathBuf>,
@@ -70,50 +92,33 @@ pub fn load_identities(
     log::debug!("loading identities");
     if identities.is_empty() {
         log::debug!("no identities provided, looking for defaults");
-        let default_identities_path = proj.identity_path();
-        if default_identities_path.is_dir()
-            && default_identities_path
-                .read_dir()
-                .map(|mut i| i.next().is_some())
-                .unwrap_or(false)
-        {
+        let local_identity_path = proj.identity_path();
+        let global_identity_path = proj.global_identity_path();
+        if let Some(ids) = parse_identities_path(&local_identity_path) {
             log::debug!(
-                "found default identities directory at {}, parsing",
-                default_identities_path.display()
+                "found default identities in {}",
+                local_identity_path.display()
             );
-            parse_identities_dir(default_identities_path)
-        } else if default_identities_path.is_file() {
+            ids
+        } else if let Some(ids) = parse_identities_path(&global_identity_path) {
             log::debug!(
-                "no default identities directory found, looking for default identity file at {}",
-                default_identities_path.display()
+                "found default identities in {}",
+                global_identity_path.display()
             );
-            match parse_identity_file(default_identities_path) {
-                Ok(identity) => Box::new(std::iter::once(identity)),
-                Err(e) => {
-                    log::warn!(
-                        "{}: could not parse default identity: {}",
-                        default_identities_path.display(),
-                        e
-                    );
-                    Box::new(std::iter::empty())
-                }
-            }
+            ids
         } else {
             log::debug!("no default identities found, looking in ~/.ssh");
-            if let Some(sshdir) = dirs::home_dir().map(|h| h.join(".ssh")) {
-                if sshdir.is_dir()
-                    && sshdir
-                        .read_dir()
-                        .map(|mut i| i.next().is_some())
-                        .unwrap_or(false)
-                {
-                    Box::new(parse_identities_dir(&sshdir))
-                } else {
-                    log::debug!("no identities found in ~/.ssh");
-                    Box::new(std::iter::empty())
-                }
+            let sshdir = proj.ssh_dir();
+
+            if sshdir.is_dir()
+                && sshdir
+                    .read_dir()
+                    .map(|mut i| i.next().is_some())
+                    .unwrap_or(false)
+            {
+                Box::new(parse_identities_dir(&sshdir))
             } else {
-                log::debug!("no home directory found, could not look for identities in ~/.ssh");
+                log::debug!("no identities found in ~/.ssh");
                 Box::new(std::iter::empty())
             }
         }

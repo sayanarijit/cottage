@@ -26,9 +26,12 @@ impl Git {
 pub struct Project {
     cwd: PathBuf,
     root: PathBuf,
+    global_config_dir: PathBuf,
+    global_identity_path: PathBuf,
     cottage_dir: PathBuf,
     recipients_path: PathBuf,
     identity_path: PathBuf,
+    ssh_dir: PathBuf,
     git: Option<Git>,
 }
 
@@ -125,6 +128,16 @@ impl Project {
             )?;
         }
 
+        let global_config_dir = dirs::home_dir()
+            .map(|h| h.join(".config/cottage"))
+            .context("could not determine age config directory")?;
+
+        let global_identity_path = global_config_dir.join("identity");
+
+        let ssh_dir = dirs::home_dir()
+            .map(|h| h.join(".ssh"))
+            .context("could not determine ssh directory")?;
+
         Ok(Self {
             cwd,
             root,
@@ -132,6 +145,9 @@ impl Project {
             recipients_path,
             identity_path,
             git,
+            ssh_dir,
+            global_config_dir,
+            global_identity_path,
         })
     }
 
@@ -155,6 +171,14 @@ impl Project {
         &self.identity_path
     }
 
+    pub fn global_config_dir(&self) -> &Path {
+        &self.global_config_dir
+    }
+
+    pub fn ssh_dir(&self) -> &Path {
+        &self.ssh_dir
+    }
+
     pub fn git(&self) -> Option<&Git> {
         self.git.as_ref()
     }
@@ -165,6 +189,10 @@ impl Project {
 
     pub fn relative_to_root(&self, path: &Path) -> PathBuf {
         pathdiff::diff_paths(path, &self.root).unwrap_or_else(|| path.to_path_buf())
+    }
+
+    pub fn global_identity_path(&self) -> &PathBuf {
+        &self.global_identity_path
     }
 }
 

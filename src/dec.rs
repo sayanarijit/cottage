@@ -142,7 +142,12 @@ pub fn decrypt_path<'a>(
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
     if path.is_dir() {
         Box::new(decrypt_dir(path, options))
-    } else {
+    } else if path.is_file() {
         Box::new(decrypt_file(path, options).transpose().into_iter())
+    } else {
+        Box::new(std::iter::once(Err(anyhow::anyhow!(
+            "{}: path does not exist",
+            path.display()
+        ))))
     }
 }

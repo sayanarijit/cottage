@@ -6,12 +6,13 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub struct SyncOptions {
     pub encryption_mode: EncryptionMode,
     pub decryption_mode: DecryptionMode,
+    pub identity_path: PathBuf,
     pub armor: bool,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
@@ -95,7 +96,10 @@ pub fn status_path(path: &Path) -> Box<dyn Iterator<Item = Result<Operation>> + 
     } else if path.is_dir() {
         Box::new(status_dir(path))
     } else {
-        Box::new(std::iter::empty())
+        return Box::new(std::iter::once(Err(anyhow!(
+            "{}: path does not exist",
+            path.display()
+        ))));
     }
 }
 
@@ -110,6 +114,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
                 skip_timestamps: sync_options.skip_timestamps,
                 skip_preview: sync_options.skip_preview,
                 force: sync_options.force_encrypt,
+                identity_path: sync_options.identity_path.clone(),
             };
             encrypt_file(&operation.input, &encrypt_options)
         }

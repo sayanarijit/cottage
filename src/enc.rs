@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
 use std::io::{BufReader, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub enum EncryptionMode {
@@ -22,6 +22,7 @@ pub enum EncryptionMode {
 #[derive(Clone)]
 pub struct EncryptOptions {
     pub mode: EncryptionMode,
+    pub identity_path: PathBuf,
     pub decryption_mode: Option<DecryptionMode>,
     pub armor: bool,
     pub skip_gitignore: bool,
@@ -32,7 +33,12 @@ pub struct EncryptOptions {
 
 pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<OperationResult>> {
     log::debug!("{}: encrypting file", path.display());
-    if is_encrypted_path(path) || is_metadata_path(path) {
+    if is_encrypted_path(path)
+        || is_metadata_path(path)
+        || path
+            .canonicalize()?
+            .starts_with(options.identity_path.canonicalize()?)
+    {
         log::warn!("skipped: {}: invalid path for encryption", path.display());
         return Ok(None);
     }
@@ -206,7 +212,12 @@ pub fn encrypt_path<'a>(
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
     if path.is_dir() {
         Box::new(encrypt_dir(path, options))
-    } else {
+    } else if path.is_file() {
         Box::new(encrypt_file(path, options).transpose().into_iter())
+    } else {
+        Box::new(std::iter::once(Err(anyhow!(
+            "{}: path does not exist",
+            path.display()
+        ))))
     }
 }

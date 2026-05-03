@@ -570,6 +570,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         skip_timestamps: args.skip_timestamps,
         force: args.force,
         skip_preview: args.skip_preview,
+        identity_path: proj.identity_path().to_path_buf(),
     };
 
     for path in &input {
@@ -681,6 +682,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
         skip_verify_decrypted: args.force || args.skip_verify_decrypted,
         force_encrypt: args.force || args.force_encrypt,
+        identity_path: proj.identity_path().to_path_buf(),
     };
 
     let mut stdout = std::io::stdout();
@@ -899,6 +901,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
 
                 let options = EncryptOptions {
                     mode,
+                    identity_path: proj.identity_path().to_path_buf(),
                     decryption_mode: dec_mode_for_preview,
                     armor: args.armor,
                     skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
