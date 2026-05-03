@@ -20,7 +20,7 @@ defaults:
 jobs:
   upload-assets:
     name: ${{ matrix.target }}
-    if: github.repository_owner == 'sayanarijit' && startsWith(github.event.release.name, 'cottage-v')
+    if: github.repository_owner == 'sayanarijit' && startsWith(github.event.release.name, 'v')
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -63,7 +63,7 @@ jobs:
         if: endsWith(matrix.target, 'windows-msvc')
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: ctg,ctgx
+          bin: ctg ctgx
           target: ${{ matrix.target }}
           tar: all
           token: ${{ secrets.GITHUB_TOKEN }}
