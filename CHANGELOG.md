@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/sayanarijit/cottage/compare/v0.1.4...v0.1.5) - 2026-05-03
+
+### Other
+
+- Provance
+- Fix cargo binstall package name
+
 ## [0.1.4](https://github.com/sayanarijit/cottage/compare/v0.1.3...v0.1.4) - 2026-05-03
 
 ### Other
