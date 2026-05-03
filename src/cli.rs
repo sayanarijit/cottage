@@ -953,7 +953,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
 fn run_complete_cmd(shell: clap_complete::Shell) -> Result<()> {
     let mut cmd = CottageCli::command();
     let mut out = std::io::stdout();
-    clap_complete::generate(shell, &mut cmd, "cottage", &mut out);
+    clap_complete::generate(shell, &mut cmd, "ctg", &mut out);
     Ok(())
 }
 
@@ -990,6 +990,10 @@ fn setup_logging(verbosity: Verbosity<WarnLevel>) {
 }
 
 fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
+    if let Command::AutoComplete { shell } = cmd {
+        return run_complete_cmd(shell);
+    };
+
     setup_logging(verbosity);
 
     let proj = if matches!(cmd, Command::Init) {
@@ -1001,7 +1005,7 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
     let is_silent = verbosity.is_silent();
 
     match cmd {
-        Command::Init => Ok(()), // already initialized above
+        Command::Init | Command::AutoComplete { shell: _ } => Ok(()), // already handled
         Command::Encrypt(args) => run_encrypt_cmd(&proj, args, is_silent),
         Command::Decrypt(args) => run_decrypt_cmd(&proj, args, is_silent),
         Command::Sync(args) => run_sync_cmd(&proj, args, is_silent),
@@ -1010,7 +1014,6 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
         Command::Clean(args) => run_clean_cmd(&proj, args, is_silent),
         Command::Edit(args) => run_edit_cmd(&proj, args, is_silent),
         Command::Run(args) => run_run_cmd(&proj, args, is_silent),
-        Command::AutoComplete { shell } => run_complete_cmd(shell),
     }
 }
 
