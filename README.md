@@ -33,7 +33,10 @@ in plaintext.
 ## Installation
 
 ```bash
-# rust
+# rust cargo-binstall
+cargo binstall --locked cottage
+
+# rust cargo
 cargo install --locked cottage
 
 # python pip
