@@ -70,8 +70,8 @@ tree -a
 Create or edit a secret.
 
 ```bash
-ctg edit secret.yml --clean      # Opens secret.yml in $EDITOR
-ctg encrypt secret.yml --clean  # Another way to encrypt secrets
+ctg edit secret.yml --clean    # Opens secret.yml in $EDITOR
+ctg encrypt secret.yml --clean # Another way to encrypt secrets
 # encrypt secret.yml
 #    into secret.yml.cott.age
 #    edit secret.yml.cott.toml
@@ -85,10 +85,10 @@ Run a command with temporary decrypted secrets:
 cat secret.yml
 # cat: secret.yml: No such file or directory
 
-ctg run kubectl apply -f secret.yml  # decrypts secret.yml.cott.age to secret.yml
-ctg run kubectl apply -f secret.yml.cott.age  # same as above
-ctg run kubectl apply -f . # decrypts all .cott.age files in .
-ctg run ./deploy.sh  # decrypts all .cott.age files in repo.
+ctg run kubectl apply -f secret.yml          # decrypts secret.yml.cott.age to secret.yml
+ctg run kubectl apply -f secret.yml.cott.age # same as above
+ctg run kubectl apply -f .                   # decrypts all .cott.age files in .
+ctg run ./deploy.sh                          # decrypts all .cott.age files in repo.
 
 cat secret.yml
 # cat: secret.yml: No such file or directory
@@ -147,10 +147,10 @@ ctg run -vvv -- ./deploy.sh
 - [ ] Syncing remote secret vaults `ctg pull` and `ctg push`.
 - [ ] [ACL](https://github.com/apache/casbin-rs) for more fine-grained access control.
 - [ ] Audit logs of who accessed secrets and when.
-- [ ] Docker containers and kubernetes operators for easier integration with existing workflows.
 - [ ] Secret rotation and expiration policies.
 - [ ] Integrations with popular CI/CD tools and secret management platforms.
 - [ ] Editor plugins for VSCode, JetBrains IDEs, Vim and Emacs.
+- [ ] Docker images and kubernetes operators for easier integration with existing workflows.
 
 ## License
 
