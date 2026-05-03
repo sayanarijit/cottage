@@ -1,6 +1,6 @@
 [package]
 name = "cottage"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "A modern git based age-encrypted secrets manager for teams."
 readme = "README.md"
@@ -13,7 +13,7 @@ categories = ["command-line-utilities", "filesystem", "development-tools"]
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"
 bin-dir = "{ name }-{ target }-v{ version }/{ bin }{ binary-ext }"
-pkg-fmt = "tgz"
+pkg-fmt = "tar.gz"
 
 [features]
 default = ["autocomplete"]
