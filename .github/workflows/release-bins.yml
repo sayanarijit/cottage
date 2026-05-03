@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
 
+permissions:
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_GIT_FETCH_WITH_CLI: true
