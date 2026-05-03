@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8](https://github.com/sayanarijit/cottage/compare/v0.1.7...v0.1.8) - 2026-05-03
+
+### Other
+
+- Fix cargo binstall ([#15](https://github.com/sayanarijit/cottage/pull/15))
+
 ## [0.1.7](https://github.com/sayanarijit/cottage/compare/v0.1.6...v0.1.7) - 2026-05-03
 
 ### Other
