@@ -1,4 +1,4 @@
-name: python
+name: Python
 
 on:
   push:
@@ -140,7 +140,7 @@ jobs:
           path: dist
 
   release:
-    name: Release
+    name: Release to PyPi
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     needs: [linux, musllinux, windows, macos, sdist]

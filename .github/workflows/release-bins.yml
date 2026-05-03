@@ -1,4 +1,4 @@
-name: CD # Continuous Deployment
+name: Release Binaries
 
 on:
   release:
@@ -64,6 +64,7 @@ jobs:
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: ctg ctgx
+          archive: cottage-$target-${{ github.event.release.tag_name }}.tar.gz
           target: ${{ matrix.target }}
           tar: all
           token: ${{ secrets.GITHUB_TOKEN }}
