@@ -64,7 +64,10 @@ jobs:
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: ctg ctgx
-          archive: cottage-$target-${{ github.event.release.tag_name }}.tar.gz
+          archive: cottage-$target-${{ github.event.release.tag_name }}.tgz
           target: ${{ matrix.target }}
           tar: all
           token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: "target/**/cottage-*"
