@@ -1,6 +1,6 @@
 <p align="center">
     <picture>
-        <img alt="The cottage logo" width="600" src="https://github.com/sayanarijit/cottage/blob/main/logo/cottage.svg">
+        <img alt="The cottage logo" width="600" src="https://github.com/sayanarijit/cottage/blob/main/logo/cottage.jpg">
     </picture>
 </p>
 
