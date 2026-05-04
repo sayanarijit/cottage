@@ -1,3 +1,5 @@
+use age::secrecy::{ExposeSecret, SecretSlice};
+
 use crate::{PreviewFormat, PreviewMetadata};
 use std::path::Path;
 
@@ -260,32 +262,35 @@ fn redact_dotenv(
 
 pub fn generate_preview(
     path: &Path,
-    content: &[u8],
-    old_content: Option<&[u8]>,
+    content: &SecretSlice<u8>,
+    old_content: Option<&SecretSlice<u8>>,
     old_preview: Option<&str>,
     timestamp: &str,
 ) -> Option<PreviewMetadata> {
+    // WARNING: This finction should never error out exposing secrets.
+
     let filename = path.file_name()?.to_str()?;
     let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
     match extension {
         "json" => {
-            let values: Vec<serde_json::Value> = if let Ok(v) = serde_json::from_slice(content) {
-                vec![v]
-            } else {
-                let s = std::str::from_utf8(content).ok()?;
-                s.lines()
-                    .filter(|l| !l.trim().is_empty())
-                    .map(|l| serde_json::from_str(l).ok())
-                    .collect::<Option<Vec<_>>>()?
-            };
+            let values: Vec<serde_json::Value> =
+                if let Ok(v) = serde_json::from_slice(content.expose_secret()) {
+                    vec![v]
+                } else {
+                    let s = str::from_utf8(content.expose_secret()).ok()?;
+                    s.lines()
+                        .filter(|l| !l.trim().is_empty())
+                        .map(|l| serde_json::from_str(l).ok())
+                        .collect::<Option<Vec<_>>>()?
+                };
 
             let old_values: Vec<serde_json::Value> = old_content
                 .and_then(|c| {
-                    if let Ok(v) = serde_json::from_slice(c) {
+                    if let Ok(v) = serde_json::from_slice(c.expose_secret()) {
                         Some(vec![v])
                     } else {
-                        let s = std::str::from_utf8(c).ok()?;
+                        let s = str::from_utf8(c.expose_secret()).ok()?;
                         s.lines()
                             .filter(|l| !l.trim().is_empty())
                             .map(|l| serde_json::from_str(l).ok())
@@ -333,13 +338,14 @@ pub fn generate_preview(
         }
         "yaml" | "yml" => {
             use serde::Deserialize;
-            let values: Vec<serde_yaml::Value> = serde_yaml::Deserializer::from_slice(content)
-                .map(|d| serde_yaml::Value::deserialize(d).ok())
-                .collect::<Option<Vec<_>>>()?;
+            let values: Vec<serde_yaml::Value> =
+                serde_yaml::Deserializer::from_slice(content.expose_secret())
+                    .map(|d| serde_yaml::Value::deserialize(d).ok())
+                    .collect::<Option<Vec<_>>>()?;
 
             let old_values: Vec<serde_yaml::Value> = old_content
                 .and_then(|c| {
-                    serde_yaml::Deserializer::from_slice(c)
+                    serde_yaml::Deserializer::from_slice(c.expose_secret())
                         .map(|d| serde_yaml::Value::deserialize(d).ok())
                         .collect::<Option<Vec<_>>>()
                 })
@@ -374,11 +380,11 @@ pub fn generate_preview(
             })
         }
         "toml" => {
-            let content_str = std::str::from_utf8(content).ok()?;
+            let content_str = str::from_utf8(content.expose_secret()).ok()?;
             let mut value: toml::Value = toml::from_str(content_str).ok()?;
 
             let old_value: Option<toml::Value> = old_content
-                .and_then(|c| std::str::from_utf8(c).ok())
+                .and_then(|c| str::from_utf8(c.expose_secret()).ok())
                 .and_then(|s| toml::from_str(s).ok());
             let old_preview_value: Option<toml::Value> =
                 old_preview.and_then(|p| toml::from_str(p).ok());
@@ -395,8 +401,9 @@ pub fn generate_preview(
             })
         }
         "hcl" | "tf" => {
-            let mut value: hcl::Value = hcl::from_slice(content).ok()?;
-            let old_value: Option<hcl::Value> = old_content.and_then(|c| hcl::from_slice(c).ok());
+            let mut value: hcl::Value = hcl::from_slice(content.expose_secret()).ok()?;
+            let old_value: Option<hcl::Value> =
+                old_content.and_then(|c| hcl::from_slice(c.expose_secret()).ok());
             let old_preview_value: Option<hcl::Value> =
                 old_preview.and_then(|p| hcl::from_str(p).ok());
 
@@ -412,11 +419,11 @@ pub fn generate_preview(
             })
         }
         "ini" | "cfg" | "conf" => {
-            let content_str = std::str::from_utf8(content).ok()?;
+            let content_str = str::from_utf8(content.expose_secret()).ok()?;
             let mut value = ini::Ini::load_from_str(content_str).ok()?;
 
             let old_value = old_content
-                .and_then(|c| std::str::from_utf8(c).ok())
+                .and_then(|c| str::from_utf8(c.expose_secret()).ok())
                 .and_then(|s| ini::Ini::load_from_str(s).ok());
             let old_preview_value = old_preview.and_then(|p| ini::Ini::load_from_str(p).ok());
 
@@ -435,11 +442,11 @@ pub fn generate_preview(
             })
         }
         ext if ext == "env" || filename == ".env" => {
-            let content_str = std::str::from_utf8(content).ok()?;
+            let content_str = str::from_utf8(content.expose_secret()).ok()?;
             let mut value = parse_dotenv(content_str);
 
             let old_value = old_content
-                .and_then(|c| std::str::from_utf8(c).ok())
+                .and_then(|c| str::from_utf8(c.expose_secret()).ok())
                 .map(parse_dotenv);
             let old_preview_value = old_preview.map(parse_dotenv);
 

@@ -3,21 +3,19 @@ use crate::{
     project::append_to_gitignore_if_absent, to_decrypted_path, to_metadata_path, verify_checksum,
 };
 use age::armor::ArmoredReader;
-use age::secrecy::SecretString;
+use age::secrecy::{ExposeSecret, SecretSlice, SecretString};
 use anyhow::{Context, Result};
 use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
-use std::io::{BufReader, Seek, SeekFrom, Write};
-use std::iter;
+use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum DecryptionMode {
-    Passphrase(String),
+    Passphrase(SecretString),
     Identities(Vec<Identity>),
 }
 
-#[derive(Clone)]
 pub struct DecryptOptions {
     pub mode: DecryptionMode,
     pub dry_run: bool,
@@ -28,25 +26,27 @@ pub struct DecryptOptions {
 }
 
 pub fn decrypt_into_memory(
-    input_reader: impl std::io::Read,
-    options: &DecryptOptions,
-) -> Result<Vec<u8>> {
+    input_reader: impl Read,
+    opts: &DecryptOptions,
+) -> Result<SecretSlice<u8>> {
     let decryptor = age::Decryptor::new_buffered(ArmoredReader::new(input_reader))?;
-
     let mut buffer = vec![];
 
-    let mut decrypted = match &options.mode {
-        DecryptionMode::Passphrase(pass) => decryptor.decrypt(iter::once(
-            &age::scrypt::Identity::new(SecretString::from(pass.as_str())) as _,
-        ))?,
-        DecryptionMode::Identities(identities) => {
-            decryptor.decrypt(identities.iter().map(|id| id.as_ref() as _))?
+    let mut decrypted = match &opts.mode {
+        DecryptionMode::Passphrase(passphrase) => {
+            let identity = age::scrypt::Identity::new(passphrase.clone());
+            decryptor.decrypt(std::iter::once(&identity as &dyn age::Identity))
         }
-    };
+        DecryptionMode::Identities(identities) => {
+            let age_identities: Vec<Box<dyn age::Identity>> =
+                identities.iter().map(|id| id.clone().into()).collect();
+            decryptor.decrypt(age_identities.iter().map(|id| id.as_ref()))
+        }
+    }?;
 
     std::io::copy(&mut decrypted, &mut buffer)?;
     buffer.flush()?;
-    Ok(buffer)
+    Ok(buffer.into())
 }
 
 pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<OperationResult>> {
@@ -74,16 +74,16 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
         std::io::copy(&mut reader, &mut buffer)?;
         input_file.seek(SeekFrom::Start(0))?;
         buffer.flush()?;
-        buffer
+        SecretSlice::new(buffer.into())
     };
 
     if !opts.skip_verify_encrypted {
-        verify_checksum(input.as_slice(), &metadata.checksum.encrypted, path)?;
+        verify_checksum(&input, &metadata.checksum.encrypted, path)?;
     }
 
     let output = decrypt_into_memory(input_file, opts)?;
 
-    if output_path.exists() && std::fs::read(&output_path)? == output {
+    if output_path.exists() && std::fs::read(&output_path)? == output.expose_secret().to_vec() {
         log::debug!("{}: skipping write: content matches", output_path.display());
         if !opts.skip_timestamps {
             set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
@@ -92,11 +92,7 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
     }
 
     if !opts.skip_verify_decrypted {
-        verify_checksum(
-            output.as_slice(),
-            &metadata.checksum.decrypted,
-            &output_path,
-        )?;
+        verify_checksum(&output, &metadata.checksum.decrypted, &output_path)?;
     }
 
     // Write starts here ------------------------
@@ -116,7 +112,7 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
         );
     } else {
         log::debug!("{}: writing decrypted file", output_path.display());
-        std::fs::write(&output_path, &output).with_context(|| {
+        std::fs::write(&output_path, output.expose_secret()).with_context(|| {
             format!("{}: could not write decrypted file", output_path.display())
         })?;
         if !opts.skip_timestamps {

@@ -1,11 +1,13 @@
 use crate::{
     ChecksumMetadata, DecryptOptions, DecryptionMode, Metadata, OperationKind, OperationResult,
-    SecretMetadata, decrypt_into_memory, is_encrypted_path, project::append_to_gitignore_if_absent,
-    to_decrypted_path, to_encrypted_path, to_metadata_path,
+    SecretMetadata, decrypt_into_memory, is_encrypted_path,
+    project::append_to_gitignore_if_absent, to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
-use crate::{RecipientData, generate_preview, is_metadata_path, make_checksum, verify_checksum};
+use crate::{
+    RecipientData, generate_preview, is_metadata_path, make_checksum, verify_checksum,
+};
 use age::armor::ArmoredWriter;
-use age::secrecy::SecretString;
+use age::secrecy::{ExposeSecret, SecretSlice, SecretString};
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use filetime::{FileTime, set_file_mtime};
@@ -15,15 +17,15 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub enum EncryptionMode {
-    Passphrase(String),
+    Passphrase(SecretString),
     Recipients(Vec<RecipientData>),
 }
 
 #[derive(Clone)]
 pub struct EncryptOptions {
     pub mode: EncryptionMode,
-    pub identity_path: PathBuf,
     pub decryption_mode: Option<DecryptionMode>,
+    pub identity_path: PathBuf,
     pub armor: bool,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
@@ -47,10 +49,10 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     }
 
     // Just read operations for now ------------------------
-    let (encryptor, recipients_data) = match &opts.mode {
+    let (encryptor, recipients) = match &opts.mode {
         EncryptionMode::Passphrase(pass) => (
-            age::Encryptor::with_user_passphrase(SecretString::from(pass.as_str())),
-            pass.as_bytes().to_vec(),
+            age::Encryptor::with_user_passphrase(pass.clone()),
+            "passprhase".as_bytes().to_vec(), // TODO improve?
         ),
         EncryptionMode::Recipients(recipients) => (
             age::Encryptor::with_recipients(recipients.iter().map(|(r, _)| r.as_ref()))
@@ -77,7 +79,7 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         let mut reader = BufReader::new(&input_file);
         let mut buffer = vec![];
         std::io::copy(&mut reader, &mut buffer)?;
-        buffer
+        SecretSlice::new(buffer.into())
     };
 
     let output_path = to_encrypted_path(path);
@@ -88,8 +90,13 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         let metadata = Metadata::read_from_path(&metadata_path)
             .with_context(|| format!("{}: could not read metadata", metadata_path.display()))?;
 
-        if verify_checksum(&recipients_data, &metadata.checksum.recipients, path).is_ok()
-            && verify_checksum(input.as_slice(), &metadata.checksum.decrypted, path).is_ok()
+        if verify_checksum(
+            &recipients.clone().into(),
+            &metadata.checksum.recipients,
+            path,
+        )
+        .is_ok()
+            && verify_checksum(&input, &metadata.checksum.decrypted, path).is_ok()
         {
             log::debug!("{}: skipping encryption: checksums match", path.display());
             if !opts.dry_run && !opts.skip_timestamps {
@@ -100,51 +107,51 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     }
 
     let output = {
-        let mut reader = BufReader::new(input.as_slice());
+        let mut reader = BufReader::new(input.expose_secret());
         let mut buffer = vec![];
         let mut enc_writer =
             encryptor.wrap_output(ArmoredWriter::wrap_output(&mut buffer, format)?)?;
         std::io::copy(&mut reader, &mut enc_writer)?;
         enc_writer.finish().and_then(|armor| armor.finish())?;
         buffer.flush()?;
-        buffer
+        SecretSlice::new(buffer.into())
     };
 
     let timestamp = DateTime::<Utc>::from(filemtime).to_rfc3339();
     let secret = SecretMetadata { timestamp };
     let checksum = {
-        let encrypted = make_checksum(output.as_slice());
-        let decrypted = make_checksum(input.as_slice());
+        let encrypted = make_checksum(&output);
+        let decrypted = make_checksum(&input);
         ChecksumMetadata {
             encrypted,
             decrypted,
-            recipients: make_checksum(&recipients_data),
+            recipients: make_checksum(&recipients.clone().into()),
         }
     };
 
     let preview = if !opts.skip_preview {
-        let (old_content, old_preview) = if let Some(dec_mode) = &opts.decryption_mode
-            && output_path.exists()
-            && metadata_path.exists()
-        {
+        let (old_content, old_preview) = if output_path.exists() && metadata_path.exists() {
             let old_metadata = Metadata::read_from_path(&metadata_path).ok();
             let old_preview = old_metadata
                 .as_ref()
                 .and_then(|m| m.preview.as_ref())
                 .map(|p| p.preview.clone());
 
-            let decrypt_options = DecryptOptions {
-                mode: dec_mode.clone(),
-                skip_gitignore: true,
-                skip_timestamps: true,
-                skip_verify_encrypted: true,
-                skip_verify_decrypted: true,
-                dry_run: true,
+            let old_content = if let (Some(decryption_mode), Ok(f)) =
+                (&opts.decryption_mode, File::open(&output_path))
+            {
+                let decrypt_options = DecryptOptions {
+                    mode: decryption_mode.clone(),
+                    skip_gitignore: true,
+                    skip_timestamps: true,
+                    skip_verify_encrypted: true,
+                    skip_verify_decrypted: true,
+                    dry_run: true,
+                };
+                decrypt_into_memory(f, &decrypt_options).ok()
+            } else {
+                None
             };
-
-            let old_content = File::open(&output_path)
-                .ok()
-                .and_then(|f| decrypt_into_memory(f, &decrypt_options).ok());
 
             (old_content, old_preview)
         } else {
@@ -154,7 +161,7 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         generate_preview(
             path,
             &input,
-            old_content.as_deref(),
+            old_content.as_ref(),
             old_preview.as_deref(),
             &secret.timestamp,
         )
@@ -184,7 +191,7 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         );
     } else {
         log::debug!("{}: writing encrypted file", output_path.display());
-        std::fs::write(&output_path, output).with_context(|| {
+        std::fs::write(&output_path, output.expose_secret()).with_context(|| {
             format!("{}: could not write encrypted file", output_path.display())
         })?;
     }

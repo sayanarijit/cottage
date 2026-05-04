@@ -1,3 +1,4 @@
+use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -58,15 +59,15 @@ impl Metadata {
     }
 }
 
-pub fn make_checksum(data: &[u8]) -> String {
-    format!("blake3:{}", blake3::hash(data).to_hex())
+pub fn make_checksum(data: &SecretSlice<u8>) -> String {
+    format!("blake3:{}", blake3::hash(data.expose_secret()).to_hex())
 }
 
-pub fn verify_checksum(data: &[u8], checksum: &str, path: &Path) -> Result<()> {
+pub fn verify_checksum(data: &SecretSlice<u8>, checksum: &str, path: &Path) -> Result<()> {
     log::debug!("{}: verifying checksum", path.display());
     match checksum.split_once(":") {
         Some(("blake3", cs)) => {
-            let enc_checksum = blake3::hash(data).to_hex();
+            let enc_checksum = blake3::hash(data.expose_secret()).to_hex();
             if enc_checksum.as_str() == cs {
                 Ok(())
             } else {

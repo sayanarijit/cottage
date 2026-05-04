@@ -2,6 +2,7 @@ use crate::{
     DecryptOptions, DecryptionMode, OperationKind, Project, StatusOptions, decrypt_into_memory,
     status_path,
 };
+use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::Result;
 use colored::Colorize;
 use similar::TextDiff;
@@ -25,7 +26,7 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
     };
 
     let dec_opts = DecryptOptions {
-        mode: options.mode,
+        mode: options.mode.clone(),
         skip_gitignore: true,
         skip_timestamps: true,
         skip_verify_encrypted: options.skip_verify_encrypted,
@@ -42,23 +43,22 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
             };
 
             let decrypted_content = if decrypted_path.exists() {
-                fs::read(decrypted_path)?
+                SecretSlice::from(fs::read(decrypted_path)?)
             } else {
-                vec![]
+                SecretSlice::new(vec![].into())
             };
 
             let encrypted_content = if encrypted_path.exists() {
                 let file = fs::File::open(encrypted_path)?;
                 decrypt_into_memory(file, &dec_opts)?
             } else {
-                vec![]
+                SecretSlice::new(vec![].into())
             };
 
-            if decrypted_content != encrypted_content {
+            let encrypted_str = String::from_utf8_lossy(encrypted_content.expose_secret());
+            let decrypted_str = String::from_utf8_lossy(decrypted_content.expose_secret());
+            if encrypted_str != decrypted_str {
                 has_diff = true;
-
-                let encrypted_str = String::from_utf8_lossy(&encrypted_content);
-                let decrypted_str = String::from_utf8_lossy(&decrypted_content);
 
                 let (old_str, new_str) = match op.kind {
                     OperationKind::Encrypt => (encrypted_str, decrypted_str),

@@ -6,6 +6,7 @@ use crate::{
     diff, encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
     status_path, sync_path, to_decrypted_path, to_encrypted_path,
 };
+use age::secrecy::SecretString;
 use anyhow::{Result, anyhow};
 use clap::CommandFactory;
 use clap::Parser;
@@ -467,17 +468,17 @@ fn prompt_passphrase() -> Result<String> {
 fn choose_encryption_mode(
     proj: &Project,
     use_passphrase: bool,
-    passphrase: Option<String>,
+    passphrase: Option<SecretString>,
     recipients: Vec<String>,
     recipients_file: Vec<PathBuf>,
 ) -> Result<EncryptionMode> {
     let env_passphrase = std::env::var("COTTAGE_PASSPHRASE");
     match (use_passphrase, passphrase, env_passphrase) {
         (true, Some(pass), _) => Ok(EncryptionMode::Passphrase(pass)),
-        (true, None, Ok(pass)) => Ok(EncryptionMode::Passphrase(pass)),
+        (true, None, Ok(pass)) => Ok(EncryptionMode::Passphrase(pass.into())),
         (true, None, Err(VarError::NotPresent)) => {
             let pass = prompt_passphrase()?;
-            Ok(EncryptionMode::Passphrase(pass))
+            Ok(EncryptionMode::Passphrase(pass.into()))
         }
         (true, _, Err(e)) => Err(anyhow!(e.to_string())),
         (false, _, _) => {
@@ -490,16 +491,16 @@ fn choose_encryption_mode(
 fn choose_decryption_mode(
     proj: &Project,
     use_passphrase: bool,
-    passphrase: Option<String>,
+    passphrase: Option<SecretString>,
     identities: Vec<PathBuf>,
 ) -> Result<DecryptionMode> {
     let env_passphrase = std::env::var("COTTAGE_PASSPHRASE");
     match (use_passphrase, passphrase, env_passphrase) {
         (true, Some(pass), _) => Ok(DecryptionMode::Passphrase(pass)),
-        (true, None, Ok(pass)) => Ok(DecryptionMode::Passphrase(pass)),
+        (true, None, Ok(pass)) => Ok(DecryptionMode::Passphrase(pass.into())),
         (true, None, Err(VarError::NotPresent)) => {
             let pass = prompt_passphrase()?;
-            Ok(DecryptionMode::Passphrase(pass))
+            Ok(DecryptionMode::Passphrase(pass.into()))
         }
         (true, _, Err(e)) => Err(anyhow!(e.to_string())),
         (false, _, _) => {
@@ -508,7 +509,7 @@ fn choose_decryption_mode(
         }
     }
 }
-
+//
 fn print_edits(mut file: impl Write, proj: &Project, op: &OperationResult) -> Result<()> {
     for path in op.metadata.iter().chain(op.gitignore.iter()) {
         writeln!(
@@ -594,18 +595,16 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         args.recipients_file,
     )?;
 
-    let passphrase = if let EncryptionMode::Passphrase(pass) = &mode {
-        Some(pass.clone())
-    } else {
-        None
+    let decryption_mode = match &mode {
+        EncryptionMode::Passphrase(p) => DecryptionMode::Passphrase(p.clone()),
+        EncryptionMode::Recipients(_) => {
+            DecryptionMode::Identities(load_identities(proj, args.identity).collect())
+        }
     };
-
-    let opt_dec_mode =
-        choose_decryption_mode(proj, args.passphrase, passphrase, args.identity).ok();
 
     let options = EncryptOptions {
         mode,
-        decryption_mode: opt_dec_mode,
+        decryption_mode: Some(decryption_mode),
         armor: args.armor,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
@@ -722,7 +721,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
 
     let sync_options = SyncOptions {
         encryption_mode,
-        decryption_mode,
+        identities: decryption_mode,
         armor: args.armor,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,

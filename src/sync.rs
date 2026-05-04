@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 #[derive(Clone)]
 pub struct SyncOptions {
     pub encryption_mode: EncryptionMode,
-    pub decryption_mode: DecryptionMode,
+    pub identities: DecryptionMode,
     pub identity_path: PathBuf,
     pub armor: bool,
     pub skip_gitignore: bool,
@@ -27,14 +27,14 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
         OperationKind::Encrypt => {
             if !sync_options.skip_encryption {
                 let encrypt_options = EncryptOptions {
+                    decryption_mode: Some(sync_options.identities.clone()),
                     mode: sync_options.encryption_mode.clone(),
-                    decryption_mode: Some(sync_options.decryption_mode.clone()),
+                    identity_path: sync_options.identity_path.clone(),
                     armor: sync_options.armor,
                     skip_gitignore: sync_options.skip_gitignore,
                     skip_timestamps: sync_options.skip_timestamps,
                     skip_preview: sync_options.skip_preview,
                     force: sync_options.force_encrypt,
-                    identity_path: sync_options.identity_path.clone(),
                     dry_run: sync_options.dry_run,
                 };
                 encrypt_file(&operation.input, &encrypt_options)
@@ -46,7 +46,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
         OperationKind::Decrypt => {
             if !sync_options.skip_decryption {
                 let decrypt_options = DecryptOptions {
-                    mode: sync_options.decryption_mode.clone(),
+                    mode: sync_options.identities.clone(),
                     skip_gitignore: sync_options.skip_gitignore,
                     skip_timestamps: sync_options.skip_timestamps,
                     skip_verify_encrypted: sync_options.skip_verify_encrypted,
