@@ -83,9 +83,8 @@ ctg decrypt examples # Nothing to decrypt now
 ```bash
 echo 'foo: bar' | tee -a examples/secrets/secret.yaml
 # foo: bar
-# removed 'examples/secrets/secret.hcl.cott.age'
 
-# Encrypts only what is missing
+# Encrypts only what is altered
 ctg encrypt examples
 # encrypt examples/secrets/secret.yaml
 #    into examples/secrets/secret.yaml.cott.age
