@@ -32,8 +32,12 @@ impl Project {
     pub fn init() -> Result<Self> {
         Self::load().or_else(|_| {
             log::debug!("project root not found, initializing new project");
-            let root =
-                std::env::current_dir().context("could not get current working directory")?;
+
+            let cwd = std::env::current_dir().context("could not get current working directory")?;
+            let root = get_root(&cwd, ".git/")
+                .or_else(|| get_root(&cwd, ".jj/"))
+                .unwrap_or(cwd);
+
             let cottage_dir = root.join(".cottage");
             std::fs::create_dir(&cottage_dir).with_context(|| {
                 format!(
@@ -199,8 +203,6 @@ pub fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {
 
 pub fn get_project_root(cwd: &Path) -> Option<PathBuf> {
     get_root(cwd, ".cottage/")
-        .or_else(|| get_root(cwd, ".git/"))
-        .or_else(|| get_root(cwd, ".jj/"))
 }
 
 pub fn append_line_if_absent(path: &Path, line: &str, dry_run: bool) -> Result<bool> {

@@ -8,8 +8,6 @@ theme:
 
 # cottage
 
-<!-- jump_to_middle -->
-
 `ctg` (cottage) is a modern git-based age-encrypted secrets manager for teams.
 
 This guide covers all subcommands and their options with real examples.
