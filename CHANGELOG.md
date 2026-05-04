@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/sayanarijit/cottage/compare/v0.1.10...v0.2.0) - 2026-05-04
+
+### Other
+
+- Privatize crates, fix tests
+- Use secrecy types
+- Document
+- Make things private
+- --dry-run, --skip-encryption, --skip-decryption
+- Don't allow `run` on dirty paths
+- Clarify encryption behavior in README
+
 ## [0.1.10](https://github.com/sayanarijit/cottage/compare/v0.1.9...v0.1.10) - 2026-05-03
 
 ### Other
