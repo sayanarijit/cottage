@@ -12,24 +12,21 @@ mod recipients;
 mod status;
 mod sync;
 
-pub use clean::{CleanOptions, clean_dir, clean_path};
-pub use dec::{DecryptOptions, DecryptionMode, decrypt_into_memory, decrypt_path};
-pub use diff::{DiffOptions, diff};
-pub use enc::{EncryptOptions, EncryptionMode, encrypt_path};
-pub use identity::{Identity, load_identities};
-pub use metadata::{
+pub(crate) use clean::{CleanOptions, clean_path};
+pub(crate) use dec::{DecryptOptions, DecryptionMode, decrypt_into_memory, decrypt_path};
+pub(crate) use diff::{DiffOptions, diff};
+pub(crate) use enc::{EncryptOptions, EncryptionMode, encrypt_path};
+pub(crate) use identity::{Identity, load_identities};
+pub(crate) use metadata::{
     ChecksumMetadata, Metadata, PreviewFormat, PreviewMetadata, SecretMetadata, make_checksum,
     verify_checksum,
 };
-pub use operation::{
+pub(crate) use operation::{
     Operation, OperationKind, OperationResult, is_encrypted_path, is_metadata_path,
     to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
-pub use preview::generate_preview;
-pub use project::{
-    Project, append_line_if_absent, append_to_gitignore_if_absent, get_project_root, get_root,
-    remove_from_gitignore_if_present, remove_line_if_present,
-};
-pub use recipients::{Recipient, RecipientData, load_recipients};
-pub use status::{StatusOptions, status_dir, status_file, status_path};
-pub use sync::{SyncOptions, sync_path};
+pub(crate) use preview::generate_preview;
+pub(crate) use project::{Project, remove_from_gitignore_if_present};
+pub(crate) use recipients::{RecipientData, load_recipients};
+pub(crate) use status::{StatusOptions, status_path};
+pub(crate) use sync::{SyncOptions, sync_path};

@@ -8,15 +8,10 @@ use std::time::SystemTime;
 
 #[derive(Debug)]
 pub struct Git {
-    root_gitignore: PathBuf,
     root_gitattributes: PathBuf,
 }
 
 impl Git {
-    pub fn root_gitignore(&self) -> &Path {
-        &self.root_gitignore
-    }
-
     pub fn root_gitattributes(&self) -> &Path {
         &self.root_gitattributes
     }
@@ -26,9 +21,7 @@ impl Git {
 pub struct Project {
     cwd: PathBuf,
     root: PathBuf,
-    global_config_dir: PathBuf,
     global_identity_path: PathBuf,
-    cottage_dir: PathBuf,
     recipients_path: PathBuf,
     identity_path: PathBuf,
     ssh_dir: PathBuf,
@@ -113,7 +106,6 @@ impl Project {
 
         let git = if root.join(".git").exists() {
             Some(Git {
-                root_gitignore: root.join(".gitignore"),
                 root_gitattributes: root.join(".gitattributes"),
             })
         } else {
@@ -142,12 +134,10 @@ impl Project {
         Ok(Self {
             cwd,
             root,
-            cottage_dir,
             recipients_path,
             identity_path,
             git,
             ssh_dir,
-            global_config_dir,
             global_identity_path,
         })
     }
@@ -160,20 +150,12 @@ impl Project {
         &self.root
     }
 
-    pub fn cottage_dir(&self) -> &Path {
-        &self.cottage_dir
-    }
-
     pub fn recipients_path(&self) -> &Path {
         &self.recipients_path
     }
 
     pub fn identity_path(&self) -> &Path {
         &self.identity_path
-    }
-
-    pub fn global_config_dir(&self) -> &Path {
-        &self.global_config_dir
     }
 
     pub fn ssh_dir(&self) -> &Path {
@@ -185,11 +167,11 @@ impl Project {
     }
 
     pub fn relative_to_cwd(&self, path: &Path) -> PathBuf {
-        pathdiff::diff_paths(path, &self.cwd).unwrap_or_else(|| path.to_path_buf())
+        pathdiff::diff_paths(path, self.cwd()).unwrap_or_else(|| path.to_path_buf())
     }
 
     pub fn relative_to_root(&self, path: &Path) -> PathBuf {
-        pathdiff::diff_paths(path, &self.root).unwrap_or_else(|| path.to_path_buf())
+        pathdiff::diff_paths(path, self.root()).unwrap_or_else(|| path.to_path_buf())
     }
 
     pub fn global_identity_path(&self) -> &PathBuf {
