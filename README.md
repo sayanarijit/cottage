@@ -8,7 +8,7 @@
 
 # cottage
 
-Cottage is a tool for teams to manage [age-encrypted](https://age-encryption.org/) secrets in git repositories.
+Cottage is a gitops tool for teams to manage [age-encrypted](https://age-encryption.org/) secrets in git repositories.
 
 It provides a simple workflow to encrypt/decrypt secrets, manage recipients, and keep
 secrets out of the repo while still allowing for easy sharing via VCS. Cottage also
@@ -17,6 +17,19 @@ persistent and temporary decryption workflows, while ensuring secrets are never 
 in plaintext.
 
 ![Intro Demo](https://vhs.charm.sh/vhs-IGhLl9r53QKGaOvsv9Na2.gif)
+
+# Table of contents
+
+1. [cottage](#cottage)
+   1. [Features](#features)
+   2. [Installation](#installation)
+   3. [Quick Start](#quick-start)
+   4. [Sharing with a team member](#sharing-with-a-team-member)
+   5. [Git Hooks](#git-hooks)
+   6. [Learn More](#learn-more)
+   7. [Alternatives](#alternatives)
+   8. [Troubleshooting](#troubleshooting)
+   9. [License](#license)
 
 ## Features
 
@@ -47,6 +60,8 @@ pip install cottage
 uv pip install cottage
 ```
 
+Or download the latest release from [GitHub](https://github.com/sayanarijit/cottage/releases).
+
 ## Quick Start
 
 Init project:
@@ -55,7 +70,7 @@ Init project:
 mkdir project && cd project
 
 git init  # Optional, cottage works better with git but it's not required
-ctg init  # Also optional in a git repo, required in a non-git directory
+ctg init  # Sets up the .cottage directory and necessary files
 
 tree -a
 # .
@@ -64,7 +79,7 @@ tree -a
 # │   └── recipients/     <- This is where your team keeps the public keys of all the recipients.
 # │       └── sayanarijit <- Your public key. Commit it. To use an existing public key, just copy (don't softlink) that key here.
 # ├── .git/...
-# ├── .gitattributes      <- Added `*.cott.age binary filter=cottage-encrypted` to avoid polluting git diff
+# ├── .gitattributes      <- Added `*.cott.age binary export-ignore filter=cottage-encrypted -diff` to avoid polluting git diff
 # └── .gitignore          <- Added `/.cottage/identity` for obvious reasons
 ```
 
@@ -86,10 +101,10 @@ Run a command with temporary decrypted secrets:
 cat secret.yml
 # cat: secret.yml: No such file or directory
 
-ctg run kubectl apply -f secret.yml          # decrypts secret.yml.cott.age to secret.yml
-ctg run kubectl apply -f secret.yml.cott.age # same as above
-ctg run kubectl apply -f .                   # decrypts all .cott.age files in .
-ctg run ./deploy.sh                          # decrypts all .cott.age files in repo.
+ctg run kubectl apply -f secret.yml          # decrypts secret.yml.cott.age to secret.yml and runs the command
+ctg run kubectl apply -f secret.yml.cott.age # also replaces the path argument with the decrypted file path
+ctg run kubectl apply -f .                   # decrypts all .cott.age files in . and runs the command
+ctg run ./deploy.sh                          # decrypts all .cott.age files in repo and runs the command
 
 cat secret.yml
 # cat: secret.yml: No such file or directory
@@ -134,15 +149,21 @@ git push origin main
 
 Now your teammates can pull the latest changes and decrypt secrets for themselves.
 
-## git hooks
+## Git Hooks
 
 You can use [prek](https://github.com/j178/prek) or [pre-commit](https://pre-commit.com/) to set up git hooks to automatically check/encrypt secrets before commit and decrypt them after checkout.
 
-See the [example prek configuration here](./prek.toml).
+See the [example prek configuration here](examples/prek.toml).
 
 ## Learn More
 
 See [examples](examples/) directory for more usage examples.
+
+## Alternatives
+
+- [agebox](https://github.com/slok/agebox): Very similar in core philosophy but lacking many [features](#features).
+- [git-crypt](https://github.com/AGWA/git-crypt): Uses PGP (requires an agent), complex, 100% tied to Git.
+- [SOPS](https://github.com/mozilla/sops): Lots of features and very complex for simple use cases.
 
 ## Troubleshooting
 
@@ -150,18 +171,6 @@ See [examples](examples/) directory for more usage examples.
 # See debug logs with -v, -vv or -vvv
 ctg run -vvv -- ./deploy.sh
 ```
-
-## Roadmap
-
-- [x] Core functionality: encrypting, decrypting, managing recipients, diffing and syncing secrets.
-- [x] Nice to have features: shell autocompletions, gitignore, redacted previews, rich diffs, checksum verification and `ctgx`.
-- [ ] Syncing remote secret vaults `ctg pull` and `ctg push`.
-- [ ] [ACL](https://github.com/apache/casbin-rs) for more fine-grained access control.
-- [ ] Audit logs of who accessed secrets and when.
-- [ ] Secret rotation and expiration policies.
-- [ ] Integrations with popular CI/CD tools and secret management platforms.
-- [ ] Editor plugins for VSCode, JetBrains IDEs, Vim and Emacs.
-- [ ] Docker images and kubernetes operators for easier integration with existing workflows.
 
 ## License
 

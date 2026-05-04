@@ -120,7 +120,7 @@ impl Project {
             append_to_gitignore_if_absent(&identity_path, false)?;
             append_line_if_absent(
                 git.root_gitattributes(),
-                "*.cott.age binary filter=cottage-encrypted",
+                "*.cott.age binary export-ignore filter=cottage-encrypted -diff",
                 false,
             )?;
         }
