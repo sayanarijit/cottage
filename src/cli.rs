@@ -104,7 +104,7 @@ struct CleanArgs {
     /// The file or dir to clean, defaults to project root.
     path: Vec<PathBuf>,
 
-    /// Skip removing from .gitignore.
+    /// Remove from .gitignore.
     #[arg(long, env = "COTTAGE_CLEAN_GITIGNORE")]
     gitignore: bool,
 
