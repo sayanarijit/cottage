@@ -773,8 +773,22 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
     log::debug!("modified args: {:?}", modified_args);
     log::debug!("input paths: {:?}", input_paths);
 
+    let input = get_input_paths(proj, input_paths.clone());
+    for path in input.iter() {
+        for res in status_path(path) {
+            let op = res?;
+            if let OperationKind::Encrypt = op.kind {
+                return Err(anyhow!(
+                    "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
+                    "pending encryptiion".red(),
+                    proj.relative_to_cwd(&op.input).display()
+                ));
+            }
+        }
+    }
+
     let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity)?;
-    let options = DecryptOptions {
+    let dec_options = DecryptOptions {
         mode,
         skip_gitignore: true,
         skip_timestamps: true,
@@ -782,10 +796,9 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         skip_verify_decrypted: args.force || args.skip_verify_decrypted,
     };
 
-    let input = get_input_paths(proj, input_paths.clone());
     let mut stderr = std::io::stderr();
     for path in &input {
-        for res in decrypt_path(path, &options) {
+        for res in decrypt_path(path, &dec_options) {
             let res = res?;
             if !quiet {
                 print_result(&mut stderr, proj, &res, args.compact)?;
