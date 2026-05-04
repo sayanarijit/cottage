@@ -121,10 +121,11 @@ impl Project {
         };
 
         if let Some(git) = &git {
-            append_to_gitignore_if_absent(&identity_path)?;
+            append_to_gitignore_if_absent(&identity_path, false)?;
             append_line_if_absent(
                 git.root_gitattributes(),
                 "*.cott.age binary filter=cottage-encrypted",
+                false,
             )?;
         }
 
@@ -220,7 +221,7 @@ pub fn get_project_root(cwd: &Path) -> Option<PathBuf> {
         .or_else(|| get_root(cwd, ".jj/"))
 }
 
-pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
+pub fn append_line_if_absent(path: &Path, line: &str, dry_run: bool) -> Result<bool> {
     let line = line.trim();
     log::trace!("{}: checking if line {:?} is present", path.display(), line);
     let mut file = OpenOptions::new()
@@ -237,6 +238,15 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
     {
         log::trace!("{}: line {:?} already present", path.display(), line);
         return Ok(false);
+    }
+
+    if dry_run {
+        log::trace!(
+            "{}: line {:?} would be added (dry run)",
+            path.display(),
+            line
+        );
+        return Ok(true);
     }
 
     let needs_nl = if file.seek(SeekFrom::End(0))? > 0 {
@@ -257,7 +267,7 @@ pub fn append_line_if_absent(path: &Path, line: &str) -> Result<bool> {
     Ok(true)
 }
 
-pub fn remove_line_if_present(path: &Path, line: &str) -> Result<bool> {
+pub fn remove_line_if_present(path: &Path, line: &str, dry_run: bool) -> Result<bool> {
     let line = line.trim();
     log::trace!(
         "{}: checking if line {:?} is present for removal",
@@ -277,13 +287,23 @@ pub fn remove_line_if_present(path: &Path, line: &str) -> Result<bool> {
         return Ok(false);
     }
 
-    let lines: Vec<String> = std::io::BufReader::new(std::fs::File::open(path)?)
-        .lines()
-        .map_while(Result::ok)
-        .filter(|l| l.trim() != line)
-        .collect();
+    if dry_run {
+        log::trace!(
+            "{}: line {:?} would be removed (dry run)",
+            path.display(),
+            line
+        );
+    } else {
+        log::trace!("{}: removing line {:?} from file", path.display(), line);
+        let lines: Vec<String> = std::io::BufReader::new(std::fs::File::open(path)?)
+            .lines()
+            .map_while(Result::ok)
+            .filter(|l| l.trim() != line)
+            .collect();
 
-    std::fs::write(path, lines.join("\n") + "\n")?;
+        std::fs::write(path, lines.join("\n") + "\n")?;
+    }
+
     Ok(true)
 }
 
@@ -322,12 +342,12 @@ pub fn fmt_gitignore_line(path: &Path, gitignore_root: &Path) -> Result<String> 
 }
 
 // Very naive implementation for now
-pub fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBuf>> {
+pub fn append_to_gitignore_if_absent(path: &Path, dry_run: bool) -> Result<Option<PathBuf>> {
     let gitignore_root = get_or_create_gitignore_root(path)?;
     let line_to_add = fmt_gitignore_line(path, &gitignore_root)?;
 
     let gitignore_path = gitignore_root.join(".gitignore");
-    if append_line_if_absent(&gitignore_path, &line_to_add)? {
+    if append_line_if_absent(&gitignore_path, &line_to_add, dry_run)? {
         log::debug!("{}: added to {}", line_to_add, gitignore_path.display());
         Ok(Some(gitignore_path))
     } else {
@@ -336,12 +356,12 @@ pub fn append_to_gitignore_if_absent(path: &Path) -> Result<Option<PathBuf>> {
 }
 
 // Very naive implementation for now
-pub fn remove_from_gitignore_if_present(path: &Path) -> Result<Option<PathBuf>> {
+pub fn remove_from_gitignore_if_present(path: &Path, dry_run: bool) -> Result<Option<PathBuf>> {
     let gitignore_root = get_or_create_gitignore_root(path)?;
     let line_to_remove = fmt_gitignore_line(path, &gitignore_root)?;
 
     let gitignore_path = gitignore_root.join(".gitignore");
-    if remove_line_if_present(&gitignore_path, &line_to_remove)? {
+    if remove_line_if_present(&gitignore_path, &line_to_remove, dry_run)? {
         log::debug!(
             "{}: removed from {}",
             line_to_remove,

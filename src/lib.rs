@@ -9,6 +9,7 @@ mod operation;
 mod preview;
 mod project;
 mod recipients;
+mod status;
 mod sync;
 
 pub use clean::{CleanOptions, clean_dir, clean_path};
@@ -30,4 +31,5 @@ pub use project::{
     remove_from_gitignore_if_present, remove_line_if_present,
 };
 pub use recipients::{Recipient, RecipientData, load_recipients};
-pub use sync::{SyncOptions, status_path, sync_path};
+pub use status::{StatusOptions, status_dir, status_file, status_path};
+pub use sync::{SyncOptions, sync_path};

@@ -1,5 +1,6 @@
 use crate::{
-    DecryptOptions, DecryptionMode, OperationKind, Project, decrypt_into_memory, status_path,
+    DecryptOptions, DecryptionMode, OperationKind, Project, StatusOptions, decrypt_into_memory,
+    status_path,
 };
 use anyhow::Result;
 use colored::Colorize;
@@ -9,6 +10,8 @@ use std::path::PathBuf;
 
 pub struct DiffOptions {
     pub mode: DecryptionMode,
+    pub skip_encryption: bool,
+    pub skip_decryption: bool,
     pub skip_verify_encrypted: bool,
     pub skip_verify_decrypted: bool,
 }
@@ -16,16 +19,22 @@ pub struct DiffOptions {
 pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<bool> {
     let mut has_diff = false;
 
-    let decrypt_options = DecryptOptions {
+    let status_opts = StatusOptions {
+        skip_encryption: options.skip_encryption,
+        skip_decryption: options.skip_decryption,
+    };
+
+    let dec_opts = DecryptOptions {
         mode: options.mode,
         skip_gitignore: true,
         skip_timestamps: true,
         skip_verify_encrypted: options.skip_verify_encrypted,
         skip_verify_decrypted: options.skip_verify_decrypted,
+        dry_run: true,
     };
 
     for path in paths {
-        for res in status_path(path) {
+        for res in status_path(path, status_opts) {
             let op = res?;
             let (decrypted_path, encrypted_path) = match op.kind {
                 OperationKind::Encrypt => (&op.input, &op.output),
@@ -40,7 +49,7 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
 
             let encrypted_content = if encrypted_path.exists() {
                 let file = fs::File::open(encrypted_path)?;
-                decrypt_into_memory(file, &decrypt_options)?
+                decrypt_into_memory(file, &dec_opts)?
             } else {
                 vec![]
             };

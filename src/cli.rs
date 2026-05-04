@@ -2,8 +2,8 @@ use crate::dec::decrypt_file;
 use crate::enc::encrypt_file;
 use crate::{
     CleanOptions, DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode,
-    OperationKind, OperationResult, Project, SyncOptions, clean_path, decrypt_path, diff,
-    encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
+    OperationKind, OperationResult, Project, StatusOptions, SyncOptions, clean_path, decrypt_path,
+    diff, encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
     status_path, sync_path, to_decrypted_path, to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
@@ -65,7 +65,8 @@ enum Command {
     #[command(name = "sync", aliases = ["sy", "syn"])]
     Sync(SyncArgs),
 
-    /// See status of encrypted and decrypted files.
+    /// See pending actions based on timestamps only.
+    /// To get the actual status, use `diff` command.
     #[command(name = "status", aliases = ["st"])]
     Status(StatusArgs),
 
@@ -103,10 +104,6 @@ struct CleanArgs {
     /// The file or dir to clean, defaults to project root.
     path: Vec<PathBuf>,
 
-    /// Dry run, don't actually delete anything.
-    #[arg(short = 'n', long)]
-    dry_run: bool,
-
     /// Skip removing from .gitignore.
     #[arg(long, env = "COTTAGE_CLEAN_GITIGNORE")]
     gitignore: bool,
@@ -114,6 +111,10 @@ struct CleanArgs {
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
+
+    /// Dry run, don't actually delete anything.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
 }
 
 #[derive(clap::Args, Debug, Default)]
@@ -229,6 +230,10 @@ struct EncryptArgs {
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
 
+    /// Dry run, don't actually encrypt anything.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+
     /// Delete decrypted files after encrypting.
     #[arg(long, env = "COTTAGE_CLEAN")]
     clean: bool,
@@ -269,6 +274,10 @@ struct DecryptArgs {
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_DECRYPTED")]
     skip_verify_decrypted: bool,
 
+    /// Dry run, don't actually decrypt anything.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
@@ -305,6 +314,10 @@ struct RunArgs {
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
+
+    /// Dry run, don't actually decrypt or run the command.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -359,6 +372,14 @@ struct SyncArgs {
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_DECRYPTED")]
     skip_verify_decrypted: bool,
 
+    /// Skip encryption.
+    #[arg(long, env = "COTTAGE_SKIP_ENCRYPTION")]
+    skip_encryption: bool,
+
+    /// Skip decryption.
+    #[arg(long, env = "COTTAGE_SKIP_DECRYPTION")]
+    skip_decryption: bool,
+
     /// Skip checksum verification and re-encrypt/re-decrypt all files.
     #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
@@ -366,6 +387,10 @@ struct SyncArgs {
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
+
+    /// Dry run, don't actually encrypt or decrypt anything.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -391,6 +416,14 @@ struct DiffArgs {
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_DECRYPTED")]
     skip_verify_decrypted: bool,
 
+    /// Skip pending encryption.
+    #[arg(long, env = "COTTAGE_SKIP_ENCRYPTION")]
+    skip_encryption: bool,
+
+    /// Skip pending decryption.
+    #[arg(long, env = "COTTAGE_SKIP_DECRYPTION")]
+    skip_decryption: bool,
+
     /// Skip checksum verification.
     #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
@@ -408,6 +441,14 @@ struct StatusArgs {
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
+
+    /// Skip pending encryption.
+    #[arg(long, env = "COTTAGE_SKIP_ENCRYPTION")]
+    skip_encryption: bool,
+
+    /// Skip pending decryption.
+    #[arg(long, env = "COTTAGE_SKIP_DECRYPTION")]
+    skip_decryption: bool,
 
     /// Exit with code 1 if there are pending operations.
     #[arg(long, env = "COTTAGE_FAIL")]
@@ -571,6 +612,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         force: args.force,
         skip_preview: args.skip_preview,
         identity_path: proj.identity_path().to_path_buf(),
+        dry_run: args.dry_run,
     };
 
     for path in &input {
@@ -584,7 +626,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
 
     if args.clean {
         let clean_opts = CleanOptions {
-            dry_run: false,
+            dry_run: options.dry_run,
             gitignore: false,
         };
 
@@ -617,6 +659,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
         skip_timestamps: args.skip_timestamps,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
         skip_verify_decrypted: args.force || args.skip_verify_decrypted,
+        dry_run: args.dry_run,
     };
 
     let mut stdout = std::io::stdout();
@@ -635,9 +678,14 @@ fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
     let mut stdout = std::io::stdout();
 
+    let opts = StatusOptions {
+        skip_encryption: args.skip_encryption,
+        skip_decryption: args.skip_decryption,
+    };
+
     let mut has_pending = false;
     for path in &input {
-        for res in status_path(path) {
+        for res in status_path(path, opts) {
             let res = res?;
             has_pending = true;
             if !quiet {
@@ -681,8 +729,11 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         skip_preview: args.skip_preview,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
         skip_verify_decrypted: args.force || args.skip_verify_decrypted,
+        skip_encryption: args.skip_encryption,
+        skip_decryption: args.skip_decryption,
         force_encrypt: args.force || args.force_encrypt,
         identity_path: proj.identity_path().to_path_buf(),
+        dry_run: args.dry_run,
     };
 
     let mut stdout = std::io::stdout();
@@ -706,6 +757,8 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
         mode,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
         skip_verify_decrypted: args.force || args.skip_verify_decrypted,
+        skip_encryption: args.skip_encryption,
+        skip_decryption: args.skip_decryption,
     };
 
     if diff(proj, &input, options)? && args.fail {
@@ -774,13 +827,14 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
     log::debug!("input paths: {:?}", input_paths);
 
     let input = get_input_paths(proj, input_paths.clone());
+    let status_opts = StatusOptions::default();
     for path in input.iter() {
-        for res in status_path(path) {
+        for res in status_path(path, status_opts) {
             let op = res?;
             if let OperationKind::Encrypt = op.kind {
                 return Err(anyhow!(
                     "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
-                    "pending encryptiion".red(),
+                    "pending encryption".red(),
                     proj.relative_to_cwd(&op.input).display()
                 ));
             }
@@ -794,6 +848,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         skip_timestamps: true,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
         skip_verify_decrypted: args.force || args.skip_verify_decrypted,
+        dry_run: args.dry_run,
     };
 
     let mut stderr = std::io::stderr();
@@ -806,12 +861,18 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         }
     }
 
-    let mut cmd = std::process::Command::new(&args.command[0]);
-    cmd.args(&modified_args);
-    let status = cmd.status();
+    let res = if args.dry_run {
+        log::info!("dry run: skipping running the command");
+        Ok((true, Some(0)))
+    } else {
+        let mut cmd = std::process::Command::new(&args.command[0]);
+        cmd.args(&modified_args);
+        log::info!("running command: {:?}", &cmd);
+        cmd.status().map(|s| (s.success(), s.code()))
+    };
 
     let clean_opts = CleanOptions {
-        dry_run: false,
+        dry_run: args.dry_run,
         gitignore: false,
     };
 
@@ -838,9 +899,9 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         }
     }
 
-    let status = status?;
-    if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
+    let (is_success, status_code) = res?;
+    if !is_success {
+        std::process::exit(status_code.unwrap_or(1));
     }
 
     Ok(())
@@ -884,6 +945,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
                 skip_timestamps: args.skip_timestamps,
                 skip_verify_encrypted: args.force || args.skip_verify_encrypted,
                 skip_verify_decrypted: args.force || args.skip_verify_decrypted,
+                dry_run: false,
             };
             let _ = decrypt_file(&encrypted_path, &options)?;
             // Cant't fail from now on
@@ -921,6 +983,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
                     skip_timestamps: args.skip_timestamps,
                     force: args.force || args.force_encrypt,
                     skip_preview: args.skip_preview,
+                    dry_run: false,
                 };
 
                 let mut stdout = std::io::stdout();
@@ -937,10 +1000,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
     };
 
     if args.clean {
-        let clean_opts = CleanOptions {
-            dry_run: false,
-            gitignore: false,
-        };
+        let clean_opts = CleanOptions::default();
 
         for res in clean_path(&decrypted_path, &clean_opts) {
             let res = res?;

@@ -29,13 +29,14 @@ pub struct EncryptOptions {
     pub skip_timestamps: bool,
     pub skip_preview: bool,
     pub force: bool,
+    pub dry_run: bool,
 }
 
-pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<OperationResult>> {
+pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<OperationResult>> {
     log::debug!("{}: encrypting file", path.display());
     let is_identity = (|| {
         let p = path.canonicalize().ok()?;
-        let i = options.identity_path.canonicalize().ok()?;
+        let i = opts.identity_path.canonicalize().ok()?;
         Some(p.starts_with(i))
     })()
     .unwrap_or(false);
@@ -46,7 +47,7 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
     }
 
     // Just read operations for now ------------------------
-    let (encryptor, recipients_data) = match &options.mode {
+    let (encryptor, recipients_data) = match &opts.mode {
         EncryptionMode::Passphrase(pass) => (
             age::Encryptor::with_user_passphrase(SecretString::from(pass.as_str())),
             pass.as_bytes().to_vec(),
@@ -62,7 +63,7 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
         ),
     };
 
-    let format = if options.armor {
+    let format = if opts.armor {
         age::armor::Format::AsciiArmor
     } else {
         age::armor::Format::Binary
@@ -83,7 +84,7 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
     let metadata_path = to_metadata_path(path);
     let filemtime = input_file.metadata()?.modified()?;
 
-    if !options.force && metadata_path.exists() {
+    if !opts.force && metadata_path.exists() {
         let metadata = Metadata::read_from_path(&metadata_path)
             .with_context(|| format!("{}: could not read metadata", metadata_path.display()))?;
 
@@ -91,7 +92,7 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
             && verify_checksum(input.as_slice(), &metadata.checksum.decrypted, path).is_ok()
         {
             log::debug!("{}: skipping encryption: checksums match", path.display());
-            if !options.skip_timestamps {
+            if !opts.dry_run && !opts.skip_timestamps {
                 set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
             }
             return Ok(None);
@@ -121,8 +122,8 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
         }
     };
 
-    let preview = if !options.skip_preview {
-        let (old_content, old_preview) = if let Some(dec_mode) = &options.decryption_mode
+    let preview = if !opts.skip_preview {
+        let (old_content, old_preview) = if let Some(dec_mode) = &opts.decryption_mode
             && output_path.exists()
             && metadata_path.exists()
         {
@@ -138,6 +139,7 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
                 skip_timestamps: true,
                 skip_verify_encrypted: true,
                 skip_verify_decrypted: true,
+                dry_run: true,
             };
 
             let old_content = File::open(&output_path)
@@ -169,22 +171,39 @@ pub fn encrypt_file(path: &Path, options: &EncryptOptions) -> Result<Option<Oper
     // Write starts here ------------------------
 
     // First add to .gitignore before creating the encrypted file, because, why not!
-    let gitignore = if !options.skip_gitignore {
-        append_to_gitignore_if_absent(path)?
+    let gitignore = if !opts.skip_gitignore {
+        append_to_gitignore_if_absent(path, opts.dry_run)?
     } else {
         None
     };
 
-    log::debug!("{}: writing encrypted file", output_path.display());
-    std::fs::write(&output_path, output)
-        .with_context(|| format!("{}: could not write encrypted file", output_path.display()))?;
+    if opts.dry_run {
+        log::debug!(
+            "{}: dry-run: skipping write of encrypted file",
+            output_path.display()
+        );
+    } else {
+        log::debug!("{}: writing encrypted file", output_path.display());
+        std::fs::write(&output_path, output).with_context(|| {
+            format!("{}: could not write encrypted file", output_path.display())
+        })?;
+    }
 
-    if !options.skip_timestamps {
+    if !opts.dry_run && !opts.skip_timestamps {
         set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
     }
-    log::debug!("{}: writing metadata file", metadata_path.display());
-    std::fs::write(&metadata_path, toml::to_string(&metadata)?)
-        .with_context(|| format!("{}: could not write metadata file", metadata_path.display()))?;
+
+    if opts.dry_run {
+        log::debug!(
+            "{}: dry-run: skipping write of metadata file",
+            metadata_path.display()
+        );
+    } else {
+        log::debug!("{}: writing metadata file", metadata_path.display());
+        std::fs::write(&metadata_path, toml::to_string(&metadata)?).with_context(|| {
+            format!("{}: could not write metadata file", metadata_path.display())
+        })?;
+    }
 
     Ok(Some(OperationResult {
         kind: OperationKind::Encrypt,

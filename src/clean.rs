@@ -5,7 +5,7 @@ use anyhow::Result;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct CleanOptions {
     pub dry_run: bool,
     pub gitignore: bool,
@@ -20,7 +20,7 @@ pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<PathBuf>>
         if !opts.dry_run {
             fs::remove_file(&path)?;
             if opts.gitignore {
-                while (remove_from_gitignore_if_present(&path)?).is_some() {}
+                while (remove_from_gitignore_if_present(&path, opts.dry_run)?).is_some() {}
             }
         }
         Ok(Some(path))

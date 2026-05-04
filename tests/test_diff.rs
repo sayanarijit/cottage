@@ -23,6 +23,7 @@ fn test_diff_logic() -> Result<()> {
         force: false,
         skip_preview: true,
         identity_path: _proj.identity_path().to_path_buf(),
+        dry_run: false,
     };
 
     for res in encrypt_path(&secret_path, &options) {
@@ -39,7 +40,8 @@ fn test_diff_logic() -> Result<()> {
     fs::write(&secret_path, "modified content\n")?;
 
     // Check status
-    let operations: Vec<_> = status_path(&secret_path).collect::<Result<Vec<_>>>()?;
+    let operations: Vec<_> =
+        status_path(&secret_path, cottage::StatusOptions::default()).collect::<Result<Vec<_>>>()?;
     assert_eq!(operations.len(), 1);
 
     // Simulate diff logic
@@ -52,6 +54,7 @@ fn test_diff_logic() -> Result<()> {
         skip_timestamps: true,
         skip_verify_encrypted: false,
         skip_verify_decrypted: false,
+        dry_run: false,
     };
 
     let decrypted_from_encrypted = decrypt_into_memory(encrypted_file, &decrypt_options)?;

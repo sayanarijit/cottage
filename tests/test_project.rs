@@ -82,7 +82,7 @@ fn test_add_to_gitignore() {
     std::fs::write(&subdir_secret, "subsecret").unwrap();
 
     // Test adding to parent .gitignore
-    let added_path = append_to_gitignore_if_absent(&parent_secret)
+    let added_path = append_to_gitignore_if_absent(&parent_secret, false)
         .unwrap()
         .unwrap();
     assert_eq!(added_path, parent_gitignore);
@@ -91,7 +91,7 @@ fn test_add_to_gitignore() {
     assert!(parent_content.contains("/secret.txt"));
 
     // Test adding to parent .gitignore when subdir .gitignore doesn't exist
-    let added_subpath = append_to_gitignore_if_absent(&subdir_secret)
+    let added_subpath = append_to_gitignore_if_absent(&subdir_secret, false)
         .unwrap()
         .unwrap();
     assert_eq!(added_subpath, parent_gitignore);
@@ -101,7 +101,7 @@ fn test_add_to_gitignore() {
 
     // Test adding to subdir .gitignore
     std::fs::write(&subdir_gitignore, "").unwrap();
-    let added_subpath_to_subdir = append_to_gitignore_if_absent(&subdir_secret).unwrap();
+    let added_subpath_to_subdir = append_to_gitignore_if_absent(&subdir_secret, false).unwrap();
 
     assert_eq!(added_subpath_to_subdir, Some(subdir_gitignore.clone()));
 
@@ -109,8 +109,8 @@ fn test_add_to_gitignore() {
     assert!(subdir_content.contains("/subsecret.txt"));
 
     // Check duplicates are not added
-    let duplicate_parent_add = append_to_gitignore_if_absent(&parent_secret).unwrap();
-    let duplicate_subdir_add = append_to_gitignore_if_absent(&subdir_secret).unwrap();
+    let duplicate_parent_add = append_to_gitignore_if_absent(&parent_secret, false).unwrap();
+    let duplicate_subdir_add = append_to_gitignore_if_absent(&subdir_secret, false).unwrap();
     let updated_parent_content = std::fs::read_to_string(&parent_gitignore).unwrap();
     let updated_subdir_content = std::fs::read_to_string(&subdir_gitignore).unwrap();
 
@@ -127,23 +127,23 @@ fn test_add_line_if_absent() {
     let path = temp_file.path();
 
     // Test adding a line to an empty file
-    append_line_if_absent(path, "line1").unwrap();
+    append_line_if_absent(path, "line1", false).unwrap();
     let content = std::fs::read_to_string(path).unwrap();
     assert_eq!(content, "line1\n");
 
     // Test adding the same line again (should not be added)
-    append_line_if_absent(path, "line1").unwrap();
+    append_line_if_absent(path, "line1", false).unwrap();
     let content = std::fs::read_to_string(path).unwrap();
     assert_eq!(content, "line1\n");
 
     // Test adding a different line
-    append_line_if_absent(path, "line2").unwrap();
+    append_line_if_absent(path, "line2", false).unwrap();
     let content = std::fs::read_to_string(path).unwrap();
     assert_eq!(content, "line1\nline2\n");
 
     // Test newline is added if file doesn't end with newline
     std::fs::write(path, "line1").unwrap();
-    append_line_if_absent(path, "line2").unwrap();
+    append_line_if_absent(path, "line2", false).unwrap();
     let content = std::fs::read_to_string(path).unwrap();
     assert_eq!(content, "line1\nline2\n");
 }
