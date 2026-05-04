@@ -1,7 +1,9 @@
 <p align="center">
-    <picture>
-        <img alt="The cottage logo" width="600" src="https://github.com/sayanarijit/cottage/blob/main/logo/cottage.jpg">
-    </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://s13.gifyu.com/images/b7mxd.webp">
+    <source media="(prefers-color-scheme: light)" srcset="https://s13.gifyu.com/images/b7mxl.webp">
+    <img alt="The cottage logo" width="600" src="https://s13.gifyu.com/images/b7mxl.webp">
+  </picture>
 </p>
 
 # cottage
