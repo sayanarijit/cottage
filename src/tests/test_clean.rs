@@ -1,4 +1,4 @@
-use cottage::*;
+use crate::*;
 use std::fs;
 
 #[test]

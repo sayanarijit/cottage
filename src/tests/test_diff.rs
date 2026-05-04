@@ -1,5 +1,6 @@
+use age::secrecy::ExposeSecret;
 use anyhow::Result;
-use cottage::{
+use crate::{
     EncryptOptions, EncryptionMode, Project, decrypt_into_memory, encrypt_path, status_path,
 };
 use std::fs;
@@ -15,7 +16,7 @@ fn test_diff_logic() -> Result<()> {
     fs::write(&secret_path, "original content\n")?;
 
     let options = EncryptOptions {
-        mode: EncryptionMode::Passphrase("password".to_string()),
+        mode: EncryptionMode::Passphrase("password".to_string().into()),
         decryption_mode: None,
         armor: true,
         skip_gitignore: true,
@@ -41,15 +42,15 @@ fn test_diff_logic() -> Result<()> {
 
     // Check status
     let operations: Vec<_> =
-        status_path(&secret_path, cottage::StatusOptions::default()).collect::<Result<Vec<_>>>()?;
+        status_path(&secret_path, crate::StatusOptions::default()).collect::<Result<Vec<_>>>()?;
     assert_eq!(operations.len(), 1);
 
     // Simulate diff logic
     let decrypted_content = fs::read(&secret_path)?;
     let encrypted_file = fs::File::open(&encrypted_path)?;
 
-    let decrypt_options = cottage::DecryptOptions {
-        mode: cottage::DecryptionMode::Passphrase("password".to_string()),
+    let decrypt_options = crate::DecryptOptions {
+        mode: crate::DecryptionMode::Passphrase("password".to_string().into()),
         skip_gitignore: true,
         skip_timestamps: true,
         skip_verify_encrypted: false,
@@ -59,8 +60,11 @@ fn test_diff_logic() -> Result<()> {
 
     let decrypted_from_encrypted = decrypt_into_memory(encrypted_file, &decrypt_options)?;
 
-    assert_ne!(decrypted_content, decrypted_from_encrypted);
-    assert_eq!(decrypted_from_encrypted, b"original content\n");
+    assert_ne!(decrypted_content, decrypted_from_encrypted.expose_secret());
+    assert_eq!(
+        decrypted_from_encrypted.expose_secret(),
+        b"original content\n"
+    );
     assert_eq!(decrypted_content, b"modified content\n");
 
     Ok(())
