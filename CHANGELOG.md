@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/sayanarijit/cottage/compare/v0.2.0...v0.2.1) - 2026-05-04
+
+### Other
+
+- Fix pre-commit hooks
+- Pre-commit hooks
+- Don't auto init
+
 ## [0.2.0](https://github.com/sayanarijit/cottage/compare/v0.1.10...v0.2.0) - 2026-05-04
 
 ### Other
