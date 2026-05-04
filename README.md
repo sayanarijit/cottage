@@ -132,6 +132,10 @@ git push origin main
 
 Now your teammates can pull the latest changes and decrypt secrets for themselves.
 
+## Learn More
+
+See [examples](examples/) directory for more usage examples.
+
 ## Troubleshooting
 
 ```bash
