@@ -1,0 +1,41 @@
+- id: cottage-status
+  name: cottage-status
+  description: run ctg status to check to ensure modified secrets are encrypted (fast, timestamp bases)
+  entry: ctg status --skip-decryption --fail
+  language: system
+  pass_filenames: false
+  always_run: true
+
+- id: cottage-diff
+  name: cottage-diff
+  description: run ctg diff to check to ensure modified secrets are encrypted (slow, content based)
+  entry: ctg diff --skip-decryption --fail
+  language: system
+  pass_filenames: false
+  always_run: true
+
+- id: cottage-encrypt
+  name: cottage-encrypt
+  description: run ctg encrypt to encrypt any modified secrets (slow, content based)
+  entry: ctg encrypt
+  language: system
+  pass_filenames: false
+  always_run: true
+
+- id: cottage-sync
+  name: cottage-sync
+  description: run ctg sync to ensure secrets are encrypted and decrypted as needed (fast, timestamp based)
+  entry: ctg sync
+  language: system
+  pass_filenames: false
+  always_run: true
+  stages: [post-checkout, post-merge]
+
+- id: cottage-decrypt
+  name: cottage-decrypt
+  description: run ctg decrypt to decrypt any modified secrets (slow, content based)
+  entry: ctg encrypt
+  language: system
+  pass_filenames: false
+  always_run: true
+  stages: [post-checkout, post-merge]

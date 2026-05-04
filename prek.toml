@@ -1,0 +1,18 @@
+[[repos]]
+repo = "https://github.com/sayanarijit/cottage"
+rev = "main"
+
+[[repos.hooks]]
+id = "cottage-status" # [pre|read] run ctg status to check to check if modified secrets are encrypted (fast, timestamp based)
+
+[[repos.hooks]]
+id = "cottage-diff" # [pre|read] run ctg diff to check to check if modified secrets are encrypted (slow, content based)
+
+[[repos.hooks]]
+id = "cottage-encrypt" # [pre|write] run ctg encrypt to encrypt any modified secrets (slow, content based)
+
+[[repos.hooks]]
+id = "cottage-sync" # [post|write] run ctg sync to ensure secrets are encrypted and decrypted as needed (fast, timestamp based)
+
+[[repos.hooks]]
+id = "cottage-decrypt" # [post|write] run ctg decrypt to decrypt any modified secrets (slow, content based)

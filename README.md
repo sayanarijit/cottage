@@ -134,6 +134,12 @@ git push origin main
 
 Now your teammates can pull the latest changes and decrypt secrets for themselves.
 
+## git hooks
+
+You can use [prek](https://github.com/j178/prek) or [pre-commit](https://pre-commit.com/) to set up git hooks to automatically check/encrypt secrets before commit and decrypt them after checkout.
+
+See the [example prek configuration here](./prek.toml).
+
 ## Learn More
 
 See [examples](examples/) directory for more usage examples.
