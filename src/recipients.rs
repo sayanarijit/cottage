@@ -60,7 +60,15 @@ pub fn parse_recipients_file(path: PathBuf) -> Result<Box<dyn Iterator<Item = Re
                 None
             } else {
                 match parse_recipient(trimmed_line) {
-                    Ok(recipient) => Some((recipient, line.into_bytes())),
+                    Ok(recipient) => Some((
+                        recipient,
+                        line.split_whitespace()
+                            .take(2)
+                            .collect::<Vec<&str>>()
+                            .join(" ")
+                            .as_bytes()
+                            .to_vec(),
+                    )),
                     Err(e) => {
                         log::warn!("{}: could not parse recipient: {}", path.display(), e);
                         None

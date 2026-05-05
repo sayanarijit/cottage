@@ -57,7 +57,7 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
                 .map_err(|_| anyhow!("at least one recipient must be provided"))?,
             recipients
                 .iter()
-                .flat_map(|(_, data)| data)
+                .flat_map(|(_, data)| data.iter().chain(&[b'\n']))
                 .copied()
                 .collect::<Vec<u8>>(),
         ),
@@ -84,12 +84,8 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     let metadata_path = to_metadata_path(path);
     let filemtime = input_file.metadata()?.modified()?;
 
-    let (old_content, old_preview) = if output_path.exists() && metadata_path.exists() {
+    let (old_content, old_metadata) = if output_path.exists() && metadata_path.exists() {
         let old_metadata = Metadata::read_from_path(&metadata_path).ok();
-        let old_preview = old_metadata
-            .as_ref()
-            .and_then(|m| m.preview.as_ref())
-            .map(|p| p.preview.clone());
 
         if let (Some(dec_mode), Ok(f)) = (&opts.decryption_mode, File::open(&output_path)) {
             let decrypt_options = DecryptOptions {
@@ -102,13 +98,14 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
                 dry_run: true,
             };
             let content = decrypt_into_memory(f, &decrypt_options).ok();
-            if !opts.skip_verify_recipients {
-                if let Some(metadata) = old_metadata {
-                    log::debug!(
-                        "{}: verifying intended encryption recipients",
-                        metadata_path.display()
-                    );
-                    verify_checksum(
+            if !opts.skip_verify_recipients
+                && let Some(metadata) = old_metadata.as_ref()
+            {
+                log::debug!(
+                    "{}: verifying intended encryption recipients",
+                    metadata_path.display()
+                );
+                verify_checksum(
                         &recipients.clone().into(),
                         &metadata.checksum.recipients,
                         &metadata_path,
@@ -119,11 +116,10 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
                             metadata_path.display()
                         )
                     })?;
-                }
             }
-            (content, old_preview)
+            (content, old_metadata)
         } else {
-            (None, old_preview)
+            (None, old_metadata)
         }
     } else {
         (None, None)
@@ -148,7 +144,9 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
             path,
             &input,
             old_content.as_ref(),
-            old_preview.as_deref(),
+            old_metadata
+                .as_ref()
+                .and_then(|m| m.preview.as_ref().map(|p| p.preview.as_str())),
             &secret.timestamp,
         )
     } else {
@@ -197,10 +195,6 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
             std::fs::write(&output_path, output.expose_secret()).with_context(|| {
                 format!("{}: could not write encrypted file", output_path.display())
             })?;
-            log::debug!("{}: writing metadata file", metadata_path.display());
-            std::fs::write(&metadata_path, toml::to_string(&metadata)?).with_context(|| {
-                format!("{}: could not write metadata file", metadata_path.display())
-            })?;
             Some(OperationResult {
                 kind: OperationKind::Encrypt,
                 input: path.to_path_buf(),
@@ -209,6 +203,18 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
                 metadata: Some(metadata_path.clone()),
             })
         };
+
+        if old_metadata.as_ref() == Some(&metadata) {
+            log::debug!(
+                "{}: skipping write of metadata file: metadata matches",
+                metadata_path.display()
+            );
+        } else {
+            log::debug!("{}: writing metadata file", metadata_path.display());
+            std::fs::write(&metadata_path, toml::to_string(&metadata)?).with_context(|| {
+                format!("{}: could not write metadata file", metadata_path.display())
+            })?;
+        }
 
         if !opts.skip_timestamps {
             log::debug!("{}: updating timestamp", output_path.display());
