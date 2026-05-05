@@ -27,7 +27,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
         OperationKind::Encrypt => {
             if !sync_options.skip_encryption {
                 let encrypt_options = EncryptOptions {
-                    identities: Some(sync_options.identities.clone()),
+                    identities: sync_options.identities.clone(),
                     recipients: sync_options.recipients.clone(),
                     identity_path: sync_options.identity_path.clone(),
                     armor: sync_options.armor,

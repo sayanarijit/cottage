@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 #[derive(Clone)]
 pub struct EncryptOptions {
     pub recipients: Vec<RecipientData>,
-    pub identities: Option<Vec<Identity>>,
+    pub identities: Vec<Identity>,
     pub identity_path: PathBuf,
     pub armor: bool,
     pub skip_gitignore: bool,
@@ -102,14 +102,13 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     };
 
     let recp_checksum = make_recipients_checksum_data(&recipients);
-    let old_secret =
-        if let (Some(ids), Some(metadata)) = (opts.identities.as_ref(), old_metadata.as_ref()) {
-            if !opts.skip_verify_recipients {
-                log::debug!(
-                    "{}: verifying intended encryption recipients",
-                    metadata_path.display()
-                );
-                verify_checksum(
+    let old_secret = if let Some(metadata) = old_metadata.as_ref() {
+        if !opts.skip_verify_recipients {
+            log::debug!(
+                "{}: verifying intended encryption recipients",
+                metadata_path.display()
+            );
+            verify_checksum(
                 &recp_checksum.clone().into(),
                 &metadata.checksum.recipients,
                 &metadata_path,
@@ -120,28 +119,28 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
                     metadata_path.display()
                 )
             })?;
-            }
+        }
 
-            let decrypt_options = DecryptOptions {
-                identities: ids.clone(),
-                recipients: recipients.clone(),
-                skip_gitignore: true,
-                skip_timestamps: true,
-                skip_verify_encrypted: true,
-                skip_verify_recipients: true,
-                dry_run: true,
-            };
-            let encrypted_file = File::open(&output_path).with_context(|| {
-                format!(
-                    "{}: could not open existing encrypted file",
-                    output_path.display()
-                )
-            })?;
-            
-            decrypt_into_memory(encrypted_file, &decrypt_options).ok()
-        } else {
-            None
+        let decrypt_options = DecryptOptions {
+            identities: opts.identities.clone(),
+            recipients: recipients.clone(),
+            skip_gitignore: true,
+            skip_timestamps: true,
+            skip_verify_encrypted: true,
+            skip_verify_recipients: true,
+            dry_run: true,
         };
+        let encrypted_file = File::open(&output_path).with_context(|| {
+            format!(
+                "{}: could not open existing encrypted file",
+                output_path.display()
+            )
+        })?;
+
+        decrypt_into_memory(encrypted_file, &decrypt_options).ok()
+    } else {
+        None
+    };
 
     let encryptor =
         age::Encryptor::with_recipients(recipients.iter().map(|r| r.recipient.as_ref()))?;

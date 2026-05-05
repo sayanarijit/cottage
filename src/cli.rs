@@ -507,7 +507,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
 
     let options = EncryptOptions {
         recipients,
-        identities: Some(identities),
+        identities,
         armor: args.armor,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
@@ -843,7 +843,6 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             // Cant't fail from now on
         }
 
-        
         edit::edit_file(&decrypted_path)
     };
 
@@ -853,7 +852,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
 
         let options = EncryptOptions {
             recipients,
-            identities: Some(identities),
+            identities,
             identity_path: proj.identity_path().to_path_buf(),
             armor: args.armor,
             skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
