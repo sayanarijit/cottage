@@ -23,6 +23,7 @@ fn test_diff_logic() -> Result<()> {
         skip_timestamps: false,
         force: false,
         skip_preview: true,
+        skip_verify_recipients: false,
         identity_path: _proj.identity_path().to_path_buf(),
         dry_run: false,
     };
@@ -51,10 +52,11 @@ fn test_diff_logic() -> Result<()> {
 
     let decrypt_options = crate::DecryptOptions {
         mode: crate::DecryptionMode::Passphrase("password".to_string().into()),
+        recipients: crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
         skip_gitignore: true,
         skip_timestamps: true,
         skip_verify_encrypted: false,
-        skip_verify_decrypted: false,
+        skip_verify_recipients: false,
         dry_run: false,
     };
 

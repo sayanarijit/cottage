@@ -11,10 +11,11 @@ use std::path::PathBuf;
 
 pub struct DiffOptions {
     pub mode: DecryptionMode,
+    pub recipients: Vec<u8>,
     pub skip_encryption: bool,
     pub skip_decryption: bool,
     pub skip_verify_encrypted: bool,
-    pub skip_verify_decrypted: bool,
+    pub skip_verify_recipients: bool,
 }
 
 pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<bool> {
@@ -27,10 +28,11 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
 
     let dec_opts = DecryptOptions {
         mode: options.mode.clone(),
+        recipients: options.recipients.clone(),
         skip_gitignore: true,
         skip_timestamps: true,
         skip_verify_encrypted: options.skip_verify_encrypted,
-        skip_verify_decrypted: options.skip_verify_decrypted,
+        skip_verify_recipients: options.skip_verify_recipients,
         dry_run: true,
     };
 

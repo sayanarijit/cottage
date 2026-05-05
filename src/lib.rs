@@ -12,6 +12,8 @@ pub(crate) mod recipients;
 pub(crate) mod status;
 pub(crate) mod sync;
 
+pub const PASSPHRASE_RECIPIENT: &str = "passphrase";
+
 pub(crate) use clean::{CleanOptions, clean_path};
 pub(crate) use dec::{DecryptOptions, DecryptionMode, decrypt_into_memory, decrypt_path};
 pub(crate) use diff::{DiffOptions, diff};

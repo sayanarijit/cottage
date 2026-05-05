@@ -15,7 +15,7 @@ This guide covers all subcommands and their options with real examples.
 This document is best viewed in a terminal with [presenterm](https://github.com/mfontanini/presenterm).
 
 > [!NOTE]
-> The term _"tracked secret"_ or just _"secret"_ used in this guide refers to secrets that have been encrypted, i.e. has a corresponding `.cott.age` file.
+> The term _"tracked secret"_ or just _"secret"_ used in this guide refers to secrets that have been encrypted, i.e. that have a corresponding `.cott.age` file.
 
 <!-- end_slide -->
 
@@ -41,14 +41,11 @@ ctg init
 # (Initializes .cottage directory)
 ```
 
-> [!NOTE]
-> This command is optional in git projects. In non-git projects, typically run once at the start of a project.
-
 <!-- end_slide -->
 
 # `ctg encrypt`
 
-Encrypt files or directories. By default, it processes all the tracked secrets the entire project root.
+Encrypt files or directories. By default, it processes all the tracked secrets in the entire project root.
 
 ```bash
 git checkout examples && ctg clean -qq
@@ -161,7 +158,7 @@ diff --git a/examples/secrets/secret.yaml b/examples/secrets/secret.yaml
 
 # `ctg sync`
 
-Keeps encrypted and decrypted files in sync based on timestamps and checksums.
+Keeps encrypted and decrypted files in sync based on timestamps.
 
 ```bash
 git checkout examples && ctg clean -qq
@@ -215,11 +212,13 @@ ctg edit examples/secrets/secret.yaml.cott.age --clean
 
 Delete all decrypted secrets to keep the workspace clean.
 
+Run it with `--gitignore` to also remove the gitignore entry.
+
 ```bash
 git checkout examples && ctg clean -qq
 
 # First, dry run to see what would be deleted
-ctg decrypt examples --dry-run
+ctg clean examples --dry-run
 
 # Actually delete decrypted secrets
 ctg clean examples
@@ -246,6 +245,7 @@ git checkout examples && ctg clean -qq
 
 # Run 'ls' while secrets are temporarily decrypted
 ctg run -- ls examples/secrets/secret.yaml
+ctg run -- ls examples/secrets/secret.yaml.cott.age
 # Output:
 # decrypt examples/secrets/secret.yaml.cott.age
 #    into examples/secrets/secret.yaml
@@ -265,8 +265,10 @@ Many `ctg` commands share these common options:
 
 - `-f`, `--force`: Skip checksum verification and force the operation (e.g., re-encrypt/re-decrypt even if timestamps match).
 - `-n`, `--dry-run`: Show what would be done without actually making any changes.
-- `--skip-verify-encrypted`: Skip checksum verification of encrypted (`.cott.age`) files.
-- `--skip-verify-decrypted`: Skip checksum verification of decrypted files.
+- `-r`, `--recipient RECIPIENT`: Encrypt to or verify against the specified recipient.
+- `-R`, `--recipients-file PATH`: Encrypt to or verify against recipients listed at PATH.
+- `--skip-verify-encrypted`: Skip checksum verification of encrypted files.
+- `--skip-verify-recipients`: Skip checksum verification of recipients.
 - `--skip-preview`: Skip generation of previews for encrypted files.
 - `--skip-timestamps`: Skip updating timestamps on files after encryption/decryption.
 - `--skip-gitignore`: Skip adding files to `.gitignore`.
@@ -305,7 +307,7 @@ Generate shell completions for Bash, Zsh, Fish, etc.
 
 ```bash
 # Generate and source Bash completions
-echo 'eval "$(ctg autocomplete bash)"' >> "~/.basrc"
+echo 'eval "$(ctg autocomplete bash)"' >> "~/.bashrc"
 source ~/.bashrc
 
 # Generate and source Zsh completions

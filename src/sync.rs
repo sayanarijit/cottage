@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 pub struct SyncOptions {
     pub encryption_mode: EncryptionMode,
     pub identities: DecryptionMode,
+    pub recipients: Vec<u8>,
     pub identity_path: PathBuf,
     pub armor: bool,
     pub skip_gitignore: bool,
@@ -17,7 +18,7 @@ pub struct SyncOptions {
     pub skip_encryption: bool,
     pub skip_decryption: bool,
     pub skip_verify_encrypted: bool,
-    pub skip_verify_decrypted: bool,
+    pub skip_verify_recipients: bool,
     pub force_encrypt: bool,
     pub dry_run: bool,
 }
@@ -34,6 +35,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
                     skip_gitignore: sync_options.skip_gitignore,
                     skip_timestamps: sync_options.skip_timestamps,
                     skip_preview: sync_options.skip_preview,
+                    skip_verify_recipients: sync_options.skip_verify_recipients,
                     force: sync_options.force_encrypt,
                     dry_run: sync_options.dry_run,
                 };
@@ -47,10 +49,11 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
             if !sync_options.skip_decryption {
                 let decrypt_options = DecryptOptions {
                     mode: sync_options.identities.clone(),
+                    recipients: sync_options.recipients.clone(),
                     skip_gitignore: sync_options.skip_gitignore,
                     skip_timestamps: sync_options.skip_timestamps,
                     skip_verify_encrypted: sync_options.skip_verify_encrypted,
-                    skip_verify_decrypted: sync_options.skip_verify_decrypted,
+                    skip_verify_recipients: sync_options.skip_verify_recipients,
                     dry_run: sync_options.dry_run,
                 };
                 decrypt_file(&operation.input, &decrypt_options)

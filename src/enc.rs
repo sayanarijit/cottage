@@ -30,6 +30,7 @@ pub struct EncryptOptions {
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
     pub skip_preview: bool,
+    pub skip_verify_recipients: bool,
     pub force: bool,
     pub dry_run: bool,
 }
@@ -52,7 +53,7 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     let (encryptor, recipients) = match &opts.mode {
         EncryptionMode::Passphrase(pass) => (
             age::Encryptor::with_user_passphrase(pass.clone()),
-            "passprhase".as_bytes().to_vec(), // TODO improve?
+            crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
         ),
         EncryptionMode::Recipients(recipients) => (
             age::Encryptor::with_recipients(recipients.iter().map(|(r, _)| r.as_ref()))
@@ -90,19 +91,15 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         let metadata = Metadata::read_from_path(&metadata_path)
             .with_context(|| format!("{}: could not read metadata", metadata_path.display()))?;
 
-        if verify_checksum(
-            &recipients.clone().into(),
-            &metadata.checksum.recipients,
-            path,
-        )
-        .is_ok()
-            && verify_checksum(&input, &metadata.checksum.decrypted, path).is_ok()
+        if opts.skip_verify_recipients
+            || verify_checksum(
+                &recipients.clone().into(),
+                &metadata.checksum.recipients,
+                path,
+            )
+            .is_ok()
         {
-            log::debug!("{}: skipping encryption: checksums match", path.display());
-            if !opts.dry_run && !opts.skip_timestamps {
-                set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
-            }
-            return Ok(None);
+            // We no longer store or verify decrypted checksums to avoid storing hashes of unencrypted data.
         }
     }
 
@@ -119,15 +116,6 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
 
     let timestamp = DateTime::<Utc>::from(filemtime).to_rfc3339();
     let secret = SecretMetadata { timestamp };
-    let checksum = {
-        let encrypted = make_checksum(&output);
-        let decrypted = make_checksum(&input);
-        ChecksumMetadata {
-            encrypted,
-            decrypted,
-            recipients: make_checksum(&recipients.clone().into()),
-        }
-    };
 
     let preview = if !opts.skip_preview {
         let (old_content, old_preview) = if output_path.exists() && metadata_path.exists() {
@@ -142,10 +130,11 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
             {
                 let decrypt_options = DecryptOptions {
                     mode: decryption_mode.clone(),
+                    recipients: recipients.clone(),
                     skip_gitignore: true,
                     skip_timestamps: true,
                     skip_verify_encrypted: true,
-                    skip_verify_decrypted: true,
+                    skip_verify_recipients: opts.skip_verify_recipients,
                     dry_run: true,
                 };
                 decrypt_into_memory(f, &decrypt_options).ok()
@@ -167,6 +156,14 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         )
     } else {
         None
+    };
+
+    let checksum = {
+        let encrypted = make_checksum(&output);
+        ChecksumMetadata {
+            encrypted,
+            recipients: make_checksum(&recipients.clone().into()),
+        }
     };
 
     let metadata = Metadata {

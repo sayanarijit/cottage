@@ -11,7 +11,6 @@ pub struct SecretMetadata {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChecksumMetadata {
     pub encrypted: String,
-    pub decrypted: String,
     pub recipients: String,
 }
 

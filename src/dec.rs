@@ -18,11 +18,12 @@ pub enum DecryptionMode {
 
 pub struct DecryptOptions {
     pub mode: DecryptionMode,
+    pub recipients: Vec<u8>,
     pub dry_run: bool,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
     pub skip_verify_encrypted: bool,
-    pub skip_verify_decrypted: bool,
+    pub skip_verify_recipients: bool,
 }
 
 pub fn decrypt_into_memory(
@@ -77,6 +78,14 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
         SecretSlice::new(buffer.into())
     };
 
+    if !opts.skip_verify_recipients {
+        verify_checksum(
+            &opts.recipients.clone().into(),
+            &metadata.checksum.recipients,
+            path,
+        )?;
+    }
+
     if !opts.skip_verify_encrypted {
         verify_checksum(&input, &metadata.checksum.encrypted, path)?;
     }
@@ -89,10 +98,6 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
             set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
         };
         return Ok(None);
-    }
-
-    if !opts.skip_verify_decrypted {
-        verify_checksum(&output, &metadata.checksum.decrypted, &output_path)?;
     }
 
     // Write starts here ------------------------
