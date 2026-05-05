@@ -1,6 +1,6 @@
 - id: cottage-status
   name: cottage-status
-  description: check if the locally modified secrets are encrypted (fast, timestamp bases)
+  description: check if the locally modified secrets are encrypted (timestamp bases)
   entry: ctg status --skip-decryption --fail
   language: system
   pass_filenames: false
@@ -8,15 +8,23 @@
 
 - id: cottage-diff
   name: cottage-diff
-  description: check with diff if the locally modified secrets are encrypted (slow, content based)
+  description: check with diff if the locally modified secrets are encrypted (timestamp based)
   entry: ctg diff --skip-decryption --fail
+  language: system
+  pass_filenames: false
+  always_run: true
+
+- id: cottage-sync-encrypt
+  name: cottage-encrypt
+  description: encrypt the locally modified secrets (timestamp based)
+  entry: ctg sync --skip-decryption
   language: system
   pass_filenames: false
   always_run: true
 
 - id: cottage-encrypt
   name: cottage-encrypt
-  description: encrypt the locally modified secrets (slow, content based)
+  description: encrypt the locally modified secrets (content based)
   entry: ctg encrypt
   language: system
   pass_filenames: false
@@ -24,14 +32,16 @@
 
 - id: cottage-sync-decrypt
   name: cottage-sync-decrypt
-  description: decrypt the upstream modified secrets (fast, timestamp based)
+  description: decrypt the upstream modified secrets (timestamp based)
   entry: ctg sync --skip-encryption
   language: system
+  files: "\\.cott\\.(age|toml)$"
   stages: [post-checkout, post-merge]
 
 - id: cottage-decrypt
   name: cottage-decrypt
-  description: decrypt the upstream modified secrets (slow, content based)
+  description: decrypt the upstream modified secrets (content based)
   entry: ctg decrypt
   language: system
+  files: "\\.cott\\.(age|toml)$"
   stages: [post-checkout, post-merge]
