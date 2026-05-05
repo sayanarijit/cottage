@@ -526,6 +526,7 @@ dependencies = [
  "edit",
  "env_logger",
  "filetime",
+ "globset",
  "hcl-rs",
  "indexmap",
  "log",
@@ -1009,6 +1010,7 @@ dependencies = [
  "log",
  "regex-automata",
  "regex-syntax",
+ "serde",
 ]
 
 [[package]]

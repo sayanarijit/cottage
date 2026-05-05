@@ -47,6 +47,7 @@ log = "0.4.29"
 toml = "1.1.2"
 clap_complete = { version = "4.6.3", optional = true }
 colored = { version = "3.1.1" }
+globset = { version = "0.4.18", features = ["serde1"], default-features = false }
 
 [dev-dependencies]
 assert_fs = "1.1.3"

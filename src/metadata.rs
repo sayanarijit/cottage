@@ -1,11 +1,14 @@
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result, anyhow};
+use globset::Glob;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SecretMetadata {
     pub timestamp: String,
+    pub allow: Option<Vec<Glob>>,
+    pub deny: Option<Vec<Glob>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]

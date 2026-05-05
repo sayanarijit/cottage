@@ -2,9 +2,11 @@ use crate::Project;
 use age::ssh;
 use age::x25519;
 use anyhow::{Context, Result, anyhow};
+use globset::GlobMatcher;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -32,7 +34,12 @@ impl AsRef<dyn age::Recipient> for Recipient {
     }
 }
 
-pub type RecipientData = (Recipient, Vec<u8>);
+#[derive(Debug, Clone)]
+pub struct RecipientData {
+    pub recipient: Recipient,
+    pub raw: Vec<u8>,
+    pub path: Option<PathBuf>,
+}
 
 pub fn parse_recipient(s: &str) -> Result<Recipient> {
     if s.starts_with("age1") {
@@ -48,7 +55,10 @@ pub fn parse_recipient(s: &str) -> Result<Recipient> {
     }
 }
 
-pub fn parse_recipients_file(path: PathBuf) -> Result<Box<dyn Iterator<Item = RecipientData>>> {
+pub fn parse_recipients_file<'a>(
+    path: PathBuf,
+    root: &'a Path,
+) -> Result<Box<dyn Iterator<Item = RecipientData> + 'a>> {
     log::debug!("{}: parsing recipients", path.display());
     let file = File::open(&path)
         .with_context(|| format!("{}: could not open recipients file", path.display()))?;
@@ -60,15 +70,19 @@ pub fn parse_recipients_file(path: PathBuf) -> Result<Box<dyn Iterator<Item = Re
                 None
             } else {
                 match parse_recipient(trimmed_line) {
-                    Ok(recipient) => Some((
+                    Ok(recipient) => Some(RecipientData {
                         recipient,
-                        line.split_whitespace()
+                        path: Some(
+                            pathdiff::diff_paths(&path, root).unwrap_or_else(|| path.clone()),
+                        ),
+                        raw: line
+                            .split_whitespace()
                             .take(2)
                             .collect::<Vec<&str>>()
                             .join(" ")
                             .as_bytes()
                             .to_vec(),
-                    )),
+                    }),
                     Err(e) => {
                         log::warn!("{}: could not parse recipient: {}", path.display(), e);
                         None
@@ -85,31 +99,52 @@ pub fn parse_recipients_file(path: PathBuf) -> Result<Box<dyn Iterator<Item = Re
     Ok(Box::new(iter))
 }
 
-pub fn parse_recipients_dir(path: PathBuf) -> Box<dyn Iterator<Item = RecipientData>> {
+fn match_path(path: &Path, root: &Path, globmatcher: Option<&GlobMatcher>) -> bool {
+    if let Some(matcher) = globmatcher {
+        let relative_path = pathdiff::diff_paths(path, root).unwrap_or_else(|| path.to_path_buf());
+        log::debug!("{}: checking against glob", relative_path.display());
+        matcher.is_match(&relative_path)
+    } else {
+        log::debug!("{}: no glob provided, including by default", path.display());
+        true
+    }
+}
+
+pub fn parse_recipients_dir<'a>(
+    path: PathBuf,
+    root: &'a Path,
+    globmatcher: Option<&'a GlobMatcher>,
+) -> Box<dyn Iterator<Item = RecipientData> + 'a> {
     let iter = walkdir::WalkDir::new(path)
         .sort_by_file_name()
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
-        .flat_map(|e| match parse_recipients_file(e.path().to_path_buf()) {
-            Ok(iter) => iter,
-            Err(err) => {
-                log::warn!(
-                    "{}: could not parse recipients file: {}",
-                    e.path().display(),
-                    err
-                );
-                Box::new(std::iter::empty())
-            }
-        });
+        .filter(move |e| {
+            let path = e.path();
+            path.is_file() && match_path(path, root, globmatcher)
+        })
+        .flat_map(
+            |e| match parse_recipients_file(e.path().to_path_buf(), root) {
+                Ok(iter) => iter,
+                Err(err) => {
+                    log::warn!(
+                        "{}: could not parse recipients file: {}",
+                        e.path().display(),
+                        err
+                    );
+                    Box::new(std::iter::empty())
+                }
+            },
+        );
     Box::new(iter)
 }
 
-pub fn load_recipients(
-    proj: &Project,
+pub fn load_recipients<'a>(
+    proj: &'a Project,
     recipients: Vec<String>,
     recipients_file: Vec<PathBuf>,
-) -> Box<dyn Iterator<Item = RecipientData>> {
+    globmatcher: Option<&'a GlobMatcher>,
+) -> Box<dyn Iterator<Item = RecipientData> + 'a> {
     log::debug!("loading recipients");
 
     if recipients.is_empty() && recipients_file.is_empty() {
@@ -125,13 +160,20 @@ pub fn load_recipients(
                 "found default recipients directory at {}, parsing",
                 default_recipients_path.display()
             );
-            parse_recipients_dir(default_recipients_path.to_path_buf())
-        } else if default_recipients_path.is_file() {
+            parse_recipients_dir(
+                default_recipients_path.to_path_buf(),
+                proj.recipients_path(),
+                globmatcher,
+            )
+        } else if default_recipients_path.is_file() && globmatcher.is_none() {
             log::debug!(
                 "no default recipients directory found, looking for default recipients file at {}",
                 default_recipients_path.display()
             );
-            match parse_recipients_file(default_recipients_path.to_path_buf()) {
+            match parse_recipients_file(
+                default_recipients_path.to_path_buf(),
+                proj.recipients_path(),
+            ) {
                 Ok(iter) => iter,
                 Err(err) => {
                     log::warn!(
@@ -151,22 +193,36 @@ pub fn load_recipients(
         let iter = recipients
             .into_iter()
             .filter_map(|r| match parse_recipient(&r) {
-                Ok(recipient) => Some((recipient, r.as_bytes().to_vec())),
+                Ok(recipient) => Some(RecipientData {
+                    recipient,
+                    raw: r.as_bytes().to_vec(),
+                    path: None,
+                }),
                 Err(e) => {
                     log::warn!("{}: could not parse recipient: {}", r, e);
                     None
                 }
             })
-            .chain(recipients_file.into_iter().flat_map(|f| match f.is_dir() {
-                true => parse_recipients_dir(f.to_path_buf()),
-                false => match parse_recipients_file(f.to_path_buf()) {
-                    Ok(iter) => iter,
-                    Err(err) => {
-                        log::warn!("{}: could not parse recipients file: {}", f.display(), err);
-                        Box::new(std::iter::empty())
-                    }
-                },
-            }));
+            .chain(
+                recipients_file
+                    .into_iter()
+                    .flat_map(move |f| match f.is_dir() {
+                        true => parse_recipients_dir(f, proj.recipients_path(), globmatcher),
+                        false => {
+                            match parse_recipients_file(f.to_path_buf(), proj.recipients_path()) {
+                                Ok(iter) => iter,
+                                Err(err) => {
+                                    log::warn!(
+                                        "{}: could not parse recipients file: {}",
+                                        f.display(),
+                                        err
+                                    );
+                                    Box::new(std::iter::empty())
+                                }
+                            }
+                        }
+                    }),
+            );
         Box::new(iter)
     }
 }

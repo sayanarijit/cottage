@@ -507,7 +507,7 @@ fn choose_encryption_mode(
         }
         (true, _, Err(e)) => Err(anyhow!(e.to_string())),
         (false, _, _) => {
-            let recips = load_recipients(proj, recipients, recipients_file).collect();
+            let recips = load_recipients(proj, recipients, recipients_file, None).collect();
             Ok(EncryptionMode::Recipients(recips))
         }
     }
@@ -694,7 +694,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
 
     let recipients = match enc_mode {
         EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-        EncryptionMode::Recipients(r) => r.into_iter().flat_map(|(_, data)| data).collect(),
+        EncryptionMode::Recipients(r) => r.into_iter().flat_map(|r| r.raw).collect(),
     };
 
     let options = DecryptOptions {
@@ -767,11 +767,9 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
 
     let recipients = match &encryption_mode {
         EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-        EncryptionMode::Recipients(r) => r
-            .iter()
-            .flat_map(|(_, data)| data)
-            .copied()
-            .collect::<Vec<u8>>(),
+        EncryptionMode::Recipients(r) => {
+            r.iter().flat_map(|r| &r.raw).copied().collect::<Vec<u8>>()
+        }
     };
 
     let sync_options = SyncOptions {
@@ -824,7 +822,7 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
     )?;
     let recipients = match enc_mode {
         EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-        EncryptionMode::Recipients(r) => r.into_iter().flat_map(|(_, data)| data).collect(),
+        EncryptionMode::Recipients(r) => r.into_iter().flat_map(|r| r.raw).collect(),
     };
 
     let options = DiffOptions {
@@ -934,7 +932,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
 
     let recipients = match enc_mode {
         EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-        EncryptionMode::Recipients(r) => r.into_iter().flat_map(|(_, data)| data).collect(),
+        EncryptionMode::Recipients(r) => r.into_iter().flat_map(|r| r.raw).collect(),
     };
 
     let dec_options = DecryptOptions {
@@ -1045,7 +1043,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
 
         let recipients = match enc_mode {
             EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-            EncryptionMode::Recipients(r) => r.into_iter().flat_map(|(_, data)| data).collect(),
+            EncryptionMode::Recipients(r) => r.into_iter().flat_map(|r| r.raw).collect(),
         };
 
         if is_target_encrypted {

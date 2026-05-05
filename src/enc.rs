@@ -9,6 +9,7 @@ use age::secrecy::{ExposeSecret, SecretSlice, SecretString};
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use filetime::{FileTime, set_file_mtime};
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -32,6 +33,51 @@ pub struct EncryptOptions {
     pub dry_run: bool,
 }
 
+fn build_matcher(globs: Option<&[Glob]>) -> Result<Option<GlobSet>> {
+    let mut builder = GlobSetBuilder::new();
+    if let Some(globs) = globs {
+        for glob in globs {
+            builder.add(glob.clone());
+        }
+
+        let res = builder.build()?;
+        Ok(Some(res))
+    } else {
+        Ok(None)
+    }
+}
+
+fn filter_recipients_by_metadata<'a>(
+    all_recipients: &'a [RecipientData],
+    allow: Option<&'a [Glob]>,
+    deny: Option<&'a [Glob]>,
+) -> Result<Box<dyn Iterator<Item = &'a RecipientData> + 'a>> {
+    let allowmatcher = build_matcher(allow)?;
+    let denymatcher = build_matcher(deny)?;
+
+    let filtered = all_recipients.into_iter().filter_map(move |r| {
+        match (r.path.as_ref(), &allowmatcher, &denymatcher) {
+            (Some(ref path), _, Some(deny)) if deny.is_match(path) => {
+                log::debug!(
+                    "{}: skipping recipient: path matches deny rules",
+                    path.display()
+                );
+                None
+            }
+            (Some(ref path), Some(allow), _) if !allow.is_match(path) => {
+                log::debug!(
+                    "{}: skipping recipient: path does not match allow rules",
+                    path.display()
+                );
+                None
+            }
+            _ => Some(r),
+        }
+    });
+
+    Ok(Box::new(filtered))
+}
+
 pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<OperationResult>> {
     log::debug!("{}: encrypting file", path.display());
     let is_identity = (|| {
@@ -47,22 +93,6 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     }
 
     // Just read operations for now ------------------------
-    let (encryptor, recipients) = match &opts.mode {
-        EncryptionMode::Passphrase(pass) => (
-            age::Encryptor::with_user_passphrase(pass.clone()),
-            crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-        ),
-        EncryptionMode::Recipients(recipients) => (
-            age::Encryptor::with_recipients(recipients.iter().map(|(r, _)| r.as_ref()))
-                .map_err(|_| anyhow!("at least one recipient must be provided"))?,
-            recipients
-                .iter()
-                .flat_map(|(_, data)| data.iter().chain(&[b'\n']))
-                .copied()
-                .collect::<Vec<u8>>(),
-        ),
-    };
-
     let format = if opts.armor {
         age::armor::Format::AsciiArmor
     } else {
@@ -84,20 +114,68 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     let metadata_path = to_metadata_path(path);
     let filemtime = input_file.metadata()?.modified()?;
 
+    let (mut encryptor, mut recipients) = match &opts.mode {
+        EncryptionMode::Passphrase(pass) => (
+            age::Encryptor::with_user_passphrase(pass.clone()),
+            crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
+        ),
+        EncryptionMode::Recipients(recipients) => (
+            age::Encryptor::with_recipients(recipients.iter().map(|r| r.recipient.as_ref()))
+                .map_err(|_| anyhow!("at least one recipient must be provided"))?,
+            recipients
+                .iter()
+                .flat_map(|r| r.raw.iter().chain(&[b'\n']))
+                .copied()
+                .collect::<Vec<u8>>(),
+        ),
+    };
+
     let (old_content, old_metadata) = if output_path.exists() && metadata_path.exists() {
+        log::debug!(
+            "{}: existing encrypted and metadata files found",
+            path.display()
+        );
+
         let old_metadata = Metadata::read_from_path(&metadata_path).ok();
 
+        match &opts.mode {
+            EncryptionMode::Passphrase(_) => {
+                log::debug!("passphrase mode: ignoring allow/deny rules in metadata");
+            }
+            EncryptionMode::Recipients(all_recipients) => {
+                let allow = old_metadata
+                    .as_ref()
+                    .and_then(|m| m.secret.allow.as_ref())
+                    .map(|globs| globs.as_slice());
+                let deny = old_metadata
+                    .as_ref()
+                    .and_then(|m| m.secret.deny.as_ref())
+                    .map(|globs| globs.as_slice());
+
+                log::debug!(
+                    "filtering recipients based on metadata rules: allow={:?}, deny={:?}",
+                    allow.unwrap_or_default(),
+                    deny.unwrap_or_default()
+                );
+
+                let filtered = filter_recipients_by_metadata(all_recipients, allow, deny)?;
+                let (recps, raw) = filtered
+                    .map(|r| (r.recipient.as_ref(), r.raw.iter().chain(&[b'\n'])))
+                    .unzip::<_, _, Vec<_>, Vec<_>>();
+
+                if recps.is_empty() {
+                    return Err(anyhow!(
+                        "{}: no recipients found to encrypt the secret for",
+                        path.display()
+                    ));
+                }
+
+                encryptor = age::Encryptor::with_recipients(recps.into_iter())?;
+                recipients = raw.into_iter().flatten().copied().collect();
+            }
+        }
+
         if let (Some(dec_mode), Ok(f)) = (&opts.decryption_mode, File::open(&output_path)) {
-            let decrypt_options = DecryptOptions {
-                mode: dec_mode.clone(),
-                recipients: recipients.clone(),
-                skip_gitignore: true,
-                skip_timestamps: true,
-                skip_verify_encrypted: true,
-                skip_verify_recipients: true,
-                dry_run: true,
-            };
-            let content = decrypt_into_memory(f, &decrypt_options).ok();
             if !opts.skip_verify_recipients
                 && let Some(metadata) = old_metadata.as_ref()
             {
@@ -117,6 +195,17 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
                         )
                     })?;
             }
+
+            let decrypt_options = DecryptOptions {
+                mode: dec_mode.clone(),
+                recipients: recipients.clone(),
+                skip_gitignore: true,
+                skip_timestamps: true,
+                skip_verify_encrypted: true,
+                skip_verify_recipients: true,
+                dry_run: true,
+            };
+            let content = decrypt_into_memory(f, &decrypt_options).ok();
             (content, old_metadata)
         } else {
             (None, old_metadata)
@@ -137,7 +226,18 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     };
 
     let timestamp = DateTime::<Utc>::from(filemtime).to_rfc3339();
-    let secret = SecretMetadata { timestamp };
+    let allow = old_metadata
+        .as_ref()
+        .and_then(|m| m.secret.allow.as_ref().map(|s| s.to_vec()));
+    let deny = old_metadata
+        .as_ref()
+        .and_then(|m| m.secret.deny.as_ref().map(|s| s.to_vec()));
+
+    let secret = SecretMetadata {
+        timestamp,
+        allow,
+        deny,
+    };
 
     let preview = if !opts.skip_preview {
         generate_preview(
