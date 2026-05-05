@@ -1,7 +1,7 @@
 ---
 title: "cottage (ctg)"
-sub_title: "Modern git-based age-encrypted secrets manager"
-author: "Sayanarijit"
+sub_title: "A modern git based age-encrypted secrets manager for teams"
+author: "Arijit Basu"
 theme:
   name: dark
 ---
@@ -12,7 +12,7 @@ theme:
 
 This guide covers all subcommands and their options with real examples.
 
-This document is best viewed in a terminal with [presenterm](https://github.com/mfontanini/presenterm/).
+This document is best viewed in a terminal with [presenterm](https://github.com/mfontanini/presenterm).
 
 > [!NOTE]
 > The term _"tracked secret"_ or just _"secret"_ used in this guide refers to secrets that have been encrypted, i.e. has a corresponding `.cott.age` file.
@@ -53,7 +53,7 @@ Encrypt files or directories. By default, it processes all the tracked secrets t
 ```bash
 git checkout examples && ctg clean -qq
 
-# First, unmark a secret by deleting the .cott.age file
+# First, un-track a secret by deleting the .cott.age file
 rm examples/secrets/secret.yaml.cott.*
 
 echo "added: line" >> examples/secrets/secret.yaml
@@ -218,8 +218,8 @@ Delete all decrypted secrets to keep the workspace clean.
 ```bash
 git checkout examples && ctg clean -qq
 
-# First, decrypt some secrets
-ctg decrypt examples -qq
+# First, dry run to see what would be deleted
+ctg decrypt examples --dry-run
 
 # Actually delete decrypted secrets
 ctg clean examples

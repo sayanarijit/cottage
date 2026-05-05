@@ -33,7 +33,7 @@ in plaintext.
 
 ## Features
 
-- **Exposure safe**: Uses Rust's type system to make sure bugs can neven accidentally expose secrets.
+- **Exposure safe**: Uses Rust's type system to make sure bugs can never accidentally expose secrets.
 - **Team-friendly**: Share public keys (recipients) in the repo, keep private keys (identities) local.
 - **Manages .gitignore**: Automatically updates `.gitignore` to keep unencrypted secrets out of the repo.
 - **Previews**: Generates timestamped redacted previews of encrypted secrets for better visibility.
