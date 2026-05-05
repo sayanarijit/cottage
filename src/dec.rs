@@ -2,23 +2,18 @@ use crate::{
     Identity, Metadata, OperationKind, OperationResult, is_encrypted_path,
     project::append_to_gitignore_if_absent, to_decrypted_path, to_metadata_path, verify_checksum,
 };
+use crate::{RecipientData, filter_recipients_by_metadata, make_recipients_checksum_data};
 use age::armor::ArmoredReader;
-use age::secrecy::{ExposeSecret, SecretSlice, SecretString};
+use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result};
 use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-#[derive(Clone, Debug)]
-pub enum DecryptionMode {
-    Passphrase(SecretString),
-    Identities(Vec<Identity>),
-}
-
 pub struct DecryptOptions {
-    pub mode: DecryptionMode,
-    pub recipients: Vec<u8>,
+    pub identities: Vec<Identity>,
+    pub recipients: Vec<RecipientData>,
     pub dry_run: bool,
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
@@ -33,16 +28,10 @@ pub fn decrypt_into_memory(
     let decryptor = age::Decryptor::new_buffered(ArmoredReader::new(input_reader))?;
     let mut buffer = vec![];
 
-    let mut decrypted = match &opts.mode {
-        DecryptionMode::Passphrase(passphrase) => {
-            let identity = age::scrypt::Identity::new(passphrase.clone());
-            decryptor.decrypt(std::iter::once(&identity as &dyn age::Identity))
-        }
-        DecryptionMode::Identities(identities) => {
-            let age_identities: Vec<Box<dyn age::Identity>> =
-                identities.iter().map(|id| id.clone().into()).collect();
-            decryptor.decrypt(age_identities.iter().map(|id| id.as_ref()))
-        }
+    let mut decrypted = {
+        let age_identities: Vec<Box<dyn age::Identity>> =
+            opts.identities.iter().map(|id| id.clone().into()).collect();
+        decryptor.decrypt(age_identities.iter().map(|id| id.as_ref()))
     }?;
 
     std::io::copy(&mut decrypted, &mut buffer)?;
@@ -79,17 +68,26 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
     };
 
     if !opts.skip_verify_recipients {
-        verify_checksum(
-            &opts.recipients.clone().into(),
-            &metadata.checksum.recipients,
-            path,
-        )
-        .with_context(|| {
-            format!(
-                "{}: recipients mismatch: use --skip-verify-recipients to skip this check",
-                metadata_path.display()
-            )
-        })?;
+        let allow = metadata.secret.allow.as_deref();
+        let deny = metadata.secret.deny.as_deref();
+
+        log::debug!(
+            "filtering recipients based on metadata rules: allow={:?}, deny={:?}",
+            allow.unwrap_or_default(),
+            deny.unwrap_or_default()
+        );
+
+        let filtered =
+            filter_recipients_by_metadata(&opts.recipients, allow, deny)?.collect::<Vec<_>>();
+        let checksum_data = make_recipients_checksum_data(&filtered);
+        verify_checksum(&checksum_data.into(), &metadata.checksum.recipients, path).with_context(
+            || {
+                format!(
+                    "{}: recipients mismatch: use --skip-verify-recipients to skip this check",
+                    metadata_path.display()
+                )
+            },
+        )?;
     }
 
     if !opts.skip_verify_encrypted {

@@ -1,5 +1,5 @@
 use crate::{
-    EncryptOptions, EncryptionMode, Project, decrypt_into_memory, encrypt_path, status_path,
+    EncryptOptions, Project, decrypt_into_memory, encrypt_path, status_path,
 };
 use age::secrecy::ExposeSecret;
 use anyhow::Result;
@@ -15,9 +15,19 @@ fn test_diff_logic() -> Result<()> {
     let secret_path = dir.path().join("secret.txt");
     fs::write(&secret_path, "original content\n")?;
 
+    let sk = age::x25519::Identity::generate();
+    let pk = sk.to_public();
+
+    let identity = crate::Identity::X25519(sk);
+    let recipient = crate::RecipientData {
+        recipient: crate::recipients::Recipient::X25519(pk.clone()),
+        raw: pk.to_string().into_bytes(),
+        path: None,
+    };
+
     let options = EncryptOptions {
-        mode: EncryptionMode::Passphrase("password".to_string().into()),
-        decryption_mode: None,
+        recipients: vec![recipient.clone()],
+        identities: Some(vec![identity.clone()]),
         armor: true,
         skip_gitignore: true,
         skip_timestamps: false,
@@ -50,8 +60,8 @@ fn test_diff_logic() -> Result<()> {
     let encrypted_file = fs::File::open(&encrypted_path)?;
 
     let decrypt_options = crate::DecryptOptions {
-        mode: crate::DecryptionMode::Passphrase("password".to_string().into()),
-        recipients: crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
+        identities: vec![identity.clone()],
+        recipients: vec![recipient.clone()],
         skip_gitignore: true,
         skip_timestamps: true,
         skip_verify_encrypted: false,

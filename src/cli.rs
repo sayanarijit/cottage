@@ -1,19 +1,17 @@
 use crate::dec::decrypt_file;
 use crate::enc::encrypt_file;
 use crate::{
-    CleanOptions, DecryptOptions, DecryptionMode, DiffOptions, EncryptOptions, EncryptionMode,
-    OperationKind, OperationResult, Project, StatusOptions, SyncOptions, clean_path, decrypt_path,
-    diff, encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
-    status_path, sync_path, to_decrypted_path, to_encrypted_path,
+    CleanOptions, DecryptOptions, DiffOptions, EncryptOptions, OperationKind, OperationResult,
+    Project, StatusOptions, SyncOptions, clean_path, decrypt_path, diff, encrypt_path,
+    is_encrypted_path, is_metadata_path, load_identities, load_recipients, status_path, sync_path,
+    to_decrypted_path, to_encrypted_path,
 };
-use age::secrecy::SecretString;
 use anyhow::{Result, anyhow};
 use clap::CommandFactory;
 use clap::Parser;
 use clap::builder::styling::*;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use colored::Colorize;
-use std::env::VarError;
 use std::fs::File;
 use std::io::{IsTerminal, Write, stdin};
 use std::path::PathBuf;
@@ -117,15 +115,6 @@ struct EditArgs {
     /// The file to edit.
     path: PathBuf,
 
-    /// Encrypt/decrypt with a passphrase.
-    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for passphrase.
-    #[arg(short, long)]
-    passphrase: bool,
-
-    /// Encrypt to the specified RECIPIENT. Can be repeated.
-    #[arg(short, long, env = "COTTAGE_RECIPIENT")]
-    recipient: Vec<String>,
-
     /// Encrypt to recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients.
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
@@ -182,15 +171,6 @@ struct EncryptArgs {
     /// The file or dir to encrypt, defaults to project root.
     path: Vec<PathBuf>,
 
-    /// Encrypt with a passphrase.
-    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for passphrase.
-    #[arg(short, long)]
-    passphrase: bool,
-
-    /// Encrypt to the specified RECIPIENT. Can be repeated.
-    #[arg(short, long, env = "COTTAGE_RECIPIENT")]
-    recipient: Vec<String>,
-
     /// Encrypt to recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients.
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
@@ -243,15 +223,6 @@ struct DecryptArgs {
     /// The file or dir to decrypt, defaults to project root.
     path: Vec<PathBuf>,
 
-    /// Decrypt with a passphrase.
-    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for a passphrase.
-    #[arg(short, long)]
-    passphrase: bool,
-
-    /// Verify against the specified RECIPIENT. Can be repeated.
-    #[arg(short, long, env = "COTTAGE_RECIPIENT")]
-    recipient: Vec<String>,
-
     /// Verify against recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients.
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
@@ -297,15 +268,6 @@ struct RunArgs {
     #[arg(required = true)]
     command: Vec<String>,
 
-    /// Decrypt with a passphrase.
-    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for a passphrase.
-    #[arg(short, long)]
-    passphrase: bool,
-
-    /// Verify against the specified RECIPIENT. Can be repeated.
-    #[arg(short, long, env = "COTTAGE_RECIPIENT")]
-    recipient: Vec<String>,
-
     /// Verify against recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients.
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
@@ -341,15 +303,6 @@ struct RunArgs {
 struct SyncArgs {
     /// The file or dir to sync, defaults to project root.
     path: Vec<PathBuf>,
-
-    /// Encrypt with a passphrase.
-    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for passphrase.
-    #[arg(short, long)]
-    passphrase: bool,
-
-    /// Encrypt to the specified RECIPIENT. Can be repeated.
-    #[arg(short, long, env = "COTTAGE_RECIPIENT")]
-    recipient: Vec<String>,
 
     /// Encrypt to recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients.
@@ -415,15 +368,6 @@ struct DiffArgs {
     /// The file or dir to diff, defaults to project root.
     path: Vec<PathBuf>,
 
-    /// Decrypt with a passphrase.
-    /// If COTTAGE_PASSPHRASE environment variable is not set, it will prompt for a passphrase.
-    #[arg(short, long)]
-    passphrase: bool,
-
-    /// Verify against the specified RECIPIENT. Can be repeated.
-    #[arg(short, long, env = "COTTAGE_RECIPIENT")]
-    recipient: Vec<String>,
-
     /// Verify against recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients.
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
@@ -481,60 +425,6 @@ struct StatusArgs {
     fail: bool,
 }
 
-fn prompt_passphrase() -> Result<String> {
-    let pass = rpassword::prompt_password("Enter passphrase: ")?;
-    let confirm = rpassword::prompt_password("Confirm passphrase: ")?;
-    if pass != confirm {
-        return Err(anyhow!("mismatch: passphrase confirmation does not match"));
-    }
-    Ok(pass)
-}
-
-fn choose_encryption_mode(
-    proj: &Project,
-    use_passphrase: bool,
-    passphrase: Option<SecretString>,
-    recipients: Vec<String>,
-    recipients_file: Vec<PathBuf>,
-) -> Result<EncryptionMode> {
-    let env_passphrase = std::env::var("COTTAGE_PASSPHRASE");
-    match (use_passphrase, passphrase, env_passphrase) {
-        (true, Some(pass), _) => Ok(EncryptionMode::Passphrase(pass)),
-        (true, None, Ok(pass)) => Ok(EncryptionMode::Passphrase(pass.into())),
-        (true, None, Err(VarError::NotPresent)) => {
-            let pass = prompt_passphrase()?;
-            Ok(EncryptionMode::Passphrase(pass.into()))
-        }
-        (true, _, Err(e)) => Err(anyhow!(e.to_string())),
-        (false, _, _) => {
-            let recips = load_recipients(proj, recipients, recipients_file, None).collect();
-            Ok(EncryptionMode::Recipients(recips))
-        }
-    }
-}
-
-fn choose_decryption_mode(
-    proj: &Project,
-    use_passphrase: bool,
-    passphrase: Option<SecretString>,
-    identities: Vec<PathBuf>,
-) -> Result<DecryptionMode> {
-    let env_passphrase = std::env::var("COTTAGE_PASSPHRASE");
-    match (use_passphrase, passphrase, env_passphrase) {
-        (true, Some(pass), _) => Ok(DecryptionMode::Passphrase(pass)),
-        (true, None, Ok(pass)) => Ok(DecryptionMode::Passphrase(pass.into())),
-        (true, None, Err(VarError::NotPresent)) => {
-            let pass = prompt_passphrase()?;
-            Ok(DecryptionMode::Passphrase(pass.into()))
-        }
-        (true, _, Err(e)) => Err(anyhow!(e.to_string())),
-        (false, _, _) => {
-            let ids = load_identities(proj, identities).collect();
-            Ok(DecryptionMode::Identities(ids))
-        }
-    }
-}
-//
 fn print_edits(mut file: impl Write, proj: &Project, op: &OperationResult) -> Result<()> {
     for path in op.metadata.iter().chain(op.gitignore.iter()) {
         writeln!(
@@ -612,24 +502,12 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
     let input = get_input_paths(proj, args.path);
     let mut stdout = std::io::stdout();
 
-    let mode = choose_encryption_mode(
-        proj,
-        args.passphrase,
-        None,
-        args.recipient,
-        args.recipients_file,
-    )?;
-
-    let decryption_mode = match &mode {
-        EncryptionMode::Passphrase(p) => DecryptionMode::Passphrase(p.clone()),
-        EncryptionMode::Recipients(_) => {
-            DecryptionMode::Identities(load_identities(proj, args.identity).collect())
-        }
-    };
+    let recipients = load_recipients(proj, args.recipients_file, None).collect();
+    let identities = load_identities(proj, args.identity).collect();
 
     let options = EncryptOptions {
-        mode,
-        decryption_mode: Some(decryption_mode),
+        recipients,
+        identities: Some(identities),
         armor: args.armor,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
@@ -675,31 +553,12 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
 
 fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
-
-    let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity)?;
-
-    let passphrase = if let DecryptionMode::Passphrase(pass) = &mode {
-        Some(pass.clone())
-    } else {
-        None
-    };
-
-    let enc_mode = choose_encryption_mode(
-        proj,
-        args.passphrase,
-        passphrase,
-        args.recipient,
-        args.recipients_file,
-    )?;
-
-    let recipients = match enc_mode {
-        EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-        EncryptionMode::Recipients(r) => r.into_iter().flat_map(|r| r.raw).collect(),
-    };
+    let recipients = load_recipients(proj, args.recipients_file, None).collect();
+    let identities = load_identities(proj, args.identity).collect();
 
     let options = DecryptOptions {
-        mode,
         recipients,
+        identities,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
@@ -748,33 +607,11 @@ fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
 
 fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
-
-    let encryption_mode = choose_encryption_mode(
-        proj,
-        args.passphrase,
-        None,
-        args.recipient,
-        args.recipients_file,
-    )?;
-
-    let passphrase = if let EncryptionMode::Passphrase(pass) = &encryption_mode {
-        Some(pass.clone())
-    } else {
-        None
-    };
-
-    let decryption_mode = choose_decryption_mode(proj, args.passphrase, passphrase, args.identity)?;
-
-    let recipients = match &encryption_mode {
-        EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-        EncryptionMode::Recipients(r) => {
-            r.iter().flat_map(|r| &r.raw).copied().collect::<Vec<u8>>()
-        }
-    };
+    let identities = load_identities(proj, args.identity).collect();
+    let recipients = load_recipients(proj, args.recipients_file, None).collect();
 
     let sync_options = SyncOptions {
-        encryption_mode,
-        identities: decryption_mode,
+        identities,
         recipients,
         armor: args.armor,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
@@ -804,29 +641,11 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
 
 fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
     let input = get_input_paths(proj, args.path);
-
-    let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity)?;
-
-    let passphrase = if let DecryptionMode::Passphrase(pass) = &mode {
-        Some(pass.clone())
-    } else {
-        None
-    };
-
-    let enc_mode = choose_encryption_mode(
-        proj,
-        args.passphrase,
-        passphrase,
-        args.recipient,
-        args.recipients_file,
-    )?;
-    let recipients = match enc_mode {
-        EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-        EncryptionMode::Recipients(r) => r.into_iter().flat_map(|r| r.raw).collect(),
-    };
+    let identities = load_identities(proj, args.identity).collect();
+    let recipients = load_recipients(proj, args.recipients_file, None).collect();
 
     let options = DiffOptions {
-        mode,
+        identities,
         recipients,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
         skip_verify_recipients: args.force || args.skip_verify_recipients,
@@ -914,29 +733,10 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         }
     }
 
-    let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity)?;
-
-    let passphrase = if let DecryptionMode::Passphrase(pass) = &mode {
-        Some(pass.clone())
-    } else {
-        None
-    };
-
-    let enc_mode = choose_encryption_mode(
-        proj,
-        args.passphrase,
-        passphrase,
-        args.recipient,
-        args.recipients_file,
-    )?;
-
-    let recipients = match enc_mode {
-        EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-        EncryptionMode::Recipients(r) => r.into_iter().flat_map(|r| r.raw).collect(),
-    };
-
+    let identities = load_identities(proj, args.identity).collect();
+    let recipients = load_recipients(proj, args.recipients_file, None).collect();
     let dec_options = DecryptOptions {
-        mode,
+        identities,
         recipients,
         skip_gitignore: true,
         skip_timestamps: true,
@@ -1017,38 +817,21 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
         (path.clone(), to_encrypted_path(path))
     };
 
-    let (status1, passphrase) = if !stdin().is_terminal() {
+    let status1 = if !stdin().is_terminal() {
         let mut outfile = File::create(&decrypted_path)?;
         let mut writer = std::io::BufWriter::new(&mut outfile);
         let infile = stdin().lock();
         let mut reader = std::io::BufReader::new(infile);
         std::io::copy(&mut reader, &mut writer)?;
         writer.flush()?;
-        (Ok(()), None)
+        Ok(())
     } else {
-        let mode = choose_decryption_mode(proj, args.passphrase, None, args.identity.clone())?;
-        let passphrase = if let DecryptionMode::Passphrase(pass) = &mode {
-            Some(pass.clone())
-        } else {
-            None
-        };
-
-        let enc_mode = choose_encryption_mode(
-            proj,
-            args.passphrase,
-            passphrase.clone(),
-            args.recipient.clone(),
-            args.recipients_file.clone(),
-        )?;
-
-        let recipients = match enc_mode {
-            EncryptionMode::Passphrase(_) => crate::PASSPHRASE_RECIPIENT.as_bytes().to_vec(),
-            EncryptionMode::Recipients(r) => r.into_iter().flat_map(|r| r.raw).collect(),
-        };
+        let recipients = load_recipients(proj, args.recipients_file.clone(), None).collect();
+        let identities = load_identities(proj, args.identity.clone()).collect();
 
         if is_target_encrypted {
             let options = DecryptOptions {
-                mode,
+                identities,
                 recipients,
                 skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
                 skip_timestamps: args.skip_timestamps,
@@ -1060,52 +843,32 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             // Cant't fail from now on
         }
 
-        let status = edit::edit_file(&decrypted_path);
-        (status, passphrase)
+        
+        edit::edit_file(&decrypted_path)
     };
 
     let status2 = {
-        let maybe_mode = choose_encryption_mode(
-            proj,
-            args.passphrase,
-            passphrase.clone(),
-            args.recipient,
-            args.recipients_file,
-        );
+        let recipients = load_recipients(proj, args.recipients_file, None).collect();
+        let identities = load_identities(proj, args.identity).collect();
 
-        match maybe_mode {
-            Ok(mode) => {
-                let dec_mode_for_preview = choose_decryption_mode(
-                    proj,
-                    args.passphrase,
-                    passphrase.clone(),
-                    args.identity,
-                )
-                .ok();
+        let options = EncryptOptions {
+            recipients,
+            identities: Some(identities),
+            identity_path: proj.identity_path().to_path_buf(),
+            armor: args.armor,
+            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+            skip_timestamps: args.skip_timestamps,
+            skip_verify_recipients: args.force || args.force_encrypt || args.skip_verify_recipients,
+            skip_preview: args.skip_preview,
+            dry_run: false,
+        };
 
-                let options = EncryptOptions {
-                    mode,
-                    identity_path: proj.identity_path().to_path_buf(),
-                    decryption_mode: dec_mode_for_preview,
-                    armor: args.armor,
-                    skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
-                    skip_timestamps: args.skip_timestamps,
-                    skip_verify_recipients: args.force
-                        || args.force_encrypt
-                        || args.skip_verify_recipients,
-                    skip_preview: args.skip_preview,
-                    dry_run: false,
-                };
-
-                let mut stdout = std::io::stdout();
-                let enc_status = encrypt_file(&decrypted_path, &options);
-                match enc_status {
-                    Ok(Some(res)) if !quiet => print_result(&mut stdout, proj, &res, args.compact),
-                    Ok(Some(_)) => Ok(()),
-                    Ok(None) => Ok(()),
-                    Err(e) => Err(e),
-                }
-            }
+        let mut stdout = std::io::stdout();
+        let enc_status = encrypt_file(&decrypted_path, &options);
+        match enc_status {
+            Ok(Some(res)) if !quiet => print_result(&mut stdout, proj, &res, args.compact),
+            Ok(Some(_)) => Ok(()),
+            Ok(None) => Ok(()),
             Err(e) => Err(e),
         }
     };

@@ -2,7 +2,10 @@ use crate::Project;
 use age::ssh;
 use age::x25519;
 use anyhow::{Context, Result, anyhow};
+use globset::Glob;
 use globset::GlobMatcher;
+use globset::GlobSet;
+use globset::GlobSetBuilder;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -141,88 +144,109 @@ pub fn parse_recipients_dir<'a>(
 
 pub fn load_recipients<'a>(
     proj: &'a Project,
-    recipients: Vec<String>,
     recipients_file: Vec<PathBuf>,
     globmatcher: Option<&'a GlobMatcher>,
 ) -> Box<dyn Iterator<Item = RecipientData> + 'a> {
     log::debug!("loading recipients");
 
-    if recipients.is_empty() && recipients_file.is_empty() {
+    let mut paths = recipients_file.clone();
+    if paths.is_empty() {
         log::debug!("no recipients provided, looking for defaults");
-        let default_recipients_path = proj.recipients_path();
-        if default_recipients_path.is_dir()
-            && default_recipients_path
+        paths.push(proj.recipients_path().into());
+    }
+
+    let iter = paths.into_iter().flat_map(move |path| {
+        if path.is_dir()
+            && path
                 .read_dir()
                 .map(|mut i| i.next().is_some())
                 .unwrap_or(false)
         {
-            log::debug!(
-                "found default recipients directory at {}, parsing",
-                default_recipients_path.display()
-            );
-            parse_recipients_dir(
-                default_recipients_path.to_path_buf(),
-                proj.recipients_path(),
-                globmatcher,
-            )
-        } else if default_recipients_path.is_file() && globmatcher.is_none() {
-            log::debug!(
-                "no default recipients directory found, looking for default recipients file at {}",
-                default_recipients_path.display()
-            );
-            match parse_recipients_file(
-                default_recipients_path.to_path_buf(),
-                proj.recipients_path(),
-            ) {
-                Ok(iter) => iter,
-                Err(err) => {
-                    log::warn!(
-                        "{}: could not parse default recipients file: {}",
-                        default_recipients_path.display(),
-                        err
+            parse_recipients_dir(path.to_path_buf(), proj.recipients_path(), globmatcher)
+        } else if path.is_file() {
+            if let Some(matcher) = globmatcher {
+                if match_path(&path, proj.recipients_path(), Some(matcher)) {
+                    parse_recipients_file(path.to_path_buf(), proj.recipients_path())
+                        .unwrap_or_else(|e| {
+                            log::warn!(
+                                "{}: could not parse recipients file: {}",
+                                path.display(),
+                                e
+                            );
+                            Box::new(std::iter::empty())
+                        })
+                } else {
+                    log::debug!(
+                        "{}: skipping recipients file: path does not match glob rules",
+                        path.display()
                     );
                     Box::new(std::iter::empty())
                 }
+            } else {
+                parse_recipients_file(path.to_path_buf(), proj.recipients_path()).unwrap_or_else(
+                    |e| {
+                        log::warn!("{}: could not parse recipients file: {}", path.display(), e);
+                        Box::new(std::iter::empty())
+                    },
+                )
             }
         } else {
-            log::debug!("no default recipients found");
+            log::debug!("{}: path does not exist", path.display());
             Box::new(std::iter::empty())
         }
+    });
+    Box::new(iter)
+}
+
+fn build_matcher(globs: Option<&[Glob]>) -> Result<Option<GlobSet>> {
+    let mut builder = GlobSetBuilder::new();
+    if let Some(globs) = globs {
+        for glob in globs {
+            builder.add(glob.clone());
+        }
+
+        let res = builder.build()?;
+        Ok(Some(res))
     } else {
-        log::debug!("parsing provided recipients");
-        let iter = recipients
-            .into_iter()
-            .filter_map(|r| match parse_recipient(&r) {
-                Ok(recipient) => Some(RecipientData {
-                    recipient,
-                    raw: r.as_bytes().to_vec(),
-                    path: None,
-                }),
-                Err(e) => {
-                    log::warn!("{}: could not parse recipient: {}", r, e);
-                    None
-                }
-            })
-            .chain(
-                recipients_file
-                    .into_iter()
-                    .flat_map(move |f| match f.is_dir() {
-                        true => parse_recipients_dir(f, proj.recipients_path(), globmatcher),
-                        false => {
-                            match parse_recipients_file(f.to_path_buf(), proj.recipients_path()) {
-                                Ok(iter) => iter,
-                                Err(err) => {
-                                    log::warn!(
-                                        "{}: could not parse recipients file: {}",
-                                        f.display(),
-                                        err
-                                    );
-                                    Box::new(std::iter::empty())
-                                }
-                            }
-                        }
-                    }),
-            );
-        Box::new(iter)
+        Ok(None)
     }
+}
+
+pub fn filter_recipients_by_metadata<'a>(
+    all_recipients: &'a [RecipientData],
+    allow: Option<&'a [Glob]>,
+    deny: Option<&'a [Glob]>,
+) -> Result<Box<dyn Iterator<Item = RecipientData> + 'a>> {
+    let allowmatcher = build_matcher(allow)?;
+    let denymatcher = build_matcher(deny)?;
+
+    let filtered = all_recipients.iter().filter_map(move |r| {
+        match (r.path.as_ref(), &allowmatcher, &denymatcher) {
+            (Some(ref path), _, Some(deny)) if deny.is_match(path) => {
+                log::debug!(
+                    "{}: skipping recipient: path matches deny rules",
+                    path.display()
+                );
+                None
+            }
+            (Some(ref path), Some(allow), _) if !allow.is_match(path) => {
+                log::debug!(
+                    "{}: skipping recipient: path does not match allow rules",
+                    path.display()
+                );
+                None
+            }
+            _ => Some(r.clone()),
+        }
+    });
+
+    Ok(Box::new(filtered))
+}
+
+pub fn make_recipients_checksum_data(recipients: &[RecipientData]) -> Vec<u8> {
+    recipients
+        .iter()
+        .flat_map(|r| r.raw.iter().chain(b"\n"))
+        .copied()
+        .collect::<Vec<_>>()
 }

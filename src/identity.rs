@@ -1,6 +1,4 @@
 use crate::Project;
-use age::scrypt;
-use age::secrecy::SecretString;
 use age::ssh;
 use age::x25519;
 use anyhow::{Context, Result, anyhow};
@@ -11,7 +9,6 @@ use std::str::FromStr;
 pub enum Identity {
     X25519(x25519::Identity),
     Ssh(ssh::Identity),
-    Scrypt(SecretString),
 }
 
 impl std::fmt::Debug for Identity {
@@ -19,7 +16,6 @@ impl std::fmt::Debug for Identity {
         match self {
             Identity::X25519(_) => write!(f, "X25519(*****)"),
             Identity::Ssh(_) => write!(f, "SSH(*****)"),
-            Identity::Scrypt(_) => write!(f, "AGE-SCRYPT(*****)"),
         }
     }
 }
@@ -29,7 +25,6 @@ impl From<Identity> for Box<dyn age::Identity> {
         match val {
             Identity::X25519(id) => Box::new(id),
             Identity::Ssh(id) => Box::new(id),
-            Identity::Scrypt(id) => Box::new(scrypt::Identity::new(id)),
         }
     }
 }

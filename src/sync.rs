@@ -1,15 +1,14 @@
 use crate::{
-    DecryptOptions, DecryptionMode, EncryptOptions, EncryptionMode, Operation, OperationKind,
-    OperationResult, dec::decrypt_file, enc::encrypt_file, status::StatusOptions, status_path,
+    DecryptOptions, EncryptOptions, Identity, Operation, OperationKind, OperationResult,
+    RecipientData, dec::decrypt_file, enc::encrypt_file, status::StatusOptions, status_path,
 };
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub struct SyncOptions {
-    pub encryption_mode: EncryptionMode,
-    pub identities: DecryptionMode,
-    pub recipients: Vec<u8>,
+    pub recipients: Vec<RecipientData>,
+    pub identities: Vec<Identity>,
     pub identity_path: PathBuf,
     pub armor: bool,
     pub skip_gitignore: bool,
@@ -28,8 +27,8 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
         OperationKind::Encrypt => {
             if !sync_options.skip_encryption {
                 let encrypt_options = EncryptOptions {
-                    decryption_mode: Some(sync_options.identities.clone()),
-                    mode: sync_options.encryption_mode.clone(),
+                    identities: Some(sync_options.identities.clone()),
+                    recipients: sync_options.recipients.clone(),
                     identity_path: sync_options.identity_path.clone(),
                     armor: sync_options.armor,
                     skip_gitignore: sync_options.skip_gitignore,
@@ -48,7 +47,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
         OperationKind::Decrypt => {
             if !sync_options.skip_decryption {
                 let decrypt_options = DecryptOptions {
-                    mode: sync_options.identities.clone(),
+                    identities: sync_options.identities.clone(),
                     recipients: sync_options.recipients.clone(),
                     skip_gitignore: sync_options.skip_gitignore,
                     skip_timestamps: sync_options.skip_timestamps,

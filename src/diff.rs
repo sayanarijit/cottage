@@ -1,6 +1,6 @@
 use crate::{
-    DecryptOptions, DecryptionMode, OperationKind, Project, StatusOptions, decrypt_into_memory,
-    status_path,
+    DecryptOptions, Identity, OperationKind, Project, RecipientData, StatusOptions,
+    decrypt_into_memory, status_path,
 };
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::Result;
@@ -10,8 +10,8 @@ use std::fs;
 use std::path::PathBuf;
 
 pub struct DiffOptions {
-    pub mode: DecryptionMode,
-    pub recipients: Vec<u8>,
+    pub identities: Vec<Identity>,
+    pub recipients: Vec<RecipientData>,
     pub skip_encryption: bool,
     pub skip_decryption: bool,
     pub skip_verify_encrypted: bool,
@@ -27,7 +27,7 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
     };
 
     let dec_opts = DecryptOptions {
-        mode: options.mode.clone(),
+        identities: options.identities.clone(),
         recipients: options.recipients.clone(),
         skip_gitignore: true,
         skip_timestamps: true,
