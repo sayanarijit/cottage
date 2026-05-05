@@ -20,16 +20,16 @@ in plaintext.
 
 # Table of contents
 
-1. [cottage](#cottage)
-   1. [Features](#features)
-   2. [Installation](#installation)
-   3. [Quick Start](#quick-start)
-   4. [Sharing with a team member](#sharing-with-a-team-member)
-   5. [Git Hooks](#git-hooks)
-   6. [Learn More](#learn-more)
-   7. [Alternatives](#alternatives)
-   8. [Troubleshooting](#troubleshooting)
-   9. [License](#license)
+1. [Features](#features)
+2. [Installation](#installation)
+3. [Quick Start](#quick-start)
+4. [Sharing with a team member](#sharing-with-a-team-member)
+5. [Git Hooks](#git-hooks)
+6. [Access Control](#access-control)
+7. [Learn More](#learn-more)
+8. [Alternatives](#alternatives)
+9. [Troubleshooting](#troubleshooting)
+10. [License](#license)
 
 ## Features
 
@@ -153,6 +153,32 @@ Now your teammates can pull the latest changes and decrypt secrets for themselve
 You can use [prek](https://github.com/j178/prek) or [pre-commit](https://pre-commit.com/) to set up git hooks to automatically check/encrypt secrets before commit and decrypt them after checkout.
 
 See the [example prek configuration here](examples/prek.toml).
+
+## Access Control
+
+In the metadata file, you can annotate which recipients the secret should be encrypted for.
+This allows you to have different secrets for different environments (e.g. staging vs production) and only encrypt them for the relevant recipients.
+
+```toml
+# secret.yml.cott.toml
+[secret]
+allow = ["sayanarijit"]  # Only encrypt for sayanarijit
+```
+
+```toml
+# secret.yml.cott.toml
+[secret]
+deny = ["sayanarijit"]  # Encrypt for everyone except sayanarijit
+```
+
+```toml
+# secret.yml.cott.toml
+[secret]
+allow = ["env/staging/*"]  # Supports glob patterns, only encrypt for recipients in env/staging
+deny = ["env/staging/badservice"]  # Encrypt for everyone in env/staging except badservice
+```
+
+Deny rules take precedence over allow rules.
 
 ## Learn More
 
