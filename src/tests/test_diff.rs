@@ -1,6 +1,4 @@
-use crate::{
-    EncryptOptions, Project, decrypt_into_memory, encrypt_path, status_path,
-};
+use crate::{EncryptOptions, Project, decrypt_into_memory, encrypt_path, status_path};
 use age::secrecy::ExposeSecret;
 use anyhow::Result;
 use std::fs;
@@ -27,7 +25,7 @@ fn test_diff_logic() -> Result<()> {
 
     let options = EncryptOptions {
         recipients: vec![recipient.clone()],
-        identities: Some(vec![identity.clone()]),
+        identities: vec![identity.clone()],
         armor: true,
         skip_gitignore: true,
         skip_timestamps: false,
