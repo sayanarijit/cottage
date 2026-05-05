@@ -1,11 +1,9 @@
 use crate::{
     ChecksumMetadata, DecryptOptions, DecryptionMode, Metadata, OperationKind, OperationResult,
-    SecretMetadata, decrypt_into_memory, is_encrypted_path,
-    project::append_to_gitignore_if_absent, to_decrypted_path, to_encrypted_path, to_metadata_path,
+    SecretMetadata, decrypt_into_memory, is_encrypted_path, project::append_to_gitignore_if_absent,
+    to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
-use crate::{
-    RecipientData, generate_preview, is_metadata_path, make_checksum, verify_checksum,
-};
+use crate::{RecipientData, generate_preview, is_metadata_path, make_checksum, verify_checksum};
 use age::armor::ArmoredWriter;
 use age::secrecy::{ExposeSecret, SecretSlice, SecretString};
 use anyhow::{Context, Result, anyhow};
@@ -31,7 +29,6 @@ pub struct EncryptOptions {
     pub skip_timestamps: bool,
     pub skip_preview: bool,
     pub skip_verify_recipients: bool,
-    pub force: bool,
     pub dry_run: bool,
 }
 
@@ -87,21 +84,50 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     let metadata_path = to_metadata_path(path);
     let filemtime = input_file.metadata()?.modified()?;
 
-    if !opts.force && metadata_path.exists() {
-        let metadata = Metadata::read_from_path(&metadata_path)
-            .with_context(|| format!("{}: could not read metadata", metadata_path.display()))?;
+    let (old_content, old_preview) = if output_path.exists() && metadata_path.exists() {
+        let old_metadata = Metadata::read_from_path(&metadata_path).ok();
+        let old_preview = old_metadata
+            .as_ref()
+            .and_then(|m| m.preview.as_ref())
+            .map(|p| p.preview.clone());
 
-        if opts.skip_verify_recipients
-            || verify_checksum(
-                &recipients.clone().into(),
-                &metadata.checksum.recipients,
-                path,
-            )
-            .is_ok()
-        {
-            // We no longer store or verify decrypted checksums to avoid storing hashes of unencrypted data.
+        if let (Some(dec_mode), Ok(f)) = (&opts.decryption_mode, File::open(&output_path)) {
+            let decrypt_options = DecryptOptions {
+                mode: dec_mode.clone(),
+                recipients: recipients.clone(),
+                skip_gitignore: true,
+                skip_timestamps: true,
+                skip_verify_encrypted: true,
+                skip_verify_recipients: true,
+                dry_run: true,
+            };
+            let content = decrypt_into_memory(f, &decrypt_options).ok();
+            if !opts.skip_verify_recipients {
+                if let Some(metadata) = old_metadata {
+                    log::debug!(
+                        "{}: verifying intended encryption recipients",
+                        metadata_path.display()
+                    );
+                    verify_checksum(
+                        &recipients.clone().into(),
+                        &metadata.checksum.recipients,
+                        &metadata_path,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "{}: recipients mismatch, use --skip-verify-recipients or --force to overwrite",
+                            metadata_path.display()
+                        )
+                    })?;
+                }
+            }
+            (content, old_preview)
+        } else {
+            (None, old_preview)
         }
-    }
+    } else {
+        (None, None)
+    };
 
     let output = {
         let mut reader = BufReader::new(input.expose_secret());
@@ -118,35 +144,6 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     let secret = SecretMetadata { timestamp };
 
     let preview = if !opts.skip_preview {
-        let (old_content, old_preview) = if output_path.exists() && metadata_path.exists() {
-            let old_metadata = Metadata::read_from_path(&metadata_path).ok();
-            let old_preview = old_metadata
-                .as_ref()
-                .and_then(|m| m.preview.as_ref())
-                .map(|p| p.preview.clone());
-
-            let old_content = if let (Some(decryption_mode), Ok(f)) =
-                (&opts.decryption_mode, File::open(&output_path))
-            {
-                let decrypt_options = DecryptOptions {
-                    mode: decryption_mode.clone(),
-                    recipients: recipients.clone(),
-                    skip_gitignore: true,
-                    skip_timestamps: true,
-                    skip_verify_encrypted: true,
-                    skip_verify_recipients: opts.skip_verify_recipients,
-                    dry_run: true,
-                };
-                decrypt_into_memory(f, &decrypt_options).ok()
-            } else {
-                None
-            };
-
-            (old_content, old_preview)
-        } else {
-            (None, None)
-        };
-
         generate_preview(
             path,
             &input,
@@ -174,48 +171,51 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
 
     // Write starts here ------------------------
 
-    // First add to .gitignore before creating the encrypted file, because, why not!
-    let gitignore = if !opts.skip_gitignore {
-        append_to_gitignore_if_absent(path, opts.dry_run)?
-    } else {
-        None
-    };
-
     if opts.dry_run {
         log::debug!(
-            "{}: dry-run: skipping write of encrypted file",
-            output_path.display()
+            "{}: dry-run: skipping write of encrypted and metadata file",
+            path.display()
         );
+        Ok(None)
     } else {
-        log::debug!("{}: writing encrypted file", output_path.display());
-        std::fs::write(&output_path, output.expose_secret()).with_context(|| {
-            format!("{}: could not write encrypted file", output_path.display())
-        })?;
-    }
+        let res = if old_content
+            .as_ref()
+            .map(|c| c.expose_secret() == input.expose_secret())
+            .unwrap_or(false)
+        {
+            log::debug!("{}: skipping write: content matches", output_path.display());
+            None
+        } else {
+            // First add to .gitignore before creating the encrypted file, because, why not!
+            let gitignore = if !opts.skip_gitignore {
+                append_to_gitignore_if_absent(path, opts.dry_run)?
+            } else {
+                None
+            };
 
-    if !opts.dry_run && !opts.skip_timestamps {
-        set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
-    }
+            log::debug!("{}: writing encrypted file", output_path.display());
+            std::fs::write(&output_path, output.expose_secret()).with_context(|| {
+                format!("{}: could not write encrypted file", output_path.display())
+            })?;
+            log::debug!("{}: writing metadata file", metadata_path.display());
+            std::fs::write(&metadata_path, toml::to_string(&metadata)?).with_context(|| {
+                format!("{}: could not write metadata file", metadata_path.display())
+            })?;
+            Some(OperationResult {
+                kind: OperationKind::Encrypt,
+                input: path.to_path_buf(),
+                output: output_path.clone(),
+                gitignore,
+                metadata: Some(metadata_path.clone()),
+            })
+        };
 
-    if opts.dry_run {
-        log::debug!(
-            "{}: dry-run: skipping write of metadata file",
-            metadata_path.display()
-        );
-    } else {
-        log::debug!("{}: writing metadata file", metadata_path.display());
-        std::fs::write(&metadata_path, toml::to_string(&metadata)?).with_context(|| {
-            format!("{}: could not write metadata file", metadata_path.display())
-        })?;
+        if !opts.skip_timestamps {
+            log::debug!("{}: updating timestamp", output_path.display());
+            set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
+        }
+        Ok(res)
     }
-
-    Ok(Some(OperationResult {
-        kind: OperationKind::Encrypt,
-        input: path.to_path_buf(),
-        output: output_path,
-        gitignore,
-        metadata: Some(metadata_path),
-    }))
 }
 
 pub fn encrypt_dir(
@@ -223,6 +223,7 @@ pub fn encrypt_dir(
     options: &EncryptOptions,
 ) -> impl Iterator<Item = Result<OperationResult>> {
     walkdir::WalkDir::new(path)
+        .sort_by_file_name()
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())

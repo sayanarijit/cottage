@@ -54,6 +54,7 @@ pub fn parse_identity_file(path: &Path) -> Result<Identity> {
 pub fn parse_identities_dir(path: &Path) -> Box<dyn Iterator<Item = Identity>> {
     log::debug!("{}: parsing identities in directory", path.display());
     let iter = walkdir::WalkDir::new(path)
+        .sort_by_file_name()
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file() && !e.file_name().to_string_lossy().ends_with(".pub"))

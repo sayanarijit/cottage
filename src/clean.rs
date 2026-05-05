@@ -30,6 +30,7 @@ pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<PathBuf>>
 pub fn clean_dir(path: &Path, opts: &CleanOptions) -> impl Iterator<Item = Result<PathBuf>> {
     Box::new(
         walkdir::WalkDir::new(path)
+            .sort_by_file_name()
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| e.path().is_file())

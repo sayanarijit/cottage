@@ -79,6 +79,7 @@ pub fn parse_recipients_file(path: PathBuf) -> Result<Box<dyn Iterator<Item = Re
 
 pub fn parse_recipients_dir(path: PathBuf) -> Box<dyn Iterator<Item = RecipientData>> {
     let iter = walkdir::WalkDir::new(path)
+        .sort_by_file_name()
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())

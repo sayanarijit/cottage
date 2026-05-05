@@ -1,8 +1,8 @@
-use age::secrecy::ExposeSecret;
-use anyhow::Result;
 use crate::{
     EncryptOptions, EncryptionMode, Project, decrypt_into_memory, encrypt_path, status_path,
 };
+use age::secrecy::ExposeSecret;
+use anyhow::Result;
 use std::fs;
 
 #[test]
@@ -21,7 +21,6 @@ fn test_diff_logic() -> Result<()> {
         armor: true,
         skip_gitignore: true,
         skip_timestamps: false,
-        force: false,
         skip_preview: true,
         skip_verify_recipients: false,
         identity_path: _proj.identity_path().to_path_buf(),

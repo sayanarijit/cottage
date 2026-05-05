@@ -83,55 +83,67 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
             &opts.recipients.clone().into(),
             &metadata.checksum.recipients,
             path,
-        )?;
+        )
+        .with_context(|| {
+            format!(
+                "{}: recipients mismatch: use --skip-verify-recipients to skip this check",
+                metadata_path.display()
+            )
+        })?;
     }
 
     if !opts.skip_verify_encrypted {
-        verify_checksum(&input, &metadata.checksum.encrypted, path)?;
+        verify_checksum(&input, &metadata.checksum.encrypted, path).with_context(|| {
+            format!(
+                "{}: content mismatch: use --skip-verify-encrypted to skip this check",
+                metadata_path.display()
+            )
+        })?;
     }
 
     let output = decrypt_into_memory(input_file, opts)?;
 
-    if output_path.exists() && std::fs::read(&output_path)? == output.expose_secret().to_vec() {
-        log::debug!("{}: skipping write: content matches", output_path.display());
-        if !opts.skip_timestamps {
-            set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
-        };
-        return Ok(None);
-    }
-
     // Write starts here ------------------------
-
-    // First add to .gitignore before creating the decrypted file, so that if the operation fails
-    // for some reason, we won't have a decrypted file that is not ignored.
-    let gitignorefile = if !opts.skip_gitignore {
-        append_to_gitignore_if_absent(&output_path, opts.dry_run)?
-    } else {
-        None
-    };
 
     if opts.dry_run {
         log::debug!(
             "{}: dry-run: skipping write of decrypted file",
             output_path.display()
         );
+        Ok(None)
     } else {
-        log::debug!("{}: writing decrypted file", output_path.display());
-        std::fs::write(&output_path, output.expose_secret()).with_context(|| {
-            format!("{}: could not write decrypted file", output_path.display())
-        })?;
+        let res = if output_path.exists()
+            && std::fs::read(&output_path)? == output.expose_secret().to_vec()
+        {
+            log::debug!("{}: skipping write: content matches", output_path.display());
+            None
+        } else {
+            // First add to .gitignore before creating the decrypted file, so that if the operation fails
+            // for some reason, we won't have a decrypted file that is not ignored.
+            let gitignorefile = if !opts.skip_gitignore {
+                append_to_gitignore_if_absent(&output_path, opts.dry_run)?
+            } else {
+                None
+            };
+
+            log::debug!("{}: writing decrypted file", output_path.display());
+            std::fs::write(&output_path, output.expose_secret()).with_context(|| {
+                format!("{}: could not write decrypted file", output_path.display())
+            })?;
+            Some(OperationResult {
+                kind: OperationKind::Decrypt,
+                input: path.to_path_buf(),
+                output: output_path.clone(),
+                gitignore: gitignorefile,
+                metadata: None,
+            })
+        };
         if !opts.skip_timestamps {
+            log::debug!("{}: updating timestamp", output_path.display());
             set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
         };
-    };
-
-    Ok(Some(OperationResult {
-        kind: OperationKind::Decrypt,
-        input: path.to_path_buf(),
-        output: output_path,
-        gitignore: gitignorefile,
-        metadata: None,
-    }))
+        Ok(res)
+    }
 }
 
 pub fn decrypt_dir(
@@ -139,6 +151,7 @@ pub fn decrypt_dir(
     options: &DecryptOptions,
 ) -> impl Iterator<Item = Result<OperationResult>> {
     walkdir::WalkDir::new(path)
+        .sort_by_file_name()
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())

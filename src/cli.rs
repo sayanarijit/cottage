@@ -633,9 +633,8 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         armor: args.armor,
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
-        force: args.force,
+        skip_verify_recipients: args.force || args.skip_verify_recipients,
         skip_preview: args.skip_preview,
-        skip_verify_recipients: args.skip_verify_recipients,
         identity_path: proj.identity_path().to_path_buf(),
         dry_run: args.dry_run,
     };
@@ -704,7 +703,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
-        skip_verify_recipients: args.skip_verify_recipients,
+        skip_verify_recipients: args.force || args.skip_verify_recipients,
         dry_run: args.dry_run,
     };
 
@@ -784,7 +783,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         skip_timestamps: args.skip_timestamps,
         skip_preview: args.skip_preview,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
-        skip_verify_recipients: args.skip_verify_recipients,
+        skip_verify_recipients: args.force || args.skip_verify_recipients,
         skip_encryption: args.skip_encryption,
         skip_decryption: args.skip_decryption,
         force_encrypt: args.force || args.force_encrypt,
@@ -832,7 +831,7 @@ fn run_diff_cmd(proj: &Project, args: DiffArgs) -> Result<()> {
         mode,
         recipients,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
-        skip_verify_recipients: args.skip_verify_recipients,
+        skip_verify_recipients: args.force || args.skip_verify_recipients,
         skip_encryption: args.skip_encryption,
         skip_decryption: args.skip_decryption,
     };
@@ -944,7 +943,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         skip_gitignore: true,
         skip_timestamps: true,
         skip_verify_encrypted: args.force || args.skip_verify_encrypted,
-        skip_verify_recipients: args.skip_verify_recipients,
+        skip_verify_recipients: args.force || args.skip_verify_recipients,
         dry_run: args.dry_run,
     };
 
@@ -1056,7 +1055,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
                 skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
                 skip_timestamps: args.skip_timestamps,
                 skip_verify_encrypted: args.force || args.skip_verify_encrypted,
-                skip_verify_recipients: args.skip_verify_recipients,
+                skip_verify_recipients: args.force || args.skip_verify_recipients,
                 dry_run: false,
             };
             let _ = decrypt_file(&encrypted_path, &options)?;
@@ -1093,9 +1092,10 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
                     armor: args.armor,
                     skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
                     skip_timestamps: args.skip_timestamps,
-                    force: args.force || args.force_encrypt,
+                    skip_verify_recipients: args.force
+                        || args.force_encrypt
+                        || args.skip_verify_recipients,
                     skip_preview: args.skip_preview,
-                    skip_verify_recipients: args.skip_verify_recipients,
                     dry_run: false,
                 };
 

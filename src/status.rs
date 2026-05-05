@@ -103,6 +103,7 @@ pub fn status_file(path: &Path, opts: StatusOptions) -> Result<Option<Operation>
 
 pub fn status_dir(path: &Path, opts: StatusOptions) -> impl Iterator<Item = Result<Operation>> {
     walkdir::WalkDir::new(path)
+        .sort_by_file_name()
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())
