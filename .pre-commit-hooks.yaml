@@ -36,6 +36,7 @@
   entry: ctg sync --skip-encryption
   language: system
   files: "\\.cott\\.(age|toml)$"
+  pass_filenames: false
   stages: [post-checkout, post-merge]
 
 - id: cottage-decrypt
@@ -44,4 +45,5 @@
   entry: ctg decrypt
   language: system
   files: "\\.cott\\.(age|toml)$"
+  pass_filenames: false
   stages: [post-checkout, post-merge]
