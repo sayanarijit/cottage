@@ -209,6 +209,7 @@ permissions:
   contents: read
 jobs:
   verify-secrets:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Verify secrets
