@@ -30,7 +30,7 @@ fn test_diff_logic() -> Result<()> {
         skip_gitignore: true,
         skip_timestamps: false,
         skip_preview: true,
-        skip_verify_recipients: false,
+        force: false,
         identity_path: _proj.identity_path().to_path_buf(),
         dry_run: false,
     };

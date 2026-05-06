@@ -25,6 +25,7 @@ pub struct EncryptOptions {
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
     pub skip_preview: bool,
+    pub force: bool,
     pub dry_run: bool,
 }
 
@@ -65,7 +66,7 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
     let metadata_path = to_metadata_path(path);
 
     let old_metadata = Metadata::read_from_path(&metadata_path).ok();
-    let verified_data = if metadata_path.exists() && output_path.exists() {
+    let verified_data = if !opts.force && metadata_path.exists() && output_path.exists() {
         let verify_opts = VerifyOptions {
             recipients: opts.recipients.clone(),
             skip_verify_encrypted: true,

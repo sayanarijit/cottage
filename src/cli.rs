@@ -141,7 +141,7 @@ struct EditArgs {
     #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
     skip_gitignore: bool,
 
-    /// Force re-encryption even if the decrypted file is not modified.
+    /// Force re-encryption/re-decryption even if the files are not modified.
     #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
@@ -192,6 +192,10 @@ struct EncryptArgs {
     /// Skip adding encrypted files to .gitignore.
     #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
     skip_gitignore: bool,
+
+    /// Skip checksum matching and re-encrypt all files.
+    #[arg(long, short, env = "COTTAGE_FORCE")]
+    force: bool,
 
     /// Skip preview generation.
     #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
@@ -519,6 +523,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
         skip_timestamps: args.skip_timestamps,
         skip_preview: args.skip_preview,
+        force: args.force,
         identity_path: proj.identity_path().to_path_buf(),
         dry_run: args.dry_run,
     };
@@ -627,6 +632,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         skip_verify_recipients: args.force || args.skip_verify_recipients,
         skip_encryption: args.skip_encryption,
         skip_decryption: args.skip_decryption,
+        force: args.force,
         identity_path: proj.identity_path().to_path_buf(),
         dry_run: args.dry_run,
     };
@@ -863,6 +869,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
             skip_timestamps: args.skip_timestamps,
             skip_preview: args.skip_preview,
+            force: args.force,
             dry_run: false,
         };
 
