@@ -1,5 +1,6 @@
 use crate::{
-    is_encrypted_path, remove_from_gitignore_if_present, to_decrypted_path, to_encrypted_path,
+    iter_encrypted, remove_from_gitignore_if_present, to_decrypted_path, to_encrypted_path,
+    to_metadata_path,
 };
 use anyhow::Result;
 use std::fs;
@@ -8,35 +9,72 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CleanOptions {
     pub dry_run: bool,
+    pub encrypted: bool,
     pub gitignore: bool,
 }
 
 pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<PathBuf>> {
-    if !to_encrypted_path(&path).exists() {
+    let encrypted_path = to_encrypted_path(&path);
+    if !encrypted_path.exists() {
         log::warn!("skipped: {}: not a secret", path.display());
-        Ok(None)
-    } else {
-        log::debug!("{}: removing file", path.display());
+        return Ok(None);
+    }
+
+    let mut cleaned = false;
+
+    if path.exists() {
         if !opts.dry_run {
+            log::debug!("{}: removing file", path.display());
             fs::remove_file(&path)?;
-            if opts.gitignore {
-                while (remove_from_gitignore_if_present(&path, opts.dry_run)?).is_some() {}
+        } else {
+            log::debug!("{}: would remove file (dry run)", path.display());
+        }
+        cleaned = true;
+    }
+
+    if opts.gitignore {
+        while (remove_from_gitignore_if_present(&path, opts.dry_run)?).is_some() {
+            cleaned = true;
+            if opts.dry_run {
+                break;
             }
         }
+    }
+
+    if opts.encrypted {
+        if encrypted_path.exists() {
+            if !opts.dry_run {
+                fs::remove_file(&encrypted_path)?;
+                log::debug!("{}: removed encrypted file", path.display());
+            } else {
+                log::debug!("{}: would remove encrypted file (dry run)", path.display());
+            }
+            cleaned = true;
+        }
+
+        let metadata_path = to_metadata_path(&path);
+        if metadata_path.exists() {
+            if !opts.dry_run {
+                fs::remove_file(metadata_path)?;
+                log::debug!("{}: removed metadata file", path.display());
+            } else {
+                log::debug!("{}: would remove metadata file (dry run)", path.display());
+            }
+            cleaned = true;
+        }
+    }
+
+    if cleaned {
         Ok(Some(path))
+    } else {
+        Ok(None)
     }
 }
 
 pub fn clean_dir(path: &Path, opts: &CleanOptions) -> impl Iterator<Item = Result<PathBuf>> {
     Box::new(
-        walkdir::WalkDir::new(path)
-            .sort_by_file_name()
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().is_file())
-            .filter(|e| is_encrypted_path(e.path()))
+        iter_encrypted(path)
             .filter_map(|e| to_decrypted_path(e.path()))
-            .filter(|p| p.exists())
             .filter_map(move |p| clean_file(p, opts).transpose()),
     )
 }
@@ -45,7 +83,7 @@ pub fn clean_path<'a>(
     path: &'a Path,
     opts: &'a CleanOptions,
 ) -> Box<dyn Iterator<Item = Result<PathBuf>> + 'a> {
-    if path.is_file() {
+    if path.is_file() || to_encrypted_path(path).is_file() {
         Box::new(clean_file(path.to_path_buf(), opts).transpose().into_iter())
     } else if path.is_dir() {
         Box::new(clean_dir(path, opts))

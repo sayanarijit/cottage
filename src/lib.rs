@@ -27,7 +27,7 @@ pub(crate) use operation::{
     to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
 pub(crate) use preview::generate_preview;
-pub(crate) use project::{Project, remove_from_gitignore_if_present};
+pub(crate) use project::{Project, iter_encrypted, remove_from_gitignore_if_present};
 
 pub(crate) use recipients::{
     RecipientData, filter_recipients_by_metadata, load_recipients, make_recipients_checksum_data,

@@ -6,6 +6,9 @@ use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+const COTTAGE_GITATTRIBUTES_LINE: &str =
+    "*.cott.age binary export-ignore filter=cottage-encrypted -diff";
+
 #[derive(Debug)]
 pub struct Git {
     root_gitattributes: PathBuf,
@@ -118,11 +121,7 @@ impl Project {
 
         if let Some(git) = &git {
             append_to_gitignore_if_absent(&identity_path, false)?;
-            append_line_if_absent(
-                git.root_gitattributes(),
-                "*.cott.age binary export-ignore filter=cottage-encrypted -diff",
-                false,
-            )?;
+            append_line_if_absent(git.root_gitattributes(), COTTAGE_GITATTRIBUTES_LINE, false)?;
         }
 
         let global_config_dir = dirs::home_dir()
@@ -181,6 +180,47 @@ impl Project {
     pub fn global_identity_path(&self) -> &PathBuf {
         &self.global_identity_path
     }
+
+    pub fn clean(&self, dry_run: bool) -> Result<()> {
+        if self.root().join(".cottage").exists() {
+            if dry_run {
+                log::debug!(
+                    "{}: would remove directory (dry run)",
+                    self.root().join(".cottage").display()
+                );
+            } else {
+                std::fs::remove_dir_all(self.root().join(".cottage")).with_context(|| {
+                    format!(
+                        "{}: could not remove .cottage directory",
+                        self.root().display()
+                    )
+                })?;
+                log::debug!(
+                    "{}: removed directory",
+                    self.root().join(".cottage").display()
+                );
+            }
+        }
+
+        if let Some(git) = self.git() {
+            remove_line_if_present(
+                git.root_gitattributes(),
+                COTTAGE_GITATTRIBUTES_LINE,
+                dry_run,
+            )?;
+            remove_from_gitignore_if_present(self.identity_path(), dry_run)?;
+        }
+        Ok(())
+    }
+}
+
+pub fn iter_encrypted(path: &Path) -> impl Iterator<Item = walkdir::DirEntry> {
+    walkdir::WalkDir::new(path)
+        .sort_by_file_name()
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+        .filter(|e| is_encrypted_path(e.path()))
 }
 
 pub fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {

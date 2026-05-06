@@ -1,15 +1,10 @@
-use std::{
-    fs::File,
-    io::BufReader,
-    path::Path,
-    time::SystemTime,
-};
+use std::{fs::File, io::BufReader, path::Path, time::SystemTime};
 
 use age::secrecy::SecretSlice;
 use anyhow::{Context, Result};
 
 use crate::{
-    Metadata, RecipientData, filter_recipients_by_metadata, is_encrypted_path,
+    Metadata, RecipientData, filter_recipients_by_metadata, is_encrypted_path, iter_encrypted,
     make_recipients_checksum_data, to_decrypted_path, to_metadata_path, verify_checksum,
 };
 
@@ -111,12 +106,7 @@ pub fn verify_dir(
     path: &Path,
     options: &VerifyOptions,
 ) -> impl Iterator<Item = Result<VerificationResult>> {
-    walkdir::WalkDir::new(path)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
-        .filter(|e| is_encrypted_path(e.path()))
-        .filter_map(move |e| verify_file(e.path(), options).transpose())
+    iter_encrypted(path).filter_map(move |e| verify_file(e.path(), options).transpose())
 }
 
 pub fn verify_path<'a>(

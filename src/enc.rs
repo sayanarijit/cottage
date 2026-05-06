@@ -5,7 +5,7 @@ use crate::{
 };
 use crate::{
     DecryptOptions, Identity, RecipientData, VerifyOptions, decrypt_into_memory, generate_preview,
-    is_metadata_path, make_checksum, verify_file,
+    is_metadata_path, iter_encrypted, make_checksum, verify_file,
 };
 use age::armor::ArmoredWriter;
 use age::secrecy::{ExposeSecret, SecretSlice};
@@ -221,12 +221,7 @@ pub fn encrypt_dir(
     path: &Path,
     options: &EncryptOptions,
 ) -> impl Iterator<Item = Result<OperationResult>> {
-    walkdir::WalkDir::new(path)
-        .sort_by_file_name()
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
-        .filter(|e| is_encrypted_path(e.path()))
+    iter_encrypted(path)
         .filter_map(|e| to_decrypted_path(e.path()))
         .filter_map(|path| encrypt_file(&path, options).transpose())
 }

@@ -101,17 +101,25 @@ struct CleanArgs {
     /// The file or dir to clean, defaults to project root.
     path: Vec<PathBuf>,
 
-    /// Remove from .gitignore.
-    #[arg(long, env = "COTTAGE_CLEAN_GITIGNORE")]
+    #[arg(long)]
+    /// Also delete encrypted files.
+    encrypted: bool,
+
+    #[arg(long)]
+    /// Also remove entries from .gitignore.
     gitignore: bool,
 
-    /// Compact output.
-    #[arg(long, env = "COTTAGE_COMPACT")]
-    compact: bool,
+    #[arg(long)]
+    /// Cleanup everything cottage ever did.
+    all: bool,
 
     /// Dry run, don't actually delete anything.
     #[arg(short = 'n', long)]
     dry_run: bool,
+
+    /// Compact output.
+    #[arg(long, env = "COTTAGE_COMPACT")]
+    compact: bool,
 }
 
 #[derive(clap::Args, Debug, Default)]
@@ -541,6 +549,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         let clean_opts = CleanOptions {
             dry_run: options.dry_run,
             gitignore: false,
+            encrypted: false,
         };
 
         for res in input.iter().flat_map(|p| clean_path(p, &clean_opts)) {
@@ -676,7 +685,8 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
 
     let opts = CleanOptions {
         dry_run: args.dry_run,
-        gitignore: args.gitignore && proj.git().is_some(),
+        gitignore: (args.all || args.gitignore) && proj.git().is_some(),
+        encrypted: args.all || args.encrypted,
     };
 
     for res in input.iter().flat_map(|p| clean_path(p, &opts)) {
@@ -692,6 +702,10 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
                 );
             }
         }
+    }
+
+    if args.all {
+        proj.clean(args.dry_run)?;
     }
     Ok(())
 }
@@ -779,6 +793,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
     let clean_opts = CleanOptions {
         dry_run: args.dry_run,
         gitignore: false,
+        encrypted: false,
     };
 
     for path in input.iter().map(|p| {

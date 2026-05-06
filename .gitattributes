@@ -1,2 +1,1 @@
 *.cott.age binary export-ignore filter=cottage-encrypted -diff
-*.cott.age binary filter=cottage-encrypted

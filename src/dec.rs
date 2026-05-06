@@ -1,8 +1,8 @@
 use crate::{
-    Identity, OperationKind, OperationResult, is_encrypted_path,
-    project::append_to_gitignore_if_absent, to_decrypted_path,
+    Identity, OperationKind, OperationResult, project::append_to_gitignore_if_absent,
+    to_decrypted_path,
 };
-use crate::{RecipientData, VerifyOptions, verify_file};
+use crate::{RecipientData, VerifyOptions, iter_encrypted, verify_file};
 use age::armor::ArmoredReader;
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result};
@@ -102,13 +102,7 @@ pub fn decrypt_dir(
     path: &Path,
     options: &DecryptOptions,
 ) -> impl Iterator<Item = Result<OperationResult>> {
-    walkdir::WalkDir::new(path)
-        .sort_by_file_name()
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
-        .filter(|e| is_encrypted_path(e.path()))
-        .flat_map(|e| decrypt_file(e.path(), options).transpose())
+    iter_encrypted(path).flat_map(|e| decrypt_file(e.path(), options).transpose())
 }
 
 pub fn decrypt_path<'a>(

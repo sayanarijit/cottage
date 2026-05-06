@@ -1,5 +1,5 @@
-use crate::is_metadata_path;
 use crate::{Operation, OperationKind, is_encrypted_path, to_decrypted_path, to_encrypted_path};
+use crate::{is_metadata_path, iter_encrypted};
 use anyhow::{Result, anyhow};
 use std::fs;
 use std::path::Path;
@@ -102,13 +102,7 @@ pub fn status_file(path: &Path, opts: StatusOptions) -> Result<Option<Operation>
 }
 
 pub fn status_dir(path: &Path, opts: StatusOptions) -> impl Iterator<Item = Result<Operation>> {
-    walkdir::WalkDir::new(path)
-        .sort_by_file_name()
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
-        .filter(|e| is_encrypted_path(e.path()))
-        .filter_map(move |e| status_file(e.path(), opts).transpose())
+    iter_encrypted(path).filter_map(move |e| status_file(e.path(), opts).transpose())
 }
 
 pub fn status_path<'a>(

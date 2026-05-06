@@ -147,3 +147,26 @@ fn test_add_line_if_absent() {
     let content = std::fs::read_to_string(path).unwrap();
     assert_eq!(content, "line1\nline2\n");
 }
+
+#[test]
+fn test_project_clean() -> anyhow::Result<()> {
+    let root = assert_fs::TempDir::new()?;
+    std::env::set_current_dir(root.path())?;
+
+    let cottage_dir = root.path().join(".cottage");
+    std::fs::create_dir_all(&cottage_dir)?;
+    std::fs::create_dir_all(root.path().join(".git"))?;
+
+    let proj = Project::load()?;
+    assert!(cottage_dir.exists());
+
+    // Dry run
+    proj.clean(true)?;
+    assert!(cottage_dir.exists());
+
+    // Actual clean
+    proj.clean(false)?;
+    assert!(!cottage_dir.exists());
+
+    Ok(())
+}

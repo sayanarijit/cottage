@@ -290,7 +290,6 @@ Many `ctg` commands share these common options:
 
 - `-f`, `--force`: Skip checksum verification and force the operation (e.g., re-encrypt/re-decrypt even if timestamps match).
 - `-n`, `--dry-run`: Show what would be done without actually making any changes.
-- `-r`, `--recipient RECIPIENT`: Encrypt to or verify against the specified recipient.
 - `-R`, `--recipients-file PATH`: Encrypt to or verify against recipients listed at PATH.
 - `--skip-verify-encrypted`: Skip checksum verification of encrypted files.
 - `--skip-verify-recipients`: Skip checksum verification of recipients.
