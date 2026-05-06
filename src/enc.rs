@@ -25,7 +25,6 @@ pub struct EncryptOptions {
     pub skip_gitignore: bool,
     pub skip_timestamps: bool,
     pub skip_preview: bool,
-    pub skip_verify_recipients: bool,
     pub dry_run: bool,
 }
 
@@ -70,7 +69,7 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         let verify_opts = VerifyOptions {
             recipients: opts.recipients.clone(),
             skip_verify_encrypted: true,
-            skip_verify_recipients: opts.skip_verify_recipients,
+            skip_verify_recipients: true,
         };
         verify_file(&output_path, &verify_opts)
     } else {

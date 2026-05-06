@@ -18,7 +18,6 @@ pub struct SyncOptions {
     pub skip_decryption: bool,
     pub skip_verify_encrypted: bool,
     pub skip_verify_recipients: bool,
-    pub force_encrypt: bool,
     pub dry_run: bool,
 }
 
@@ -34,8 +33,6 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
                     skip_gitignore: sync_options.skip_gitignore,
                     skip_timestamps: sync_options.skip_timestamps,
                     skip_preview: sync_options.skip_preview,
-                    skip_verify_recipients: sync_options.force_encrypt
-                        || sync_options.skip_verify_recipients,
                     dry_run: sync_options.dry_run,
                 };
                 encrypt_file(&operation.input, &encrypt_options)
