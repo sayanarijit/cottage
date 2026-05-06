@@ -26,6 +26,8 @@ in plaintext.
 4. [Sharing with a team member](#sharing-with-a-team-member)
 5. [Git Hooks](#git-hooks)
 6. [Access Control](#access-control)
+   1. [Rules](#rules)
+   2. [Verification](#verification)
 7. [Learn More](#learn-more)
 8. [Alternatives](#alternatives)
 9. [Troubleshooting](#troubleshooting)
@@ -58,6 +60,16 @@ pip install cottage
 
 # python uv
 uv pip install cottage
+```
+
+Also available on docker hub
+
+```bash
+# Docker
+docker run --rm sayanarijit/cottage --version
+
+# Podman
+podman run --rm quay.io/sayanarijit/cottage --version
 ```
 
 Or download the latest release from [GitHub](https://github.com/sayanarijit/cottage/releases).
@@ -156,6 +168,8 @@ See the [example prek configuration here](examples/prek.toml).
 
 ## Access Control
 
+### Rules
+
 In the metadata file, you can annotate which recipients the secret should be encrypted for.
 This allows you to have different secrets for different environments (e.g. staging vs production) and only encrypt them for the relevant recipients.
 
@@ -179,6 +193,23 @@ deny = ["env/staging/badservice"]  # Encrypt for everyone in env/staging except 
 ```
 
 Deny rules take precedence over allow rules.
+
+### Verification
+
+You can run `ctg verify` in CI to verify that the encrypted secrets and recipient lists match the metadata rules, to prevent tampering.
+
+```yaml
+# .github/workflows/cottage-verify.yml
+name: Cottage Verify
+on: [push, pull_request]
+jobs:
+  verify-secrets:
+    runs-on: ghcr.io/sayanarijit/cottage:latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Verify secrets
+        run: ctg verify
+```
 
 ## Learn More
 

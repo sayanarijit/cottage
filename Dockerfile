@@ -16,4 +16,4 @@ FROM alpine:3.23.4 AS final
 COPY --from=build /app/target/release/ctg /bin/
 
 # What the container should run when it is started.
-ENTRYPOINT /bin/ctg
+ENTRYPOINT ["/bin/ctg"]

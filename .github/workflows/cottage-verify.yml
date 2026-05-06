@@ -1,0 +1,9 @@
+name: Cottage Verify
+on: [push, pull_request]
+jobs:
+  verify-secrets:
+    runs-on: quay.io/sayanarijit/cottage:latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Verify secrets
+        run: ctg verify
