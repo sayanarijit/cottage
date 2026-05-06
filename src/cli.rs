@@ -2,9 +2,9 @@ use crate::dec::decrypt_file;
 use crate::enc::encrypt_file;
 use crate::{
     CleanOptions, DecryptOptions, DiffOptions, EncryptOptions, OperationKind, OperationResult,
-    Project, StatusOptions, SyncOptions, clean_path, decrypt_path, diff, encrypt_path,
-    is_encrypted_path, is_metadata_path, load_identities, load_recipients, status_path, sync_path,
-    to_decrypted_path, to_encrypted_path,
+    Project, StatusOptions, SyncOptions, VerifyOptions, clean_path, decrypt_path, diff,
+    encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
+    status_path, sync_path, to_decrypted_path, to_encrypted_path, verify_path,
 };
 use anyhow::{Result, anyhow};
 use clap::CommandFactory;
@@ -72,6 +72,10 @@ enum Command {
     /// See diff between encrypted and decrypted files.
     #[command(name = "diff", aliases = ["di"])]
     Diff(DiffArgs),
+
+    /// Verify the checksum matches for encrypted files and recipients.
+    #[command(name = "verify", aliases = ["ve"])]
+    Verify(VerifyArgs),
 
     /// Delete all secrets and identity files.
     #[command(name = "clean", aliases = ["cl"])]
@@ -423,6 +427,25 @@ struct StatusArgs {
     /// Exit with code 1 if there are pending operations.
     #[arg(long, env = "COTTAGE_FAIL")]
     fail: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct VerifyArgs {
+    /// The file or dir to verify, defaults to project root.
+    path: Vec<PathBuf>,
+
+    /// Verify against recipients listed at PATH. Can be repeated.
+    /// Defaults to recipients in .cottage/recipients.
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
+    recipients_file: Vec<PathBuf>,
+
+    /// Skip checksum verification of encrypted files.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
+    skip_verify_encrypted: bool,
+
+    /// Skip checksum verification of recipients.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_RECIPIENTS")]
+    skip_verify_recipients: bool,
 }
 
 fn print_edits(mut file: impl Write, proj: &Project, op: &OperationResult) -> Result<()> {
@@ -935,6 +958,25 @@ fn setup_logging(verbosity: Verbosity<WarnLevel>) {
         .init();
 }
 
+fn run_verify_cmd(proj: &Project, args: VerifyArgs) -> Result<()> {
+    let input = get_input_paths(proj, args.path);
+    let recipients = load_recipients(proj, args.recipients_file, None).collect();
+
+    let options = VerifyOptions {
+        recipients,
+        skip_verify_encrypted: args.skip_verify_encrypted,
+        skip_verify_recipients: args.skip_verify_recipients,
+    };
+
+    for path in &input {
+        for res in verify_path(path, &options) {
+            res?;
+        }
+    }
+
+    Ok(())
+}
+
 fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
     if let Command::AutoComplete { shell } = cmd {
         return run_complete_cmd(shell);
@@ -957,6 +999,7 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
         Command::Sync(args) => run_sync_cmd(&proj, args, is_silent),
         Command::Status(args) => run_status_cmd(&proj, args, is_silent),
         Command::Diff(args) => run_diff_cmd(&proj, args),
+        Command::Verify(args) => run_verify_cmd(&proj, args),
         Command::Clean(args) => run_clean_cmd(&proj, args, is_silent),
         Command::Edit(args) => run_edit_cmd(&proj, args, is_silent),
         Command::Run(args) => run_run_cmd(&proj, args, is_silent),

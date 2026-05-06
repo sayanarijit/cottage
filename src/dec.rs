@@ -1,14 +1,13 @@
 use crate::{
-    Identity, Metadata, OperationKind, OperationResult, is_encrypted_path,
-    project::append_to_gitignore_if_absent, to_decrypted_path, to_metadata_path, verify_checksum,
+    Identity, OperationKind, OperationResult, is_encrypted_path,
+    project::append_to_gitignore_if_absent, to_decrypted_path,
 };
-use crate::{RecipientData, filter_recipients_by_metadata, make_recipients_checksum_data};
+use crate::{RecipientData, VerifyOptions, verify_file};
 use age::armor::ArmoredReader;
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result};
 use filetime::{FileTime, set_file_mtime};
-use std::fs::File;
-use std::io::{BufReader, Read, Seek, SeekFrom, Write};
+use std::io::{Read, Write};
 use std::path::Path;
 
 pub struct DecryptOptions {
@@ -42,64 +41,20 @@ pub fn decrypt_into_memory(
 pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<OperationResult>> {
     log::debug!("{}: decrypting file", path.display());
     // Just read operations for now ------------------------
-    if !is_encrypted_path(path) {
-        log::warn!("skipped: {}: invalid path for decryption", path.display());
+
+    let verify_opts = VerifyOptions {
+        recipients: opts.recipients.clone(),
+        skip_verify_encrypted: opts.skip_verify_encrypted,
+        skip_verify_recipients: opts.skip_verify_recipients,
+    };
+
+    let Some(verified) = verify_file(path, &verify_opts)? else {
         return Ok(None);
-    }
+    };
 
     let output_path = to_decrypted_path(path)
         .with_context(|| format!("{}: could not determine output path", path.display()))?;
-    let metadata_path = to_metadata_path(&output_path);
-    let metadata = Metadata::read_from_path(&metadata_path)
-        .with_context(|| format!("{}: could not read metadata", metadata_path.display()))?;
-
-    let mut input_file = File::open(path)
-        .with_context(|| format!("{}: could not open input file", path.display()))?;
-    log::debug!("{}: reading encrypted file", path.display());
-    let filemtime = input_file.metadata()?.modified()?;
-
-    let input = {
-        let mut reader = BufReader::new(&input_file);
-        let mut buffer = vec![];
-        std::io::copy(&mut reader, &mut buffer)?;
-        input_file.seek(SeekFrom::Start(0))?;
-        buffer.flush()?;
-        SecretSlice::new(buffer.into())
-    };
-
-    if !opts.skip_verify_recipients {
-        let allow = metadata.secret.allow.as_deref();
-        let deny = metadata.secret.deny.as_deref();
-
-        log::debug!(
-            "filtering recipients based on metadata rules: allow={:?}, deny={:?}",
-            allow.unwrap_or_default(),
-            deny.unwrap_or_default()
-        );
-
-        let filtered =
-            filter_recipients_by_metadata(&opts.recipients, allow, deny)?.collect::<Vec<_>>();
-        let checksum_data = make_recipients_checksum_data(&filtered);
-        verify_checksum(&checksum_data.into(), &metadata.checksum.recipients, path).with_context(
-            || {
-                format!(
-                    "{}: recipients mismatch: use --skip-verify-recipients to skip this check",
-                    metadata_path.display()
-                )
-            },
-        )?;
-    }
-
-    if !opts.skip_verify_encrypted {
-        verify_checksum(&input, &metadata.checksum.encrypted, path).with_context(|| {
-            format!(
-                "{}: content mismatch: use --skip-verify-encrypted to skip this check",
-                metadata_path.display()
-            )
-        })?;
-    }
-
-    let output = decrypt_into_memory(input_file, opts)?;
+    let output = decrypt_into_memory(verified.content.as_slice(), opts)?;
 
     // Write starts here ------------------------
 
@@ -138,7 +93,7 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
         };
         if !opts.skip_timestamps {
             log::debug!("{}: updating timestamp", output_path.display());
-            set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
+            set_file_mtime(&output_path, FileTime::from_system_time(verified.mtime))?;
         };
         Ok(res)
     }

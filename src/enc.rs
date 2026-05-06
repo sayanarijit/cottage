@@ -1,11 +1,11 @@
 use crate::{
-    ChecksumMetadata, DecryptOptions, Metadata, OperationKind, OperationResult, SecretMetadata,
-    decrypt_into_memory, is_encrypted_path, make_recipients_checksum_data,
-    project::append_to_gitignore_if_absent, to_decrypted_path, to_encrypted_path, to_metadata_path,
+    ChecksumMetadata, Metadata, OperationKind, OperationResult, SecretMetadata, is_encrypted_path,
+    make_recipients_checksum_data, project::append_to_gitignore_if_absent, to_decrypted_path,
+    to_encrypted_path, to_metadata_path,
 };
 use crate::{
-    Identity, RecipientData, filter_recipients_by_metadata, generate_preview, is_metadata_path,
-    make_checksum, verify_checksum,
+    DecryptOptions, Identity, RecipientData, VerifyOptions, decrypt_into_memory, generate_preview,
+    is_metadata_path, make_checksum, verify_file,
 };
 use age::armor::ArmoredWriter;
 use age::secrecy::{ExposeSecret, SecretSlice};
@@ -60,86 +60,37 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         std::io::copy(&mut reader, &mut buffer)?;
         SecretSlice::new(buffer.into())
     };
+    let filemtime = input_file.metadata()?.modified()?;
 
     let output_path = to_encrypted_path(path);
     let metadata_path = to_metadata_path(path);
-    let filemtime = input_file.metadata()?.modified()?;
 
     let old_metadata = Metadata::read_from_path(&metadata_path).ok();
-    let recipients = if output_path.exists() && metadata_path.exists() {
-        log::debug!(
-            "{}: existing encrypted and metadata files found",
-            path.display()
-        );
-
-        let allow = old_metadata
-            .as_ref()
-            .and_then(|m| m.secret.allow.as_ref())
-            .map(|globs| globs.as_slice());
-        let deny = old_metadata
-            .as_ref()
-            .and_then(|m| m.secret.deny.as_ref())
-            .map(|globs| globs.as_slice());
-
-        log::debug!(
-            "filtering recipients based on metadata rules: allow={:?}, deny={:?}",
-            allow.unwrap_or_default(),
-            deny.unwrap_or_default()
-        );
-
-        let filtered =
-            filter_recipients_by_metadata(&opts.recipients, allow, deny)?.collect::<Vec<_>>();
-
-        if filtered.is_empty() {
-            return Err(anyhow!(
-                "{}: no recipients found to encrypt the secret for",
-                path.display()
-            ));
-        }
-        filtered
+    let verified_data = if metadata_path.exists() && output_path.exists() {
+        let verify_opts = VerifyOptions {
+            recipients: opts.recipients.clone(),
+            skip_verify_encrypted: true,
+            skip_verify_recipients: opts.skip_verify_recipients,
+        };
+        verify_file(&output_path, &verify_opts)
     } else {
-        opts.recipients.clone()
-    };
+        Ok(None)
+    }?;
 
-    let recp_checksum = make_recipients_checksum_data(&recipients);
-    let old_secret = if let Some(metadata) = old_metadata.as_ref() {
-        if !opts.skip_verify_recipients {
-            log::debug!(
-                "{}: verifying intended encryption recipients",
-                metadata_path.display()
-            );
-            verify_checksum(
-                &recp_checksum.clone().into(),
-                &metadata.checksum.recipients,
-                &metadata_path,
-            )
-            .with_context(|| {
-                format!(
-                    "{}: recipients mismatch, use --skip-verify-recipients or --force to overwrite",
-                    metadata_path.display()
-                )
-            })?;
-        }
-
-        let decrypt_options = DecryptOptions {
+    let (old_secret, recipients) = if let Some(res) = verified_data {
+        let dec_opts = DecryptOptions {
             identities: opts.identities.clone(),
-            recipients: recipients.clone(),
+            recipients: opts.recipients.clone(),
+            dry_run: true, // No need to write decrypted content to disk
             skip_gitignore: true,
             skip_timestamps: true,
             skip_verify_encrypted: true,
             skip_verify_recipients: true,
-            dry_run: true,
         };
-        let encrypted_file = File::open(&output_path).with_context(|| {
-            format!(
-                "{}: could not open existing encrypted file",
-                output_path.display()
-            )
-        })?;
-
-        decrypt_into_memory(encrypted_file, &decrypt_options).ok()
+        let old_secret = decrypt_into_memory(res.content.as_slice(), &dec_opts)?;
+        (Some(old_secret), res.recipients)
     } else {
-        None
+        (None, opts.recipients.clone())
     };
 
     let encryptor =
@@ -184,6 +135,7 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         None
     };
 
+    let recp_checksum = make_recipients_checksum_data(&recipients);
     let recp_checksum = make_checksum(&recp_checksum.into());
     let checksum = {
         let encrypted = make_checksum(&output);

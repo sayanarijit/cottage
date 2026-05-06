@@ -18,6 +18,10 @@ id = "cottage-sync-encrypt"
 [[repos.hooks]]
 id = "cottage-encrypt"
 
+# [post|write] verify the upstream modified secrets (content based)
+[[repos.hooks]]
+id = "cottage-verify"
+
 # [post|write] decrypt the upstream modified secrets (timestamp based)
 [[repos.hooks]]
 id = "cottage-sync-decrypt"

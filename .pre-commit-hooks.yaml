@@ -4,6 +4,7 @@
   entry: ctg status --skip-decryption --fail
   language: system
   pass_filenames: false
+  stages: [pre-commit, pre-push]
   always_run: true
 
 - id: cottage-diff
@@ -12,6 +13,7 @@
   entry: ctg diff --skip-decryption --fail
   language: system
   pass_filenames: false
+  stages: [pre-commit, pre-push]
   always_run: true
 
 - id: cottage-sync-encrypt
@@ -20,6 +22,7 @@
   entry: ctg sync --skip-decryption
   language: system
   pass_filenames: false
+  stages: [pre-commit, pre-push]
   always_run: true
 
 - id: cottage-encrypt
@@ -28,7 +31,17 @@
   entry: ctg encrypt
   language: system
   pass_filenames: false
+  stages: [pre-commit, pre-push]
   always_run: true
+
+- id: cottage-verify
+  name: cottage-verify
+  description: verify the upstream modified secrets (content based)
+  entry: ctg verify
+  language: system
+  files: "\\.cott\\.(age|toml)$"
+  pass_filenames: false
+  stages: [post-checkout, post-merge]
 
 - id: cottage-sync-decrypt
   name: cottage-sync-decrypt

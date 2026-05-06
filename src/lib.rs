@@ -11,6 +11,7 @@ pub(crate) mod project;
 pub(crate) mod recipients;
 pub(crate) mod status;
 pub(crate) mod sync;
+pub(crate) mod verify;
 
 pub(crate) use clean::{CleanOptions, clean_path};
 pub(crate) use dec::{DecryptOptions, decrypt_into_memory, decrypt_path};
@@ -28,13 +29,14 @@ pub(crate) use operation::{
 pub(crate) use preview::generate_preview;
 pub(crate) use project::{Project, remove_from_gitignore_if_present};
 
-#[cfg(test)]
-pub(crate) use project::{append_line_if_absent, append_to_gitignore_if_absent, get_root};
 pub(crate) use recipients::{
     RecipientData, filter_recipients_by_metadata, load_recipients, make_recipients_checksum_data,
 };
 pub(crate) use status::{StatusOptions, status_path};
 pub(crate) use sync::{SyncOptions, sync_path};
+pub(crate) use verify::{VerifyOptions, verify_file, verify_path};
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+pub(crate) use project::{append_line_if_absent, append_to_gitignore_if_absent, get_root};
