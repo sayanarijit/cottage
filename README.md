@@ -213,7 +213,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Verify secrets
-        run: ctg verify
+        run: verify
 ```
 
 ## Learn More
