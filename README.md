@@ -213,7 +213,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Verify secrets
-        run: docker run --rm -v "${{ github.workspace }}:/app" ghcr.io/sayanarijit/cottage verify
+        run: docker run --rm -v "${{ github.workspace }}:/app" ghcr.io/sayanarijit/cottage:main verify
 ```
 
 ## Learn More
