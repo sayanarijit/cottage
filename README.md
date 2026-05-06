@@ -6,7 +6,10 @@
   </picture>
 </p>
 
-# cottage
+[![Cottage Verify](https://github.com/sayanarijit/cottage/actions/workflows/cottage-verify.yml/badge.svg)](https://github.com/sayanarijit/cottage/actions/workflows/cottage-verify.yml)
+[![Crates.io Version](https://img.shields.io/crates/v/cottage)](https://crates.io/crates/cottage)
+[![PyPI - Version](https://img.shields.io/pypi/v/cottage)](https://pypi.org/project/cottage/)
+[![Docker Image Version](https://img.shields.io/docker/v/:user/:repo)](https://hub.docker.com/r/sayanarijit/cottage)
 
 Cottage is a gitops tool for teams to manage [age-encrypted](https://age-encryption.org/) secrets in git repositories.
 
@@ -23,7 +26,7 @@ in plaintext.
 1. [Features](#features)
 2. [Installation](#installation)
 3. [Quick Start](#quick-start)
-4. [Sharing with a team member](#sharing-with-a-team-member)
+4. [GitOps](#gitops)
 5. [Git Hooks](#git-hooks)
 6. [Access Control](#access-control)
    1. [Rules](#rules)
@@ -128,9 +131,9 @@ Or use the shortcut:
 ctgx ./deploy.sh  # same as ctg run -- ./deploy.sh
 ```
 
-## Sharing with a team member
+## GitOps
 
-To share your secrets, just push to the git repo.
+To share your secrets with team members, just push to the git repo.
 
 ```bash
 git add .
@@ -202,6 +205,8 @@ You can run `ctg verify` in CI to verify that the encrypted secrets and recipien
 # .github/workflows/cottage-verify.yml
 name: Cottage Verify
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   verify-secrets:
     runs-on: ghcr.io/sayanarijit/cottage:latest

@@ -1,5 +1,7 @@
 name: Cottage Verify
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   verify-secrets:
     runs-on: quay.io/sayanarijit/cottage:latest
