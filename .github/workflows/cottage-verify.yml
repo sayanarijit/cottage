@@ -4,8 +4,7 @@ permissions:
   contents: read
 jobs:
   verify-secrets:
-    runs-on: quay.io/sayanarijit/cottage:latest
     steps:
       - uses: actions/checkout@v3
       - name: Verify secrets
-        run: verify
+        run: docker run --rm -v "${{ github.workspace }}:/app" ghcr.io/sayanarijit/cottage verify

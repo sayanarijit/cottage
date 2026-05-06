@@ -15,5 +15,7 @@ FROM alpine:3.23.4 AS final
 # Copy the executable from the "build" stage.
 COPY --from=build /app/target/release/ctg /bin/
 
+WORKDIR /app
+
 # What the container should run when it is started.
 ENTRYPOINT ["/bin/ctg"]

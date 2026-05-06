@@ -65,14 +65,14 @@ pip install cottage
 uv pip install cottage
 ```
 
-Also available on docker hub
+Also available as docker images:
 
 ```bash
 # Docker
-docker run --rm sayanarijit/cottage --version
+docker run --rm -v $PWD:/app sayanarijit/cottage --version
 
 # Podman
-podman run --rm quay.io/sayanarijit/cottage --version
+podman run --rm -v $PWD:/app quay.io/sayanarijit/cottage --version
 ```
 
 Or download the latest release from [GitHub](https://github.com/sayanarijit/cottage/releases).
@@ -209,11 +209,10 @@ permissions:
   contents: read
 jobs:
   verify-secrets:
-    runs-on: ghcr.io/sayanarijit/cottage:latest
     steps:
       - uses: actions/checkout@v3
       - name: Verify secrets
-        run: verify
+        run: docker run --rm -v "${{ github.workspace }}:/app" ghcr.io/sayanarijit/cottage verify
 ```
 
 ## Learn More
