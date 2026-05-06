@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufReader, Write},
+    io::BufReader,
     path::Path,
     time::SystemTime,
 };
@@ -70,14 +70,12 @@ pub fn verify_file(path: &Path, opts: &VerifyOptions) -> Result<Option<Verificat
 
     let input_file = File::open(path)
         .with_context(|| format!("{}: could not open input file", path.display()))?;
-    log::debug!("{}: reading encrypted file", path.display());
     let mtime = input_file.metadata()?.modified()?;
 
     let content = {
         let mut reader = BufReader::new(&input_file);
         let mut buffer = vec![];
         std::io::copy(&mut reader, &mut buffer)?;
-        buffer.flush()?;
         buffer
     };
 

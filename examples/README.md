@@ -156,6 +156,31 @@ diff --git a/examples/secrets/secret.yaml b/examples/secrets/secret.yaml
 
 <!-- end_slide -->
 
+# `ctg verify`
+
+Verify the checksum matches for encrypted files and recipients. This is useful in CI to ensure that all changes to secrets and recipients are documented properly in the metadata file.
+
+```bash
+git checkout examples && ctg clean -qq
+
+# Verify a specific secret
+ctg verify examples/secrets/secret.yaml.cott.age
+# (No output if everything is correct)
+
+# Try to verify with wrong recipients to see it fail
+ctg verify examples/secrets/secret.yaml.cott.age -R Cargo.toml
+# Output:
+# Error: examples/secrets/secret.yaml.cott.toml: recipients mismatch: use --skip-verify-recipients to skip this check
+```
+
+### Target Behavior
+
+- **`.cott.age` File**: Verifies the content checksum and recipient checksum against the metadata.
+- **Directory**: Recursively finds and verifies all `.cott.age` files.
+- **Decrypted File**: Verifies the corresponding `.cott.age` file.
+
+<!-- end_slide -->
+
 # `ctg sync`
 
 Keeps encrypted and decrypted files in sync based on timestamps.

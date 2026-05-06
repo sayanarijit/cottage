@@ -13,7 +13,7 @@ use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
-use std::io::{BufReader, Write};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
@@ -93,6 +93,13 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         (None, opts.recipients.clone())
     };
 
+    if recipients.is_empty() {
+        return Err(anyhow!(
+            "{}: no recipients found to encrypt the secret for",
+            path.display()
+        ));
+    }
+
     let encryptor =
         age::Encryptor::with_recipients(recipients.iter().map(|r| r.recipient.as_ref()))?;
 
@@ -103,7 +110,6 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
             encryptor.wrap_output(ArmoredWriter::wrap_output(&mut buffer, format)?)?;
         std::io::copy(&mut reader, &mut enc_writer)?;
         enc_writer.finish().and_then(|armor| armor.finish())?;
-        buffer.flush()?;
         SecretSlice::new(buffer.into())
     };
 

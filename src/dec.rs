@@ -7,7 +7,7 @@ use age::armor::ArmoredReader;
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result};
 use filetime::{FileTime, set_file_mtime};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::Path;
 
 pub struct DecryptOptions {
@@ -34,7 +34,6 @@ pub fn decrypt_into_memory(
     }?;
 
     std::io::copy(&mut decrypted, &mut buffer)?;
-    buffer.flush()?;
     Ok(buffer.into())
 }
 
