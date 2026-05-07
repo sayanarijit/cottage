@@ -10,6 +10,9 @@ use filetime::{FileTime, set_file_mtime};
 use std::io::Read;
 use std::path::Path;
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 pub struct DecryptOptions {
     pub identities: Vec<Identity>,
     pub recipients: Vec<RecipientData>,
@@ -82,6 +85,13 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
             std::fs::write(&output_path, output.expose_secret()).with_context(|| {
                 format!("{}: could not write decrypted file", output_path.display())
             })?;
+
+            #[cfg(unix)]
+            {
+                std::fs::set_permissions(&output_path, std::fs::Permissions::from_mode(0o600))?;
+                log::debug!("{}: set permissions to 600", output_path.display());
+            }
+
             Some(OperationResult {
                 kind: OperationKind::Decrypt,
                 input: path.to_path_buf(),
