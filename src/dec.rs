@@ -76,11 +76,10 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
             let mut edits = vec![];
             // First add to .gitignore before creating the decrypted file, so that if the operation fails
             // for some reason, we won't have a decrypted file that is not ignored.
-            if !opts.skip_gitignore {
-                if let Some(gi) = append_to_gitignore_if_absent(&output_path, opts.dry_run)? {
+            if !opts.skip_gitignore
+                && let Some(gi) = append_to_gitignore_if_absent(&output_path, opts.dry_run)? {
                     edits.push(gi);
-                }
-            };
+                };
 
             log::debug!("{}: writing decrypted file", output_path.display());
             std::fs::write(&output_path, output.expose_secret()).with_context(|| {

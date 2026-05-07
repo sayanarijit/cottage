@@ -98,7 +98,7 @@ fn print_edits(mut file: impl Write, proj: &Project, edits: &[PathBuf]) -> Resul
             file,
             "   {} {}",
             "edit".yellow(),
-            proj.relative_to_cwd(&path).display()
+            proj.relative_to_cwd(path).display()
         )?;
     }
     Ok(())
@@ -110,7 +110,7 @@ fn print_cleanups(mut file: impl Write, proj: &Project, cleanups: &[PathBuf]) ->
             file,
             "{} {}",
             " delete".red(),
-            proj.relative_to_cwd(&path).display()
+            proj.relative_to_cwd(path).display()
         )?;
     }
     Ok(())

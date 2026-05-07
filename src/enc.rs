@@ -192,11 +192,10 @@ pub fn encrypt_file(
         } else {
             let mut edits = Vec::new();
             // First add to .gitignore before creating the encrypted file, because, why not!
-            if !opts.skip_gitignore {
-                if let Some(gi) = append_to_gitignore_if_absent(path, opts.dry_run)? {
+            if !opts.skip_gitignore
+                && let Some(gi) = append_to_gitignore_if_absent(path, opts.dry_run)? {
                     edits.push(gi);
                 }
-            }
 
             log::debug!("{}: writing encrypted file", output_path.display());
             std::fs::write(&output_path, output.expose_secret()).with_context(|| {

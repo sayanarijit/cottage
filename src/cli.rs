@@ -268,8 +268,11 @@ struct DecryptArgs {
 #[derive(clap::Args, Debug)]
 struct RunArgs {
     /// The command to run.
-    #[arg(required = true)]
-    command: Vec<String>,
+    command: String,
+
+    /// Additional arguments to the command. If any argument is an encrypted file, it will be
+    /// decrypted and replaced with the decrypted path.
+    args: Vec<String>,
 
     /// Verify against recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients.
@@ -632,7 +635,7 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
 fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
     let mut input_paths = vec![];
     let mut modified_args = vec![];
-    for arg in args.command.iter().skip(1) {
+    for arg in args.args.iter() {
         let p = PathBuf::from(arg);
         if is_encrypted_path(&p) && p.exists() {
             if let Some(dec) = to_decrypted_path(&p) {
@@ -652,13 +655,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         }
     }
 
-    log::debug!(
-        "original args: {:?}",
-        args.command[1..]
-            .iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>()
-    );
+    log::debug!("original args: {:?}", args.args,);
     log::debug!("modified args: {:?}", modified_args);
     log::debug!("input paths: {:?}", input_paths);
 
@@ -703,10 +700,15 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         log::info!("dry run: skipping running the command");
         Ok((true, Some(0)))
     } else {
-        let mut cmd = std::process::Command::new(&args.command[0]);
-        cmd.args(&modified_args);
-        log::info!("running command: {:?}", &cmd);
-        cmd.status().map(|s| (s.success(), s.code()))
+        log::info!(
+            "running command: {:?} with args: {:?}",
+            &args.command,
+            &modified_args
+        );
+        std::process::Command::new(&args.command)
+            .args(&modified_args)
+            .status()
+            .map(|s| (s.success(), s.code()))
     };
 
     let clean_opts = CleanOptions {
@@ -777,10 +779,10 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
                 skip_verify_recipients: args.force || args.skip_verify_recipients,
                 dry_run: false,
             };
-            if let Some(res) = decrypt_file(&encrypted_path, &options)? {
-                if !quiet {
-                    print_result(&mut stdout, proj, &res, args.compact)?;
-                }
+            if let Some(res) = decrypt_file(&encrypted_path, &options)?
+                && !quiet
+            {
+                print_result(&mut stdout, proj, &res, args.compact)?;
             }
             // Cant't fail from now on
         }
@@ -820,7 +822,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
         for res in clean_path(&decrypted_path, &clean_opts) {
             let res = res?;
             if !quiet {
-                print_result(&mut stdout, proj, &res.into(), args.compact)?;
+                print_result(&mut stdout, proj, &res, args.compact)?;
             }
         }
     }
