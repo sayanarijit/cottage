@@ -21,20 +21,16 @@ in plaintext.
 
 ![Intro Demo](https://vhs.charm.sh/vhs-6P2I0IyW7AJADjAEzVjOJP.gif)
 
-# Table of contents
-
-1. [Features](#features)
-2. [Installation](#installation)
-3. [Quick Start](#quick-start)
-4. [GitOps](#gitops)
-5. [Git Hooks](#git-hooks)
-6. [Access Control](#access-control)
-   1. [Rules](#rules)
-   2. [Verification](#verification)
-7. [Learn More](#learn-more)
-8. [Alternatives](#alternatives)
-9. [Troubleshooting](#troubleshooting)
-10. [License](#license)
+1.  [Features](#features)
+2.  [Installation](#installation)
+3.  [Quick Start](#quick-start)
+4.  [GitOps](#gitops)
+5.  [Git Hooks](#git-hooks)
+6.  [Access Control](#access-control)
+    1. [Rules](#rules)
+    2. [Verification](#verification)
+7.  [Any Provider as Upstream](#any-provider-as-upstream)
+8.  [License](#license)
 
 ## Features
 
@@ -51,6 +47,7 @@ in plaintext.
 - **Environment injection workflow**: `ctg env` injects decrypted secrets as environment variables to run a command, without writing them to disk at all.
 - **Clean up**: `ctg clean` deletes all decrypted secrets from local repo to let you run your AI agents with a tiny bit less worry.
 - **Supports jj and non-git directories**: `ctg init` turns any directory into a secret store.
+- **Sync with any provider**: Lets you configure any provider with an API as the upstream, and start using `ctg pull/diff/push` like `git pull/diff/push`.
 
 ## Installation
 
@@ -227,6 +224,34 @@ jobs:
       - uses: actions/checkout@v3
       - name: Verify secrets
         run: docker run --rm -v "${{ github.workspace }}:/app" ghcr.io/sayanarijit/cottage verify
+```
+
+## Any Provider as Upstream
+
+With cottage, you can sync secrets with any provider that has an API, not just git.
+
+For that, create a file named `cottage.toml` in the project root and configure the upstream settings.
+
+See the [example `cottage.toml` here](./cottage.toml) and the [secret specific upstream configuration here](./examples/secrets/secret.json.cott.toml).
+
+The workflow is similar to git, but instead of `git pull` and `git push`, you run `ctg pull` and `ctg push` to sync secrets with the configured upstream.
+
+Example:
+
+```bash
+# Pull latest changes into local encrypted secrets
+# Similar to `git pull origin`
+ctg pull myvault
+
+# Compare diff with local decrypted secrets
+ctg diff
+
+# Sync local decrypted secrets with local encrypted secrets
+ctg sync
+
+# Push changes from local encrypted secrets to upstream
+# Similar to `git push origin main`
+ctg push myvault
 ```
 
 ## Learn More

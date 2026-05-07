@@ -304,9 +304,79 @@ ctg env -F examples/secrets/secret.yaml.cott.age -- sh -c 'echo "$COTTAGE_SECRET
 
 <!-- end_slide -->
 
+# `ctg pull`
+
+Fetch secrets from a remote upstream and encrypt them locally.
+
+```bash
+git checkout examples && ctg clean -qq
+
+# Pull a secret from the 'customvault' upstream
+ctg pull examples/secrets/secret.json.cott.age
+# Output:
+# pull    customvault
+#    into examples/secrets/secret.json.cott.age
+```
+
 ### Target Behavior
 
-- **Any Path**: While `run` takes a command, it uses the paths within the project to determine what to decrypt. By default, it decrypts _everything_ in the project root.
+- **`.cott.age` File**: Pulls the secret for this specific file if it has an upstream configured in its metadata.
+- **Directory**: Recursively pulls secrets for all `.cott.age` files that have upstreams configured.
+- **Decrypted File**: Pulls for the corresponding `.cott.age` file.
+
+<!-- end_slide -->
+
+# `ctg push`
+
+Push locally encrypted secrets (decrypted in memory) to a remote upstream.
+
+```bash
+git checkout examples && ctg clean -qq
+
+# Push a secret to the 'customvault' upstream
+ctg push examples/secrets/secret.json.cott.age
+# Output:
+# push    examples/secrets/secret.json.cott.age
+#    into customvault
+```
+
+### Target Behavior
+
+- **`.cott.age` File**: Pushes the secret for this specific file if it has an upstream configured in its metadata.
+- **Directory**: Recursively pushes secrets for all `.cott.age` files that have upstreams configured.
+- **Decrypted File**: Pushes for the corresponding `.cott.age` file.
+
+<!-- end_slide -->
+
+# Remote Upstreams
+
+`ctg` can be configured to pull/push secrets from/to remote upstreams like HashiCorp Vault, AWS Secrets Manager, or custom APIs.
+
+Upstreams are defined in `cottage.toml` and linked to secrets in their `.cott.toml` metadata files.
+
+### Configuration Example (`cottage.toml`)
+
+```toml
+[upstream.customvault]
+vars = { HOST = "customvault.example.com" }
+
+[upstream.customvault.pull]
+script = 'curl -s "https://${HOST}/api/pull${DESTINATION}"'
+
+[upstream.customvault.push]
+script = 'curl -s -X POST -d @- "https://${HOST}/api/push${DESTINATION}"'
+```
+
+### Linking a Secret (`examples/secrets/secret.json.cott.toml`)
+
+```toml
+[upstream.customvault]
+pull = true
+push = true
+
+[upstream.customvault.vars]
+DESTINATION = "/vault/myapp/env/staging"
+```
 
 <!-- end_slide -->
 

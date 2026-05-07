@@ -1,6 +1,6 @@
+use crate::*;
 use age::secrecy::SecretBox;
 use chrono::{TimeZone, Utc};
-use crate::*;
 use std::path::Path;
 
 #[test]
@@ -11,7 +11,14 @@ fn test_generate_preview_hcl() {
         .with_ymd_and_hms(2026, 5, 1, 12, 0, 0)
         .unwrap()
         .to_rfc3339();
-    let preview = generate_preview(path, &SecretBox::new(content.to_vec().into()), None, None, &timestamp).unwrap();
+    let preview = generate_preview(
+        path,
+        &SecretBox::new(content.to_vec().into()),
+        None,
+        None,
+        &timestamp,
+    )
+    .unwrap();
     assert_eq!(preview.format, PreviewFormat::Hcl);
     assert!(preview.preview.contains("2026-05-01T12:00:00+00:00"));
 }
@@ -24,7 +31,14 @@ fn test_generate_preview_ini() {
         .with_ymd_and_hms(2026, 5, 1, 12, 0, 0)
         .unwrap()
         .to_rfc3339();
-    let preview = generate_preview(path, &SecretBox::new(content.to_vec().into()), None, None, &timestamp).unwrap();
+    let preview = generate_preview(
+        path,
+        &SecretBox::new(content.to_vec().into()),
+        None,
+        None,
+        &timestamp,
+    )
+    .unwrap();
     assert_eq!(preview.format, PreviewFormat::Ini);
     assert!(preview.preview.contains("foo=2026-05-01T12:00:00+00:00"));
 }
@@ -37,7 +51,14 @@ fn test_generate_preview_yaml_multi_doc() {
         .with_ymd_and_hms(2026, 5, 1, 12, 0, 0)
         .unwrap()
         .to_rfc3339();
-    let preview = generate_preview(path, &SecretBox::new(content.to_vec().into()), None, None, &timestamp).unwrap();
+    let preview = generate_preview(
+        path,
+        &SecretBox::new(content.to_vec().into()),
+        None,
+        None,
+        &timestamp,
+    )
+    .unwrap();
     assert_eq!(preview.format, PreviewFormat::Yaml);
     assert!(preview.preview.contains("a: 2026-05-01T12:00:00+00:00"));
     assert!(preview.preview.contains("c: 2026-05-01T12:00:00+00:00"));
@@ -51,7 +72,14 @@ fn test_generate_preview_jsonl() {
         .with_ymd_and_hms(2026, 5, 1, 12, 0, 0)
         .unwrap()
         .to_rfc3339();
-    let preview = generate_preview(path, &SecretBox::new(content.to_vec().into()), None, None, &timestamp).unwrap();
+    let preview = generate_preview(
+        path,
+        &SecretBox::new(content.to_vec().into()),
+        None,
+        None,
+        &timestamp,
+    )
+    .unwrap();
     assert_eq!(preview.format, PreviewFormat::Json);
     assert!(
         preview
@@ -73,7 +101,14 @@ fn test_generate_preview_yaml_complex_keys() {
         .with_ymd_and_hms(2026, 5, 1, 12, 0, 0)
         .unwrap()
         .to_rfc3339();
-    let preview = generate_preview(path, &SecretBox::new(content.to_vec().into()), None, None, &timestamp).unwrap();
+    let preview = generate_preview(
+        path,
+        &SecretBox::new(content.to_vec().into()),
+        None,
+        None,
+        &timestamp,
+    )
+    .unwrap();
     assert_eq!(preview.format, PreviewFormat::Yaml);
     // Values should be redacted
     assert!(preview.preview.contains("2026-05-01T12:00:00+00:00"));

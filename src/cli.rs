@@ -1,8 +1,9 @@
 use crate::{
     CleanOptions, DecryptOptions, DiffOptions, EditOptions, EncryptOptions, EnvOptions, Project,
-    RunOptions, StatusOptions, SyncOptions, VerifyOptions, clean_path, decrypt_path, diff,
-    edit as edit_task, encrypt_path, env as env_task, load_identities, load_recipients,
-    print_result, run as run_task, status_path, sync_path, verify_path,
+    PullOptions, PushOptions, RunOptions, StatusOptions, SyncOptions, VerifyOptions, clean_path,
+    decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task, load_identities,
+    load_recipients, print_result, pull_path, push_path, run as run_task, status_path, sync_path,
+    verify_path,
 };
 use anyhow::Result;
 use clap::CommandFactory;
@@ -85,6 +86,14 @@ enum Command {
     /// Run command with decrypted secrets exported as environment variables.
     #[command(name = "env", trailing_var_arg = true)]
     Env(EnvArgs),
+
+    /// Pull secrets from upstream.
+    #[command(name = "pull")]
+    Pull(PullArgs),
+
+    /// Push secrets to upstream.
+    #[command(name = "push")]
+    Push(PushArgs),
 
     #[cfg(feature = "autocomplete")]
     /// Generate shell completions.
@@ -493,6 +502,96 @@ struct VerifyArgs {
     skip_verify_recipients: bool,
 }
 
+#[derive(clap::Args, Debug)]
+struct PullArgs {
+    /// The upstream name to push to. Defaults to all upstreams.
+    upstream: Option<String>,
+
+    /// The file or dir to pull, defaults to project root.
+    path: Vec<PathBuf>,
+
+    /// Encrypt to recipients listed at PATH. Can be repeated.
+    /// Defaults to recipients in .cottage/recipients.
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
+    recipients_file: Vec<PathBuf>,
+
+    /// Use the identity file at PATH. Can be repeated.
+    /// Defaults to .cottage/identity or ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
+    identity: Vec<PathBuf>,
+
+    /// Encrypt to a PEM encoded format.
+    #[arg(short, long, env = "COTTAGE_ARMOR")]
+    armor: bool,
+
+    /// Skip updating timestamps on encrypted files.
+    #[arg(long, env = "COTTAGE_SKIP_TIMESTAMPS")]
+    skip_timestamps: bool,
+
+    /// Skip adding encrypted files to .gitignore.
+    #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
+    skip_gitignore: bool,
+
+    /// Skip checksum matching and re-encrypt all files.
+    #[arg(long, short, env = "COTTAGE_FORCE")]
+    force: bool,
+
+    /// Skip preview generation.
+    #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
+    skip_preview: bool,
+
+    /// Dry run, don't actually pull anything.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+
+    /// Enable outputs from stderr, useful for debugging upstream scripts.
+    #[arg(long)]
+    debug: bool,
+
+    /// Compact output.
+    #[arg(long, env = "COTTAGE_COMPACT")]
+    compact: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct PushArgs {
+    /// The upstream name to push to. Defaults to all upstreams.
+    upstream: Option<String>,
+
+    /// The file or dir to push, defaults to project root.
+    path: Vec<PathBuf>,
+
+    /// Use the identity file at PATH. Can be repeated.
+    /// Defaults to .cottage/identity or ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
+    identity: Vec<PathBuf>,
+
+    /// Verify against recipients listed at PATH. Can be repeated.
+    /// Defaults to recipients in .cottage/recipients.
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
+    recipients_file: Vec<PathBuf>,
+
+    /// Skip checksum verification of encrypted files.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
+    skip_verify_encrypted: bool,
+
+    /// Skip checksum verification of recipients.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_RECIPIENTS")]
+    skip_verify_recipients: bool,
+
+    /// Dry run, don't actually push anything.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+
+    /// Enable outputs from stderr, useful for debugging upstream scripts.
+    #[arg(long)]
+    debug: bool,
+
+    /// Compact output.
+    #[arg(long, env = "COTTAGE_COMPACT")]
+    compact: bool,
+}
+
 fn get_input_paths(proj: &Project, path: Vec<PathBuf>) -> Vec<PathBuf> {
     if path.is_empty() {
         vec![proj.root().into()]
@@ -778,6 +877,55 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
     Ok(())
 }
 
+fn run_pull_cmd(proj: &Project, args: PullArgs, _quiet: bool) -> Result<()> {
+    let input = get_input_paths(proj, args.path);
+    let recipients = load_recipients(proj, args.recipients_file, None).collect();
+    let identities = load_identities(proj, args.identity).collect();
+
+    let options = PullOptions {
+        upstream: args.upstream,
+        recipients,
+        identities,
+        armor: args.armor,
+        skip_preview: args.skip_preview,
+        identity_path: proj.identity_path().to_path_buf(),
+        dry_run: args.dry_run,
+        debug: args.debug,
+    };
+
+    let mut stdout = std::io::stdout();
+    for path in &input {
+        for res in pull_path(path, proj, &options) {
+            let res = res?;
+            print_result(&mut stdout, proj, &res, args.compact)?;
+        }
+    }
+    Ok(())
+}
+
+fn run_push_cmd(proj: &Project, args: PushArgs, _quiet: bool) -> Result<()> {
+    let input = get_input_paths(proj, args.path);
+    let recipients = load_recipients(proj, args.recipients_file, None).collect();
+    let identities = load_identities(proj, args.identity).collect();
+
+    let options = PushOptions {
+        upstream: args.upstream,
+        recipients,
+        identities,
+        dry_run: args.dry_run,
+        debug: args.debug,
+    };
+
+    let mut stdout = std::io::stdout();
+    for path in &input {
+        for res in push_path(path, proj, &options) {
+            let res = res?;
+            print_result(&mut stdout, proj, &res, args.compact)?;
+        }
+    }
+    Ok(())
+}
+
 fn run_complete_cmd(shell: clap_complete::Shell) -> Result<()> {
     let mut cmd = CottageCli::command();
     let mut out = std::io::stdout();
@@ -870,6 +1018,8 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
         Command::Edit(args) => run_edit_cmd(&proj, args, is_silent),
         Command::Run(args) => run_run_cmd(&proj, args, is_silent),
         Command::Env(args) => run_env_cmd(&proj, args),
+        Command::Pull(args) => run_pull_cmd(&proj, args, is_silent),
+        Command::Push(args) => run_push_cmd(&proj, args, is_silent),
     }
 }
 

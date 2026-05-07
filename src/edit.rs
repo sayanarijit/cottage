@@ -42,9 +42,10 @@ pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<Operatio
         Ok(())
     } else {
         if is_target_encrypted
-            && let Some(res) = decrypt_file(&encrypted_path, &opts.decrypt_options)? {
-                results.push(Ok(res));
-            }
+            && let Some(res) = decrypt_file(&encrypted_path, &opts.decrypt_options)?
+        {
+            results.push(Ok(res));
+        }
 
         ::edit::edit_file(&decrypted_path).map_err(|e| anyhow!(e))
     };

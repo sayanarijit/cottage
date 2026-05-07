@@ -1,0 +1,53 @@
+# The default configuration for all upstreams.
+# You can override these settings for each specific upstream as needed.
+[upstream.defaults.vars]
+SCHEME = "https"
+
+# Default configuration for the "myvault" upstream.
+# You can also override settings for each specific tasks as needed.
+[upstream.customvault]
+envfile = "./examples/.env.cott.age" # Load environment variables from this encrypted file. Default is no env file.
+vars = {  # Extra variables overwriting the env file.
+  HOST = "customvault.example.com"
+}
+
+# Use any CLI tool or custom script to fetch secrets.
+# Variables defined in this file and the secret metadata will be injected as environment variables.
+# Print the fetched secret to stdout which will be piped to cottage for encryption.
+# You can see the stderr by enabling debug mode with `ctg pull --debug`.
+[upstream.customvault.pull]
+vars = {
+  OP = "/api/pull"
+}
+shell = "bash"  # Default is "sh". Use "bash" if you need features like variable interpolation.
+script = """
+URL="${SCHEME}://${HOST}${OP}${DESTINATION}"
+echo "Auto injected cottage binary path is: '$ctg'" 1>&2
+echo "Pulling secret from ${URL}..." 1>&2
+echo "Writing the secret to stdout, which will be securely piped to cottage..." 1>&2
+echo '{"SECRET": "A fresh value fetched from '${URL}'"}'
+"""
+
+# The decrypted secret will be securely piped to the script for pushing to the upstream.
+# You can see the stderr by enabling debug mode with `ctg push --debug`.
+[upstream.customvault.push]
+vars = {
+  OP = "/api/push"
+}
+shell = "bash"
+script = '''
+URL="${SCHEME}://${HOST}${OP}${DESTINATION}"
+SECRET="$(cat /dev/stdin)"
+echo "Auto injected cottage binary path is: '$ctg'" 1>&2
+echo "Pushing secret '${SECRET}' to ${URL}..." 1>&2
+'''
+
+# Define another upstream named "myvault" that uses a plugin to push/pull/rotate secrets.
+# A plugin is any binary that takes "pull" or "push" as the first argument, reads env vars,
+# reads the secret from stdin for "push", and outputs the secret to stdout for "pull".
+[upstream.myvault]
+envfile = "./examples/.env.cott.age"
+vars = {
+  API = "https://myvault.example.com/api"
+}
+plugin = "cottage-plugin-somevault"

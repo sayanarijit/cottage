@@ -45,6 +45,7 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
                 OperationKind::Delete => {
                     unimplemented!("diff: delete operations are not supported");
                 }
+                OperationKind::Pull | OperationKind::Push => unreachable!(),
             };
 
             let decrypted_content = if decrypted_path.exists() {
@@ -71,6 +72,7 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
                     OperationKind::Delete => {
                         unimplemented!("diff: delete operations are not supported");
                     }
+                    OperationKind::Pull | OperationKind::Push => unreachable!(),
                 };
 
                 let diff = TextDiff::from_lines(&old_str, &new_str);

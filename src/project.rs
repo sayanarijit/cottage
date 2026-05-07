@@ -1,6 +1,8 @@
-use crate::{is_encrypted_path, to_decrypted_path};
+use crate::{UpstreamMetadata, is_encrypted_path, is_metadata_path, to_decrypted_path};
 use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result, anyhow};
+use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -8,6 +10,81 @@ use std::time::SystemTime;
 
 const COTTAGE_GITATTRIBUTES_LINE: &str =
     "*.cott.age binary export-ignore filter=cottage-encrypted -diff";
+
+fn merge_non_existing(
+    target: Option<IndexMap<String, String>>,
+    source: Option<&IndexMap<String, String>>,
+) -> Option<IndexMap<String, String>> {
+    match (target, source) {
+        (Some(mut t), Some(s)) => {
+            for (k, v) in s {
+                t.entry(k.clone()).or_insert_with(|| v.clone());
+            }
+            Some(t)
+        }
+        (Some(t), None) => Some(t),
+        (None, Some(s)) => Some(s.clone()),
+        (None, None) => None,
+    }
+}
+
+fn resolve_pull_push_config(
+    config: &Option<PullPushConfig>,
+    defaults: &UpstreamConfig,
+) -> PullPushConfig {
+    let mut res = config.clone().unwrap_or_default();
+    if res.cwd.is_none() {
+        res.cwd = defaults.cwd;
+    }
+    if res.envfile.is_none() {
+        res.envfile = defaults.envfile.clone();
+    }
+    res.vars = merge_non_existing(res.vars.take(), defaults.vars.as_ref());
+    if res.shell.is_none() {
+        res.shell = defaults.shell.clone();
+    }
+    if res.plugin.is_none() {
+        res.plugin = defaults.plugin.clone();
+    }
+    res
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct PullPushConfig {
+    pub cwd: Option<bool>,
+    pub envfile: Option<PathBuf>,
+    pub vars: Option<IndexMap<String, String>>,
+    pub shell: Option<String>,
+    pub script: Option<String>,
+    pub plugin: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UpstreamConfig {
+    pub cwd: Option<bool>,
+    pub envfile: Option<PathBuf>,
+    pub vars: Option<IndexMap<String, String>>,
+    pub shell: Option<String>,
+    pub pull: Option<PullPushConfig>,
+    pub push: Option<PullPushConfig>,
+    pub plugin: Option<String>,
+}
+
+pub type ResolvedUpstream = UpstreamConfig;
+
+impl UpstreamConfig {
+    pub fn resolved(&self) -> ResolvedUpstream {
+        let mut ppcfg = self.clone();
+        ppcfg.pull = Some(resolve_pull_push_config(&ppcfg.pull, self));
+        ppcfg.push = Some(resolve_pull_push_config(&ppcfg.push, self));
+        ppcfg
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProjectConfig {
+    pub upstream: Option<IndexMap<String, UpstreamConfig>>,
+}
 
 #[derive(Debug)]
 pub struct Git {
@@ -29,6 +106,7 @@ pub struct Project {
     identity_path: PathBuf,
     ssh_dir: PathBuf,
     git: Option<Git>,
+    config: Option<ProjectConfig>,
 }
 
 impl Project {
@@ -56,7 +134,7 @@ impl Project {
     pub fn load() -> Result<Self> {
         let cwd = std::env::current_dir().context("could not get current working directory")?;
         let root = get_project_root(&cwd).context(format!(
-            "{}: could not find project root (looking for .cottage/, .git/, or .jj/)",
+            "{}: could not find project root (looking for .cottage/)",
             cwd.display()
         ))?;
         log::debug!("{}: project root identified", root.display());
@@ -71,6 +149,19 @@ impl Project {
             })?;
             log::debug!("{}: created directory", cottage_dir.display());
         }
+
+        let config_path = root.join("cottage.toml");
+        let config = if config_path.exists() {
+            let content = std::fs::read_to_string(&config_path).with_context(|| {
+                format!("{}: could not read cottage.toml", config_path.display())
+            })?;
+            Some(toml::from_str::<ProjectConfig>(&content).with_context(|| {
+                format!("{}: could not parse cottage.toml", config_path.display())
+            })?)
+        } else {
+            None
+        };
+
         let recipients_path = cottage_dir.join("recipients");
         let identity_path = cottage_dir.join("identity");
         if !identity_path.exists() && !recipients_path.exists() {
@@ -126,7 +217,7 @@ impl Project {
 
         let global_config_dir = dirs::home_dir()
             .map(|h| h.join(".config/cottage"))
-            .context("could not determine age config directory")?;
+            .context("could not determine cottage config directory")?;
 
         let global_identity_path = global_config_dir.join("identity");
 
@@ -142,6 +233,7 @@ impl Project {
             git,
             ssh_dir,
             global_identity_path,
+            config,
         })
     }
 
@@ -179,6 +271,126 @@ impl Project {
 
     pub fn global_identity_path(&self) -> &PathBuf {
         &self.global_identity_path
+    }
+
+    pub fn config(&self) -> Option<&ProjectConfig> {
+        self.config.as_ref()
+    }
+
+    pub fn resolve_upstream(
+        &self,
+        name: &str,
+        meta: &UpstreamMetadata,
+    ) -> Option<ResolvedUpstream> {
+        if name == "defaults" {
+            log::warn!("upstream name 'defaults' is reserved and cannot be used");
+            return None;
+        }
+
+        let defaults = self
+            .config()
+            .and_then(|c| c.upstream.as_ref())
+            .and_then(|u| u.get("defaults"))
+            .map(|d| d.resolved());
+
+        if let Some(mut res) = self
+            .config()
+            .and_then(|c| c.upstream.as_ref())
+            .and_then(|u| u.get(name))
+            .map(|u| u.resolved())
+        {
+            if matches!(meta.pull, Some(true)) {
+                if let Some(pull) = res.pull.as_mut() {
+                    pull.cwd = pull.cwd.or(defaults
+                        .as_ref()
+                        .and_then(|d| d.pull.as_ref())
+                        .and_then(|p| p.cwd));
+                    pull.envfile = pull.envfile.clone().or_else(|| {
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.pull.as_ref())
+                            .and_then(|p| p.envfile.clone())
+                    });
+                    pull.vars = merge_non_existing(meta.vars.clone(), pull.vars.as_ref());
+                    pull.vars = merge_non_existing(
+                        pull.vars.take(),
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.pull.as_ref())
+                            .and_then(|p| p.vars.as_ref()),
+                    );
+                    pull.shell = pull.shell.clone().or_else(|| {
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.pull.as_ref())
+                            .and_then(|p| p.shell.clone())
+                    });
+                    pull.plugin = pull.plugin.clone().or_else(|| {
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.pull.as_ref())
+                            .and_then(|p| p.plugin.clone())
+                    });
+                    pull.script = pull.script.clone().or_else(|| {
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.pull.as_ref())
+                            .and_then(|p| p.script.clone())
+                    });
+                } else {
+                    res.pull = defaults.as_ref().and_then(|d| d.pull.clone());
+                }
+            } else {
+                res.pull = None;
+            }
+            if matches!(meta.push, Some(true)) {
+                if let Some(push) = res.push.as_mut() {
+                    push.cwd = push.cwd.or(defaults
+                        .as_ref()
+                        .and_then(|d| d.push.as_ref())
+                        .and_then(|p| p.cwd));
+                    push.envfile = push.envfile.clone().or_else(|| {
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.push.as_ref())
+                            .and_then(|p| p.envfile.clone())
+                    });
+                    push.vars = merge_non_existing(meta.vars.clone(), push.vars.as_ref());
+                    push.vars = merge_non_existing(
+                        push.vars.take(),
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.push.as_ref())
+                            .and_then(|p| p.vars.as_ref()),
+                    );
+                    push.shell = push.shell.clone().or_else(|| {
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.push.as_ref())
+                            .and_then(|p| p.shell.clone())
+                    });
+                    push.plugin = push.plugin.clone().or_else(|| {
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.push.as_ref())
+                            .and_then(|p| p.plugin.clone())
+                    });
+                    push.script = push.script.clone().or_else(|| {
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.push.as_ref())
+                            .and_then(|p| p.script.clone())
+                    });
+                } else {
+                    res.push = defaults.as_ref().and_then(|d| d.push.clone());
+                }
+            } else {
+                res.push = None;
+            }
+            Some(res)
+        } else {
+            None
+        }
     }
 
     pub fn clean(&self, dry_run: bool) -> Result<()> {
@@ -223,20 +435,34 @@ pub fn iter_encrypted(path: &Path) -> impl Iterator<Item = walkdir::DirEntry> {
         .filter(|e| is_encrypted_path(e.path()))
 }
 
+pub fn iter_metadata(path: &Path) -> impl Iterator<Item = walkdir::DirEntry> {
+    walkdir::WalkDir::new(path)
+        .sort_by_file_name()
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+        .filter(|e| is_metadata_path(e.path()))
+}
+
 pub fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {
-    let start = std::path::absolute(cwd).ok()?;
-    let mut current = start;
-    while let Some(path) = current.parent() {
-        if current.join(root_identifier).exists() {
-            match (
-                root_identifier.ends_with("/"),
-                current.join(root_identifier).is_dir(),
-            ) {
-                (true, true) | (false, false) => return Some(current.to_path_buf()),
-                _ => {}
+    let mut current = std::path::absolute(cwd).ok()?;
+    let is_dir_lookup = root_identifier.ends_with('/');
+    let root_identifier = root_identifier.trim_end_matches('/');
+
+    loop {
+        let path = current.join(root_identifier);
+        if path.exists() {
+            if is_dir_lookup {
+                if path.is_dir() {
+                    return Some(current.to_path_buf());
+                }
+            } else if path.is_file() {
+                return Some(current.to_path_buf());
             }
         }
-        current = path.to_path_buf();
+        if !current.pop() {
+            break;
+        }
     }
     None
 }
@@ -325,7 +551,15 @@ pub fn remove_line_if_present(path: &Path, line: &str, dry_run: bool) -> Result<
             .filter(|l| l.trim() != line)
             .collect();
 
-        std::fs::write(path, lines.join("\n") + "\n")?;
+        if lines.is_empty() {
+            std::fs::remove_file(path)?;
+            log::trace!(
+                "{}: file is empty after removal, deleted file",
+                path.display()
+            );
+        } else {
+            std::fs::write(path, lines.join("\n") + "\n")?;
+        }
     }
 
     Ok(true)
@@ -417,6 +651,7 @@ impl Project {
             git: None,
             ssh_dir,
             global_identity_path,
+            config: None,
         }
     }
 

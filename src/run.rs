@@ -1,8 +1,8 @@
 use crate::{
-    CleanOptions, DecryptOptions, OperationKind, OperationResult, StatusOptions, clean_path,
-    decrypt_path, is_encrypted_path, status_path, to_decrypted_path, to_encrypted_path,
+    CleanOptions, DecryptOptions, OperationResult, StatusOptions, clean_path, decrypt_path,
+    is_encrypted_path, status_path, to_decrypted_path, to_encrypted_path,
 };
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use colored::Colorize;
 use std::path::{Path, PathBuf};
 
@@ -55,17 +55,18 @@ pub fn run(
         input_paths
     };
 
-    let status_opts = StatusOptions::default();
+    let status_opts = StatusOptions {
+        skip_encryption: false,
+        skip_decryption: true,
+    };
     for path in input.iter() {
-        for res in status_path(path, status_opts) {
-            let op = res?;
-            if let OperationKind::Encrypt = op.kind {
-                return Err(anyhow!(
-                    "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
-                    "pending encryption".red(),
-                    relative_to_cwd(&op.input).display()
-                ));
-            }
+        if let Some(res) = status_path(path, status_opts).next() {
+            let res = res?;
+            anyhow::bail!(
+                "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
+                "pending encryption".red(),
+                relative_to_cwd(&res.input).display()
+            );
         }
     }
 

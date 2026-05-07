@@ -63,6 +63,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
         OperationKind::Delete => {
             unimplemented!("delete operations are not supported in sync mode");
         }
+        OperationKind::Pull | OperationKind::Push => unreachable!(),
     }
 }
 

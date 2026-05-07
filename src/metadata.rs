@@ -1,23 +1,24 @@
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result, anyhow};
 use globset::Glob;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SecretMetadata {
     pub timestamp: String,
     pub allow: Option<Vec<Glob>>,
     pub deny: Option<Vec<Glob>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ChecksumMetadata {
     pub encrypted: String,
     pub recipients: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PreviewFormat {
     #[serde(rename = "yaml")]
     Yaml,
@@ -38,17 +39,25 @@ pub enum PreviewFormat {
     Hcl,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PreviewMetadata {
     pub format: PreviewFormat,
     pub preview: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct UpstreamMetadata {
+    pub vars: Option<IndexMap<String, String>>,
+    pub pull: Option<bool>,
+    pub push: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Metadata {
     pub checksum: ChecksumMetadata,
     pub preview: Option<PreviewMetadata>,
     pub secret: SecretMetadata,
+    pub upstream: Option<IndexMap<String, UpstreamMetadata>>,
 }
 
 impl Metadata {
