@@ -2,7 +2,9 @@ pub(crate) mod clean;
 pub mod cli;
 pub(crate) mod dec;
 pub(crate) mod diff;
+pub(crate) mod edit;
 pub(crate) mod enc;
+pub(crate) mod env;
 pub(crate) mod identity;
 pub(crate) mod metadata;
 pub(crate) mod operation;
@@ -11,6 +13,7 @@ pub(crate) mod project;
 pub(crate) mod pull;
 pub(crate) mod push;
 pub(crate) mod recipients;
+pub(crate) mod run;
 pub(crate) mod status;
 pub(crate) mod sync;
 pub(crate) mod verify;
@@ -18,7 +21,9 @@ pub(crate) mod verify;
 pub(crate) use clean::{CleanOptions, clean_path};
 pub(crate) use dec::{DecryptOptions, decrypt_file, decrypt_into_memory, decrypt_path};
 pub(crate) use diff::{DiffOptions, diff};
+pub(crate) use edit::{EditOptions, edit};
 pub(crate) use enc::{EncryptOptions, encrypt_file, encrypt_path};
+pub(crate) use env::{EnvOptions, env};
 pub(crate) use identity::{Identity, load_identities};
 pub(crate) use metadata::{
     ChecksumMetadata, Metadata, PreviewFormat, PreviewMetadata, SecretMetadata, make_checksum,
@@ -34,6 +39,7 @@ pub(crate) use project::{Project, iter_encrypted, remove_from_gitignore_if_prese
 pub(crate) use recipients::{
     RecipientData, filter_recipients_by_metadata, load_recipients, make_recipients_checksum_data,
 };
+pub(crate) use run::{RunOptions, run};
 pub(crate) use status::{StatusOptions, status_path};
 pub(crate) use sync::{SyncOptions, sync_path};
 pub(crate) use verify::{VerifyOptions, verify_file, verify_path};

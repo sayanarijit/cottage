@@ -1,18 +1,16 @@
 use crate::{
-    CleanOptions, DecryptOptions, DiffOptions, EncryptOptions, OperationKind, Project,
-    StatusOptions, SyncOptions, VerifyOptions, clean_path, decrypt_file, decrypt_path, diff,
-    encrypt_file, encrypt_path, is_encrypted_path, is_metadata_path, load_identities,
-    load_recipients, print_result, status_path, sync_path, to_decrypted_path, to_encrypted_path,
-    verify_path,
+    CleanOptions, DecryptOptions, DiffOptions, EditOptions, EncryptOptions, EnvOptions, Project,
+    RunOptions, StatusOptions, SyncOptions, VerifyOptions, clean_path, decrypt_path, diff,
+    edit as edit_task, encrypt_path, env as env_task, load_identities, load_recipients,
+    print_result, run as run_task, status_path, sync_path, verify_path,
 };
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use clap::CommandFactory;
 use clap::Parser;
 use clap::builder::styling::*;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use colored::Colorize;
-use std::fs::File;
-use std::io::{IsTerminal, Write, stdin};
+use std::io::Write;
 use std::path::PathBuf;
 
 const STYLES: Styles = Styles::styled()
@@ -83,6 +81,10 @@ enum Command {
     /// Decrypt secrets, run a command and delete decrypted secrets.
     #[command(name = "run", trailing_var_arg = true)]
     Run(RunArgs),
+
+    /// Run command with decrypted secrets exported as environment variables.
+    #[command(name = "env", trailing_var_arg = true)]
+    Env(EnvArgs),
 
     #[cfg(feature = "autocomplete")]
     /// Generate shell completions.
@@ -284,7 +286,52 @@ struct RunArgs {
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
-    /// Skip checksum verification and re-decrypt all files.
+    /// Skip checksum verification and decrypt all files.
+    #[arg(long, short, env = "COTTAGE_FORCE")]
+    force: bool,
+
+    /// Skip checksum verification of encrypted files.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
+    skip_verify_encrypted: bool,
+
+    /// Skip checksum verification of recipients.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_RECIPIENTS")]
+    skip_verify_recipients: bool,
+
+    /// Compact output.
+    #[arg(long, env = "COTTAGE_COMPACT")]
+    compact: bool,
+
+    /// Dry run, don't actually decrypt or run the command.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct EnvArgs {
+    /// The command to run.
+    command: String,
+
+    /// Additional arguments to the command.
+    args: Vec<String>,
+
+    /// Optional path to the encrypted file.
+    /// Dotenv incompatible secrets will be exported as "COTTAGE_SECRET".
+    /// Defaults to .env.age in the current directory.
+    #[arg(short = 'F', long)]
+    file: Option<PathBuf>,
+
+    /// Use the identity file at PATH. Can be repeated.
+    /// Defaults to .cottage/identity or ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
+    identity: Vec<PathBuf>,
+
+    /// Verify against recipients listed at PATH. Can be repeated.
+    /// Defaults to recipients in .cottage/recipients.
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
+    recipients_file: Vec<PathBuf>,
+
+    /// Skip checksum verification and decrypt all files.
     #[arg(long, short, env = "COTTAGE_FORCE")]
     force: bool,
 
@@ -633,169 +680,79 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
 }
 
 fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
-    let mut input_paths = vec![];
-    let mut modified_args = vec![];
-    for arg in args.args.iter() {
-        let p = PathBuf::from(arg);
-        if is_encrypted_path(&p) && p.exists() {
-            if let Some(dec) = to_decrypted_path(&p) {
-                modified_args.push(dec.to_string_lossy().to_string());
-            } else {
-                modified_args.push(arg.clone());
-            }
-            input_paths.push(p);
-        } else if to_encrypted_path(&p).exists() {
-            modified_args.push(arg.clone());
-            input_paths.push(to_encrypted_path(&p));
-        } else if p.is_dir() {
-            modified_args.push(arg.clone());
-            input_paths.push(p);
-        } else {
-            modified_args.push(arg.clone());
-        }
-    }
-
-    log::debug!("original args: {:?}", args.args,);
-    log::debug!("modified args: {:?}", modified_args);
-    log::debug!("input paths: {:?}", input_paths);
-
-    let input = get_input_paths(proj, input_paths.clone());
-    let status_opts = StatusOptions::default();
-    for path in input.iter() {
-        for res in status_path(path, status_opts) {
-            let op = res?;
-            if let OperationKind::Encrypt = op.kind {
-                return Err(anyhow!(
-                    "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
-                    "pending encryption".red(),
-                    proj.relative_to_cwd(&op.input).display()
-                ));
-            }
-        }
-    }
-
     let identities = load_identities(proj, args.identity).collect();
     let recipients = load_recipients(proj, args.recipients_file, None).collect();
-    let dec_options = DecryptOptions {
-        identities,
-        recipients,
-        skip_gitignore: true,
-        skip_timestamps: true,
-        skip_verify_encrypted: args.force || args.skip_verify_encrypted,
-        skip_verify_recipients: args.force || args.skip_verify_recipients,
+
+    let options = RunOptions {
+        command: args.command,
+        args: args.args,
+        decrypt_options: DecryptOptions {
+            identities,
+            recipients,
+            skip_gitignore: true,
+            skip_timestamps: true,
+            skip_verify_encrypted: args.force || args.skip_verify_encrypted,
+            skip_verify_recipients: args.force || args.skip_verify_recipients,
+            dry_run: args.dry_run,
+        },
         dry_run: args.dry_run,
     };
 
+    let res = run_task(proj.root(), |p| proj.relative_to_cwd(p), options)?;
     let mut stderr = std::io::stderr();
-    for path in &input {
-        for res in decrypt_path(path, &dec_options) {
-            let res = res?;
-            if !quiet {
-                print_result(&mut stderr, proj, &res, args.compact)?;
-            }
+    for op_res in res.operation_results {
+        let op_res = op_res?;
+        if !quiet {
+            print_result(&mut stderr, proj, &op_res, args.compact)?;
         }
     }
 
-    let res = if args.dry_run {
-        log::info!("dry run: skipping running the command");
-        Ok((true, Some(0)))
-    } else {
-        log::info!(
-            "running command: {:?} with args: {:?}",
-            &args.command,
-            &modified_args
-        );
-        std::process::Command::new(&args.command)
-            .args(&modified_args)
-            .status()
-            .map(|s| (s.success(), s.code()))
-    };
-
-    let clean_opts = CleanOptions {
-        dry_run: args.dry_run,
-        gitignore: false,
-        encrypted: false,
-    };
-
-    for path in input.iter().map(|p| {
-        if p.is_file() && is_encrypted_path(p) {
-            to_decrypted_path(p).unwrap_or_else(|| p.clone())
-        } else {
-            p.clone()
-        }
-    }) {
-        for res in clean_path(&path, &clean_opts) {
-            let res = res?;
-            if !quiet {
-                print_result(&mut stderr, proj, &res, args.compact)?;
-            }
-        }
-    }
-
-    let (is_success, status_code) = res?;
-    if !is_success {
-        std::process::exit(status_code.unwrap_or(1));
+    if res.exit_code != 0 {
+        std::process::exit(res.exit_code);
     }
 
     Ok(())
 }
 
+fn run_env_cmd(proj: &Project, args: EnvArgs) -> Result<()> {
+    let identities = load_identities(proj, args.identity).collect();
+    let recipients = load_recipients(proj, args.recipients_file, None).collect();
+
+    let options = EnvOptions {
+        command: args.command,
+        args: args.args,
+        file: args.file,
+        decrypt_options: DecryptOptions {
+            identities,
+            recipients,
+            skip_gitignore: true,
+            skip_timestamps: true,
+            skip_verify_encrypted: args.force || args.skip_verify_encrypted,
+            skip_verify_recipients: args.force || args.skip_verify_recipients,
+            dry_run: args.dry_run,
+        },
+        dry_run: args.dry_run,
+    };
+
+    env_task(proj, options)
+}
+
 fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
-    let path = &args.path;
-    if is_metadata_path(path) {
-        return Err(anyhow!("{}: could not edit metadata file", path.display()));
-    }
+    let recipients: Vec<_> = load_recipients(proj, args.recipients_file, None).collect();
+    let identities: Vec<_> = load_identities(proj, args.identity).collect();
 
-    let is_target_encrypted = is_encrypted_path(path);
-
-    let (decrypted_path, encrypted_path) = if is_target_encrypted {
-        let dec = to_decrypted_path(path)
-            .ok_or_else(|| anyhow!("{}: invalid encrypted path", path.display()))?;
-        (dec, path.clone())
-    } else {
-        (path.clone(), to_encrypted_path(path))
-    };
-
-    let mut stdout = std::io::stdout();
-    let status1 = if !stdin().is_terminal() {
-        let mut outfile = File::create(&decrypted_path)?;
-        let mut writer = std::io::BufWriter::new(&mut outfile);
-        let infile = stdin().lock();
-        let mut reader = std::io::BufReader::new(infile);
-        std::io::copy(&mut reader, &mut writer)?;
-        writer.flush()?;
-        Ok(())
-    } else {
-        let recipients = load_recipients(proj, args.recipients_file.clone(), None).collect();
-        let identities = load_identities(proj, args.identity.clone()).collect();
-
-        if is_target_encrypted {
-            let options = DecryptOptions {
-                identities,
-                recipients,
-                skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
-                skip_timestamps: args.skip_timestamps,
-                skip_verify_encrypted: args.force || args.skip_verify_encrypted,
-                skip_verify_recipients: args.force || args.skip_verify_recipients,
-                dry_run: false,
-            };
-            if let Some(res) = decrypt_file(&encrypted_path, &options)?
-                && !quiet
-            {
-                print_result(&mut stdout, proj, &res, args.compact)?;
-            }
-            // Cant't fail from now on
-        }
-
-        edit::edit_file(&decrypted_path)
-    };
-
-    let mut stderr = std::io::stderr();
-    let status2 = {
-        let recipients = load_recipients(proj, args.recipients_file, None).collect();
-        let identities = load_identities(proj, args.identity).collect();
-
-        let options = EncryptOptions {
+    let options = EditOptions {
+        path: args.path,
+        decrypt_options: DecryptOptions {
+            identities: identities.clone(),
+            recipients: recipients.clone(),
+            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+            skip_timestamps: args.skip_timestamps,
+            skip_verify_encrypted: args.force || args.skip_verify_encrypted,
+            skip_verify_recipients: args.force || args.skip_verify_recipients,
+            dry_run: false,
+        },
+        encrypt_options: EncryptOptions {
             recipients,
             identities,
             identity_path: proj.identity_path().to_path_buf(),
@@ -805,31 +762,20 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             skip_preview: args.skip_preview,
             force: args.force,
             dry_run: false,
-        };
-
-        let enc_status = encrypt_file(&decrypted_path, &options, None);
-        match enc_status {
-            Ok(Some(res)) if !quiet => print_result(&mut stderr, proj, &res, args.compact),
-            Ok(Some(_)) => Ok(()),
-            Ok(None) => Ok(()),
-            Err(e) => Err(e),
-        }
+        },
+        clean: args.clean,
     };
 
-    if args.clean {
-        let clean_opts = CleanOptions::default();
-
-        for res in clean_path(&decrypted_path, &clean_opts) {
-            let res = res?;
-            if !quiet {
-                print_result(&mut stdout, proj, &res, args.compact)?;
-            }
+    let res = edit_task(options)?;
+    let mut stdout = std::io::stdout();
+    for op_res in res {
+        let op_res = op_res?;
+        if !quiet {
+            print_result(&mut stdout, proj, &op_res, args.compact)?;
         }
     }
 
-    // Now fail
-    status1?;
-    status2
+    Ok(())
 }
 
 fn run_complete_cmd(shell: clap_complete::Shell) -> Result<()> {
@@ -871,7 +817,7 @@ fn setup_logging(verbosity: Verbosity<WarnLevel>) {
         .init();
 }
 
-fn run_verify_cmd(proj: &Project, args: VerifyArgs) -> Result<()> {
+fn run_verify_cmd(proj: &Project, args: VerifyArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
     let recipients = load_recipients(proj, args.recipients_file, None).collect();
 
@@ -887,10 +833,12 @@ fn run_verify_cmd(proj: &Project, args: VerifyArgs) -> Result<()> {
         }
     }
 
-    println!(
-        "{}: all encrypted secrets are in sync with metadata",
-        "verified".green()
-    );
+    if !quiet {
+        println!(
+            "{}: all encrypted secrets are in sync with metadata",
+            "verified".green()
+        );
+    }
 
     Ok(())
 }
@@ -917,10 +865,11 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
         Command::Sync(args) => run_sync_cmd(&proj, args, is_silent),
         Command::Status(args) => run_status_cmd(&proj, args, is_silent),
         Command::Diff(args) => run_diff_cmd(&proj, args),
-        Command::Verify(args) => run_verify_cmd(&proj, args),
+        Command::Verify(args) => run_verify_cmd(&proj, args, is_silent),
         Command::Clean(args) => run_clean_cmd(&proj, args, is_silent),
         Command::Edit(args) => run_edit_cmd(&proj, args, is_silent),
         Command::Run(args) => run_run_cmd(&proj, args, is_silent),
+        Command::Env(args) => run_env_cmd(&proj, args),
     }
 }
 

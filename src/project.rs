@@ -396,3 +396,43 @@ pub fn remove_from_gitignore_if_present(path: &Path, dry_run: bool) -> Result<Op
         Ok(None)
     }
 }
+
+#[cfg(test)]
+impl Project {
+    pub fn generate_test_project(path: &Path) -> Self {
+        let root = path.to_path_buf();
+        let cottage_dir = root.join(".cottage");
+        std::fs::create_dir_all(&cottage_dir).unwrap();
+        let recipients_path = cottage_dir.join("recipients");
+        let identity_path = cottage_dir.join("identity");
+        let global_config_dir = root.join(".config/cottage");
+        let global_identity_path = global_config_dir.join("identity");
+        let ssh_dir = root.join(".ssh");
+
+        Self {
+            cwd: root.clone(),
+            root,
+            recipients_path,
+            identity_path,
+            git: None,
+            ssh_dir,
+            global_identity_path,
+        }
+    }
+
+    pub fn init_test_recipients(&self) {
+        let sk = age::x25519::Identity::generate();
+        let pk = sk.to_public();
+        std::fs::create_dir_all(&self.recipients_path).unwrap();
+        std::fs::write(self.recipients_path.join("test"), pk.to_string()).unwrap();
+        std::fs::write(&self.identity_path, sk.to_string().expose_secret()).unwrap();
+    }
+
+    pub fn load_test_identities(&self) -> Box<dyn Iterator<Item = crate::Identity>> {
+        crate::identity::load_identities(self, vec![])
+    }
+
+    pub fn load_test_recipients(&self) -> Box<dyn Iterator<Item = crate::RecipientData> + '_> {
+        crate::recipients::load_recipients(self, vec![], None)
+    }
+}
