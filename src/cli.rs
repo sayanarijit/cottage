@@ -317,7 +317,7 @@ struct EnvArgs {
 
     /// Optional path to the encrypted file.
     /// Dotenv incompatible secrets will be exported as "COTTAGE_SECRET".
-    /// Defaults to .env.age in the current directory.
+    /// Defaults to .env.cott.age in the current directory.
     #[arg(short = 'F', long)]
     file: Option<PathBuf>,
 
@@ -347,7 +347,7 @@ struct EnvArgs {
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
 
-    /// Dry run, don't actually decrypt or run the command.
+    /// Dry run, decrypt secrets in memory, but don't actually run the command.
     #[arg(short = 'n', long)]
     dry_run: bool,
 }

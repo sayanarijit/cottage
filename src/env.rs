@@ -50,10 +50,14 @@ pub fn env(proj: &Project, opts: EnvOptions) -> Result<()> {
     let reader = std::io::BufReader::new(infile);
     let secret = decrypt_into_memory(reader, &opts.decrypt_options)?;
 
-    if dotenvy::from_read(BufReader::new(secret.expose_secret())).is_err() {
-        unsafe {
-            // Safe because cottage is single threaded.
-            std::env::set_var(
+    let res = if opts.dry_run {
+        log::info!("dry run: skipping running the command");
+        Ok((true, Some(0)))
+    } else {
+        if dotenvy::from_read(BufReader::new(secret.expose_secret())).is_err() {
+            unsafe {
+                // Safe because cottage is single threaded.
+                std::env::set_var(
                 "COTTAGE_SECRET",
                 String::from_utf8(secret.expose_secret().to_vec()).with_context(|| {
                     format!(
@@ -62,13 +66,8 @@ pub fn env(proj: &Project, opts: EnvOptions) -> Result<()> {
                     )
                 })?,
             );
-        }
-    };
-
-    let res = if opts.dry_run {
-        log::info!("dry run: skipping running the command");
-        Ok((true, Some(0)))
-    } else {
+            }
+        };
         log::info!(
             "running command: {:?} with args: {:?}",
             &opts.command,

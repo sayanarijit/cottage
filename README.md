@@ -48,6 +48,7 @@ in plaintext.
 - **Git hooks**: Easily set up git hooks to automatically check/encrypt secrets before commit and decrypt them after checkout.
 - **Persistent secrets workflow**: `ctg decrypt/edit/sync` keeps decrypted secrets on disk.
 - **Temporary secrets workflow**: `ctg run` (shortcut `ctgx`) decrypts secrets temporarily to run a command, then deletes them regardless of the command's success or failure.
+- **Environment injection workflow**: `ctg env` injects decrypted secrets as environment variables to run a command, without writing them to disk at all.
 - **Clean up**: `ctg clean` deletes all decrypted secrets from local repo to let you run your AI agents with a tiny bit less worry.
 - **Supports jj and non-git directories**: `ctg init` turns any directory into a secret store.
 
@@ -133,6 +134,14 @@ Or use the shortcut:
 
 ```bash
 ctgx ./deploy.sh  # same as ctg run -- ./deploy.sh
+```
+
+Run a command with secrets injected as environment variables, without writing to disk at all:
+
+```bash
+ctg env -- ./deploy.sh # Export secrets from .env.cott.age (default) without writing them to disk, then run deploy.sh
+ctg env -F .env.prod.cott.age -- ./deploy.sh # exports from .env.prod.cott.age instead of .env.cott.age
+ctg env -F secrets.json.cott.age -- printenv COTTAGE_SECRET # Also supports non-dotenv files.
 ```
 
 ## GitOps
@@ -229,6 +238,7 @@ See [examples](examples/) directory for more usage examples.
 - [agebox](https://github.com/slok/agebox): Very similar in core philosophy but lacking many [features](#features).
 - [git-crypt](https://www.agwa.name/projects/git-crypt/): Uses PGP (requires an agent), complex, 100% tied to Git.
 - [SOPS](https://getsops.io/): Lots of features and very complex for simple use cases.
+- [dotenvx](https://dotenvx.com/): Also similar, but only supports dotenv files and doesn't manage .gitignore or have gitops features.
 
 ## Troubleshooting
 

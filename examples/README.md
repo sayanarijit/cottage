@@ -278,6 +278,32 @@ ctg run -- ls examples/secrets/secret.yaml.cott.age
 # delete examples/secrets/secret.yaml
 ```
 
+# `ctg env`
+
+Decrypt an environment file in memory and export its content as environment variables for the specified command.
+
+It defaults to `.env.cott.age` in the current directory.
+
+```bash
+git checkout examples && ctg clean -qq
+
+# Run 'printenv' with variables from .env.cott.age
+ctg env -F examples/.env.cott.age -- printenv SECRET
+# Output:
+# foobar
+
+# If the file is not a valid dotenv file, it exports the entire content as COTTAGE_SECRET
+ctg env -F examples/secrets/secret.yaml.cott.age -- sh -c 'echo "$COTTAGE_SECRET"'
+# Output:
+# SECRET: foobar
+```
+
+### Target Behavior
+
+- **`-F`, `--file`**: Specifies the encrypted file to use. It must be an encrypted file (ending in `.cott.age`).
+
+<!-- end_slide -->
+
 ### Target Behavior
 
 - **Any Path**: While `run` takes a command, it uses the paths within the project to determine what to decrypt. By default, it decrypts _everything_ in the project root.
