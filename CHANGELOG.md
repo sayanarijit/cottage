@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3](https://github.com/sayanarijit/cottage/compare/v0.4.2...v0.4.3) - 2026-05-07
+
+### Added
+
+- *(env)* add `ctg env` command to export dotenv
+- *(file permission)* chmod 0600 decrypted files
+
+### Fixed
+
+- *(run)* improve `ctg run`/`ctgx` command help
+- *(output)* improve how cottage prints output
+
+### Other
+
+- *(env)* Document `ctg env` usage.
+
 ## [0.4.2](https://github.com/sayanarijit/cottage/compare/v0.4.1...v0.4.2) - 2026-05-06
 
 ### Added
