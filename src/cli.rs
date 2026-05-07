@@ -1,10 +1,9 @@
-use crate::dec::decrypt_file;
-use crate::enc::encrypt_file;
 use crate::{
-    CleanOptions, DecryptOptions, DiffOptions, EncryptOptions, OperationKind, OperationResult,
-    Project, StatusOptions, SyncOptions, VerifyOptions, clean_path, decrypt_path, diff,
-    encrypt_path, is_encrypted_path, is_metadata_path, load_identities, load_recipients,
-    status_path, sync_path, to_decrypted_path, to_encrypted_path, verify_path,
+    CleanOptions, DecryptOptions, DiffOptions, EncryptOptions, OperationKind, Project,
+    StatusOptions, SyncOptions, VerifyOptions, clean_path, decrypt_file, decrypt_path, diff,
+    encrypt_file, encrypt_path, is_encrypted_path, is_metadata_path, load_identities,
+    load_recipients, print_result, status_path, sync_path, to_decrypted_path, to_encrypted_path,
+    verify_path,
 };
 use anyhow::{Result, anyhow};
 use clap::CommandFactory;
@@ -74,7 +73,7 @@ enum Command {
     Diff(DiffArgs),
 
     /// Verify the checksum matches for encrypted files and recipients.
-    #[command(name = "verify", aliases = ["ve"])]
+    #[command(name = "verify")]
     Verify(VerifyArgs),
 
     /// Delete all secrets and identity files.
@@ -444,71 +443,6 @@ struct VerifyArgs {
     skip_verify_recipients: bool,
 }
 
-fn print_edits(mut file: impl Write, proj: &Project, op: &OperationResult) -> Result<()> {
-    for path in op.metadata.iter().chain(op.gitignore.iter()) {
-        writeln!(
-            file,
-            "   {} {}",
-            "edit".yellow(),
-            proj.relative_to_cwd(path).display()
-        )?;
-    }
-    Ok(())
-}
-
-fn print_result(
-    mut file: impl Write,
-    proj: &Project,
-    op: &OperationResult,
-    compact: bool,
-) -> Result<()> {
-    match (op.kind, compact) {
-        (OperationKind::Encrypt, false) => {
-            writeln!(
-                file,
-                "{} {}\n   {} {}",
-                "encrypt".green(),
-                proj.relative_to_cwd(&op.input).display(),
-                "into".blue(),
-                proj.relative_to_cwd(&op.output).display()
-            )?;
-            print_edits(file, proj, op)?;
-        }
-        (OperationKind::Decrypt, false) => {
-            writeln!(
-                file,
-                "{} {}\n   {} {}",
-                "decrypt".cyan(),
-                proj.relative_to_cwd(&op.input).display(),
-                "into".blue(),
-                proj.relative_to_cwd(&op.output).display()
-            )?;
-            print_edits(file, proj, op)?;
-        }
-        (OperationKind::Encrypt, true) => {
-            writeln!(
-                file,
-                "{}",
-                proj.relative_to_cwd(&op.output)
-                    .display()
-                    .to_string()
-                    .green()
-            )?;
-        }
-        (OperationKind::Decrypt, true) => {
-            writeln!(
-                file,
-                "{}",
-                proj.relative_to_cwd(&op.output)
-                    .display()
-                    .to_string()
-                    .cyan()
-            )?;
-        }
-    }
-    Ok(())
-}
-
 fn get_input_paths(proj: &Project, path: Vec<PathBuf>) -> Vec<PathBuf> {
     if path.is_empty() {
         vec![proj.root().into()]
@@ -555,15 +489,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         for res in input.iter().flat_map(|p| clean_path(p, &clean_opts)) {
             let res = res?;
             if !quiet {
-                if args.compact {
-                    println!("{}", proj.relative_to_cwd(&res).display().to_string().red());
-                } else {
-                    println!(
-                        "{} {}",
-                        "delete".red(),
-                        proj.relative_to_cwd(&res).display()
-                    );
-                }
+                print_result(&mut stdout, proj, &res, args.compact)?;
             }
         }
     }
@@ -689,18 +615,11 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
         encrypted: args.all || args.encrypted,
     };
 
+    let mut stdout = std::io::stdout();
     for res in input.iter().flat_map(|p| clean_path(p, &opts)) {
         let res = res?;
         if !quiet {
-            if args.compact {
-                println!("{}", proj.relative_to_cwd(&res).display().to_string().red());
-            } else {
-                println!(
-                    "{} {}",
-                    "delete".red(),
-                    proj.relative_to_cwd(&res).display()
-                );
-            }
+            print_result(&mut stdout, proj, &res, args.compact)?;
         }
     }
 
@@ -806,15 +725,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         for res in clean_path(&path, &clean_opts) {
             let res = res?;
             if !quiet {
-                if args.compact {
-                    eprintln!("{}", proj.relative_to_cwd(&res).display().to_string().red());
-                } else {
-                    eprintln!(
-                        "{} {}",
-                        "delete".red(),
-                        proj.relative_to_cwd(&res).display()
-                    );
-                }
+                print_result(&mut stderr, proj, &res, args.compact)?;
             }
         }
     }
@@ -843,6 +754,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
         (path.clone(), to_encrypted_path(path))
     };
 
+    let mut stdout = std::io::stdout();
     let status1 = if !stdin().is_terminal() {
         let mut outfile = File::create(&decrypted_path)?;
         let mut writer = std::io::BufWriter::new(&mut outfile);
@@ -865,13 +777,18 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
                 skip_verify_recipients: args.force || args.skip_verify_recipients,
                 dry_run: false,
             };
-            let _ = decrypt_file(&encrypted_path, &options)?;
+            if let Some(res) = decrypt_file(&encrypted_path, &options)? {
+                if !quiet {
+                    print_result(&mut stdout, proj, &res, args.compact)?;
+                }
+            }
             // Cant't fail from now on
         }
 
         edit::edit_file(&decrypted_path)
     };
 
+    let mut stderr = std::io::stderr();
     let status2 = {
         let recipients = load_recipients(proj, args.recipients_file, None).collect();
         let identities = load_identities(proj, args.identity).collect();
@@ -888,10 +805,9 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
             dry_run: false,
         };
 
-        let mut stdout = std::io::stdout();
-        let enc_status = encrypt_file(&decrypted_path, &options);
+        let enc_status = encrypt_file(&decrypted_path, &options, None);
         match enc_status {
-            Ok(Some(res)) if !quiet => print_result(&mut stdout, proj, &res, args.compact),
+            Ok(Some(res)) if !quiet => print_result(&mut stderr, proj, &res, args.compact),
             Ok(Some(_)) => Ok(()),
             Ok(None) => Ok(()),
             Err(e) => Err(e),
@@ -904,15 +820,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
         for res in clean_path(&decrypted_path, &clean_opts) {
             let res = res?;
             if !quiet {
-                if args.compact {
-                    eprintln!("{}", proj.relative_to_cwd(&res).display().to_string().red());
-                } else {
-                    eprintln!(
-                        "{} {}",
-                        "delete".red(),
-                        proj.relative_to_cwd(&res).display()
-                    );
-                }
+                print_result(&mut stdout, proj, &res.into(), args.compact)?;
             }
         }
     }
@@ -976,6 +884,11 @@ fn run_verify_cmd(proj: &Project, args: VerifyArgs) -> Result<()> {
             res?;
         }
     }
+
+    println!(
+        "{}: all encrypted secrets are in sync with metadata",
+        "verified".green()
+    );
 
     Ok(())
 }

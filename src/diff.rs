@@ -42,6 +42,9 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
             let (decrypted_path, encrypted_path) = match op.kind {
                 OperationKind::Encrypt => (&op.input, &op.output),
                 OperationKind::Decrypt => (&op.output, &op.input),
+                OperationKind::Delete => {
+                    unimplemented!("diff: delete operations are not supported");
+                }
             };
 
             let decrypted_content = if decrypted_path.exists() {
@@ -65,6 +68,9 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
                 let (old_str, new_str) = match op.kind {
                     OperationKind::Encrypt => (encrypted_str, decrypted_str),
                     OperationKind::Decrypt => (decrypted_str, encrypted_str),
+                    OperationKind::Delete => {
+                        unimplemented!("diff: delete operations are not supported");
+                    }
                 };
 
                 let diff = TextDiff::from_lines(&old_str, &new_str);

@@ -227,8 +227,8 @@ See [examples](examples/) directory for more usage examples.
 ## Alternatives
 
 - [agebox](https://github.com/slok/agebox): Very similar in core philosophy but lacking many [features](#features).
-- [git-crypt](https://github.com/AGWA/git-crypt): Uses PGP (requires an agent), complex, 100% tied to Git.
-- [SOPS](https://github.com/mozilla/sops): Lots of features and very complex for simple use cases.
+- [git-crypt](https://www.agwa.name/projects/git-crypt/): Uses PGP (requires an agent), complex, 100% tied to Git.
+- [SOPS](https://getsops.io/): Lots of features and very complex for simple use cases.
 
 ## Troubleshooting
 

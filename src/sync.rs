@@ -37,7 +37,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
                     force: sync_options.force,
                     dry_run: sync_options.dry_run,
                 };
-                encrypt_file(&operation.input, &encrypt_options)
+                encrypt_file(&operation.input, &encrypt_options, None)
             } else {
                 log::debug!("{}: skipping encryption", operation.input.display());
                 Ok(None)
@@ -59,6 +59,9 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
                 log::debug!("{}: skipping decryption", operation.input.display());
                 Ok(None)
             }
+        }
+        OperationKind::Delete => {
+            unimplemented!("delete operations are not supported in sync mode");
         }
     }
 }

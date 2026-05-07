@@ -15,6 +15,7 @@ use filetime::{FileTime, set_file_mtime};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 #[derive(Clone)]
 pub struct EncryptOptions {
@@ -29,7 +30,11 @@ pub struct EncryptOptions {
     pub dry_run: bool,
 }
 
-pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<OperationResult>> {
+pub fn encrypt_file(
+    path: &Path,
+    opts: &EncryptOptions,
+    data: Option<SecretSlice<u8>>,
+) -> Result<Option<OperationResult>> {
     log::debug!("{}: encrypting file", path.display());
     let is_identity = (|| {
         let p = path.canonicalize().ok()?;
@@ -50,17 +55,19 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
         age::armor::Format::Binary
     };
 
-    let input_file = File::open(path)
-        .with_context(|| format!("{}: could not open input file", path.display()))?;
-    log::debug!("{}: reading input file", path.display());
-
-    let input = {
+    let (input, filemtime) = if let Some(data) = data {
+        (data, SystemTime::now())
+    } else {
+        let input_file = File::open(path)
+            .with_context(|| format!("{}: could not open input file", path.display()))?;
+        log::debug!("{}: reading input file", path.display());
         let mut reader = BufReader::new(&input_file);
         let mut buffer = vec![];
         std::io::copy(&mut reader, &mut buffer)?;
-        SecretSlice::new(buffer.into())
+        let data = SecretSlice::new(buffer.into());
+        let filemtime = input_file.metadata()?.modified()?;
+        (data, filemtime)
     };
-    let filemtime = input_file.metadata()?.modified()?;
 
     let output_path = to_encrypted_path(path);
     let metadata_path = to_metadata_path(path);
@@ -183,12 +190,13 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
             );
             None
         } else {
+            let mut edits = Vec::new();
             // First add to .gitignore before creating the encrypted file, because, why not!
-            let gitignore = if !opts.skip_gitignore {
-                append_to_gitignore_if_absent(path, opts.dry_run)?
-            } else {
-                None
-            };
+            if !opts.skip_gitignore {
+                if let Some(gi) = append_to_gitignore_if_absent(path, opts.dry_run)? {
+                    edits.push(gi);
+                }
+            }
 
             log::debug!("{}: writing encrypted file", output_path.display());
             std::fs::write(&output_path, output.expose_secret()).with_context(|| {
@@ -203,9 +211,9 @@ pub fn encrypt_file(path: &Path, opts: &EncryptOptions) -> Result<Option<Operati
             Some(OperationResult {
                 kind: OperationKind::Encrypt,
                 input: path.to_path_buf(),
-                output: output_path.clone(),
-                gitignore,
-                metadata: Some(metadata_path.clone()),
+                output: Some(output_path.clone()),
+                edits,
+                cleanups: vec![],
             })
         };
 
@@ -223,7 +231,7 @@ pub fn encrypt_dir(
 ) -> impl Iterator<Item = Result<OperationResult>> {
     iter_encrypted(path)
         .filter_map(|e| to_decrypted_path(e.path()))
-        .filter_map(|path| encrypt_file(&path, options).transpose())
+        .filter_map(|path| encrypt_file(&path, options, None).transpose())
 }
 
 pub fn encrypt_path<'a>(
@@ -233,7 +241,7 @@ pub fn encrypt_path<'a>(
     if path.is_dir() {
         Box::new(encrypt_dir(path, options))
     } else if path.is_file() {
-        Box::new(encrypt_file(path, options).transpose().into_iter())
+        Box::new(encrypt_file(path, options, None).transpose().into_iter())
     } else {
         Box::new(std::iter::once(Err(anyhow!(
             "{}: path does not exist",

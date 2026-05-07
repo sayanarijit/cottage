@@ -8,22 +8,24 @@ pub(crate) mod metadata;
 pub(crate) mod operation;
 pub(crate) mod preview;
 pub(crate) mod project;
+pub(crate) mod pull;
+pub(crate) mod push;
 pub(crate) mod recipients;
 pub(crate) mod status;
 pub(crate) mod sync;
 pub(crate) mod verify;
 
 pub(crate) use clean::{CleanOptions, clean_path};
-pub(crate) use dec::{DecryptOptions, decrypt_into_memory, decrypt_path};
+pub(crate) use dec::{DecryptOptions, decrypt_file, decrypt_into_memory, decrypt_path};
 pub(crate) use diff::{DiffOptions, diff};
-pub(crate) use enc::{EncryptOptions, encrypt_path};
+pub(crate) use enc::{EncryptOptions, encrypt_file, encrypt_path};
 pub(crate) use identity::{Identity, load_identities};
 pub(crate) use metadata::{
     ChecksumMetadata, Metadata, PreviewFormat, PreviewMetadata, SecretMetadata, make_checksum,
     verify_checksum,
 };
 pub(crate) use operation::{
-    Operation, OperationKind, OperationResult, is_encrypted_path, is_metadata_path,
+    Operation, OperationKind, OperationResult, is_encrypted_path, is_metadata_path, print_result,
     to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
 pub(crate) use preview::generate_preview;

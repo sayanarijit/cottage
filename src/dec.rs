@@ -73,12 +73,13 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
             log::debug!("{}: skipping write: content matches", output_path.display());
             None
         } else {
+            let mut edits = vec![];
             // First add to .gitignore before creating the decrypted file, so that if the operation fails
             // for some reason, we won't have a decrypted file that is not ignored.
-            let gitignorefile = if !opts.skip_gitignore {
-                append_to_gitignore_if_absent(&output_path, opts.dry_run)?
-            } else {
-                None
+            if !opts.skip_gitignore {
+                if let Some(gi) = append_to_gitignore_if_absent(&output_path, opts.dry_run)? {
+                    edits.push(gi);
+                }
             };
 
             log::debug!("{}: writing decrypted file", output_path.display());
@@ -95,9 +96,9 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
             Some(OperationResult {
                 kind: OperationKind::Decrypt,
                 input: path.to_path_buf(),
-                output: output_path.clone(),
-                gitignore: gitignorefile,
-                metadata: None,
+                output: Some(output_path.clone()),
+                edits,
+                cleanups: vec![],
             })
         };
         if !opts.skip_timestamps {

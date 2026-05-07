@@ -37,7 +37,7 @@ fn test_clean() {
         .collect::<Vec<_>>();
 
     assert!(cleaned.len() == 1);
-    assert!(cleaned.contains(&secret_path));
+    assert!(cleaned.iter().any(|r| r.input == secret_path));
 
     // Verify nothing was actually deleted
     assert!(secret_path.exists());
@@ -55,7 +55,7 @@ fn test_clean() {
         .collect::<Vec<_>>();
 
     assert!(cleaned.len() == 1);
-    assert!(cleaned.contains(&secret_path));
+    assert!(cleaned.iter().any(|r| r.input == secret_path));
 
     // Verify everything was deleted
     assert!(!secret_path.exists());
@@ -72,6 +72,6 @@ fn test_clean() {
     let cleaned = clean_path(&secret_path, &opts)
         .filter_map(|res| res.ok())
         .collect::<Vec<_>>();
-    assert!(cleaned.contains(&secret_path));
+    assert!(cleaned.iter().any(|r| r.input == secret_path));
     assert!(!encrypted_path.exists());
 }
