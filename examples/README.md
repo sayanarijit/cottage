@@ -1,6 +1,6 @@
 ---
 title: "cottage (ctg)"
-sub_title: "A modern git based age-encrypted secrets manager for teams"
+sub_title: "A modern git-based age-encrypted secrets manager for teams"
 author: "Arijit Basu"
 theme:
   name: dark
@@ -15,7 +15,7 @@ This guide covers all subcommands and their options with real examples.
 This document is best viewed in a terminal with [presenterm](https://github.com/mfontanini/presenterm).
 
 > [!NOTE]
-> The term _"tracked secret"_ or just _"secret"_ used in this guide refers to secrets that have been encrypted, i.e. that have a corresponding `.cott.age` file.
+> The term _"tracked secret"_ or just _"secret"_ used in this guide refers to secrets that have been encrypted, i.e., that have a corresponding `.cott.age` file.
 
 <!-- end_slide -->
 
@@ -38,7 +38,7 @@ Initialize cottage in the current directory. This creates a `.cottage` directory
 git checkout examples && ctg clean -qq
 
 ctg init
-# (Initializes .cottage directory)
+# (Initializes the .cottage directory)
 ```
 
 <!-- end_slide -->

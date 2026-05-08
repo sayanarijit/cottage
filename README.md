@@ -11,7 +11,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/cottage)](https://pypi.org/project/cottage/)
 [![Docker Image Version](https://img.shields.io/docker/v/sayanarijit/cottage)](https://hub.docker.com/r/sayanarijit/cottage)
 
-Cottage is a gitops tool for teams to manage [age-encrypted](https://age-encryption.org/) secrets in git repositories.
+Cottage is a GitOps tool for teams to manage [age-encrypted](https://age-encryption.org/) secrets in git repositories.
 
 It provides a simple workflow to encrypt/decrypt secrets, manage recipients, and keep
 secrets out of the repo while still allowing for easy sharing via VCS. Cottage also
@@ -34,7 +34,7 @@ in plaintext.
 
 ## Features
 
-- **Exposure safe**: Uses Rust's type system to make sure bugs can never accidentally expose secrets.
+- **Exposure-safe**: Uses Rust's type system to make sure bugs can never accidentally expose secrets.
 - **Team-friendly**: Share public keys (recipients) in the repo, keep private keys (identities) local.
 - **Access Control**: Simple allow/deny rules to control which secrets are encrypted for which recipients.
 - **Manages .gitignore**: Automatically updates `.gitignore` to keep unencrypted secrets out of the repo.
@@ -97,7 +97,7 @@ tree -a
 # ├ .gitattributes      <- Added `*.cott.age binary export-ignore filter=cottage-encrypted -diff` to avoid polluting git diff
 # └ .gitignore          <- Added `/.cottage/identity` for obvious reasons
 
-# You can run `ctg clean --all` anytime to cleanup everything cottage ever did.
+# You can run `ctg clean --all` anytime to clean up everything cottage ever did.
 ```
 
 Create or edit a secret.

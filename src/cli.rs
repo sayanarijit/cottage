@@ -504,7 +504,7 @@ struct VerifyArgs {
 
 #[derive(clap::Args, Debug)]
 struct PullArgs {
-    /// The upstream name to push to. Defaults to all upstreams.
+    /// The upstream name to pull from. Defaults to all upstreams.
     upstream: Option<String>,
 
     /// The file or dir to pull, defaults to project root.
