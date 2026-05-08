@@ -250,6 +250,10 @@ pub(crate) fn run_upstream_script(
         cmd.stderr(Stdio::null());
     }
 
+    if let Some(true) = &cfg.cwd {
+        cmd.current_dir(secretdir);
+    }
+
     let mut proc = cmd.spawn().context("failed to spawn upstream script")?;
     if let Some(stdin) = stdin {
         if let Some(mut procstdin) = proc.stdin.take() {
