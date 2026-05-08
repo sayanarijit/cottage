@@ -99,8 +99,8 @@ script = "cat > /dev/null"
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     assert!(output.status.success(), "PULL failed: {}", stderr);
-    assert!(stdout.contains("secret1.txt.cott.toml"));
-    assert!(!stdout.contains("secret2.txt.cott.toml"));
+    assert!(stdout.contains("secret1.txt.cott.age"));
+    assert!(!stdout.contains("secret2.txt.cott.age"));
 
     // PUSH
     // Try to push 'my-upstream' at project root
