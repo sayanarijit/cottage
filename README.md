@@ -294,7 +294,7 @@ Cottage borrows the `ctg env` API from [Dotenvx](https://dotenvx.com).
 
 ### Cottage vs Agebox
 
-[Agebox](https://github.com/slok/agebox) and is very similar to cottage in core philosophy but lacking many [features](#features).
+[Agebox](https://github.com/slok/agebox) is very similar to cottage in core philosophy but lacking many [features](#features).
 
 ## Troubleshooting
 
