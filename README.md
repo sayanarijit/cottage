@@ -285,6 +285,8 @@ While [SOPS](https://getsops.io/) and cottage has many overlapping features, cot
 
 ### Cottage vs Dotenvx
 
+Cottage borrows the `ctg env` API from [Dotenvx](https://dotenvx.com).
+
 - Supports any file type, not just dotenv files.
 - Manages multiple secrets in a repo.
 - Access control rules to encrypt secrets for specific recipients.
@@ -292,7 +294,7 @@ While [SOPS](https://getsops.io/) and cottage has many overlapping features, cot
 
 ### Cottage vs Agebox
 
-Very similar in core philosophy but lacking many [features](#features).
+[Agebox](https://github.com/slok/agebox) and is very similar to cottage in core philosophy but lacking many [features](#features).
 
 ## Troubleshooting
 
