@@ -19,25 +19,26 @@ generates redacted previews of encrypted secrets for better visibility and suppo
 persistent and temporary decryption workflows, while ensuring secrets are never committed
 in plaintext.
 
-![Intro Demo](https://vhs.charm.sh/vhs-6P2I0IyW7AJADjAEzVjOJP.gif)
+[![Intro Demo](https://vhs.charm.sh/vhs-6P2I0IyW7AJADjAEzVjOJP.gif)](https://swacn.com/lab/3b668c60-17c5-4f32-a10a-ab4891bde82d?embed=true)
 
-1.  [Features](#features)
-2.  [Installation](#installation)
-3.  [Quick Start](#quick-start)
-4.  [GitOps](#gitops)
-5.  [Git Hooks](#git-hooks)
-6.  [Access Control](#access-control)
-    1. [Rules](#rules)
-    2. [Verification](#verification)
-7.  [Any Provider as Upstream](#any-provider-as-upstream)
-8.  [Learn More](#learn-more)
-9.  [Compaison](#compaison)
+1. [Features](#features)
+2. [Try in Cottage Lab](#try-in-cottage-lab)
+3. [Installation](#installation)
+4. [Quick Start](#quick-start)
+5. [GitOps](#gitops)
+6. [Git Hooks](#git-hooks)
+7. [Access Control](#access-control)
+   1. [Rules](#rules)
+   2. [Verification](#verification)
+8. [Any Provider as Upstream](#any-provider-as-upstream)
+9. [Learn More](#learn-more)
+10. [Compaison](#compaison)
     1. [Age vs Other Encryption](#age-vs-other-encryption)
     2. [Cottage vs SOPS](#cottage-vs-sops)
     3. [Cottage vs Dotenvx](#cottage-vs-dotenvx)
     4. [Cottage vs Agebox](#cottage-vs-agebox)
-10. [Troubleshooting](#troubleshooting)
-11. [License](#license)
+11. [Troubleshooting](#troubleshooting)
+12. [License](#license)
 
 ## Features
 
@@ -55,6 +56,12 @@ in plaintext.
 - **Clean up**: `ctg clean` deletes all decrypted secrets from local repo to let you run your AI agents with a tiny bit less worry.
 - **Supports jj and non-git directories**: `ctg init` turns any directory into a secret store.
 - **Sync with any provider**: Lets you configure any provider with an API as the upstream, and start using `ctg pull/diff/push` like `git pull/diff/push`.
+
+## Try in Cottage Lab
+
+[Try cottage lab right in your browser without installing anything](https://swacn.com/lab/3b668c60-17c5-4f32-a10a-ab4891bde82d?embed=true).
+
+> - powered by [swacn.com](https://swacn.com/).
 
 ## Installation
 
