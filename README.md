@@ -30,7 +30,14 @@ in plaintext.
     1. [Rules](#rules)
     2. [Verification](#verification)
 7.  [Any Provider as Upstream](#any-provider-as-upstream)
-8.  [License](#license)
+8.  [Learn More](#learn-more)
+9.  [Compaison](#compaison)
+    1. [Age vs Other Encryption](#age-vs-other-encryption)
+    2. [Cottage vs SOPS](#cottage-vs-sops)
+    3. [Cottage vs Dotenvx](#cottage-vs-dotenvx)
+    4. [Cottage vs Agebox](#cottage-vs-agebox)
+10. [Troubleshooting](#troubleshooting)
+11. [License](#license)
 
 ## Features
 
@@ -207,6 +214,8 @@ deny = ["env/staging/badservice"]  # Encrypt for everyone in env/staging except 
 
 Deny rules take precedence over allow rules.
 
+See [metadata specification](./SPECIFICATION.md#secretmetadata) for more details.
+
 ### Verification
 
 You can run `ctg verify` in CI to verify that the encrypted secrets and recipient lists match the metadata rules, to prevent tampering.
@@ -254,16 +263,36 @@ ctg sync
 ctg push myvault
 ```
 
+See [upstream configuration specification](./SPECIFICATION.md#upstreamconfig) for more details.
+
 ## Learn More
 
 See [examples](examples/) directory for more usage examples.
 
-## Alternatives
+## Compaison
 
-- [agebox](https://github.com/slok/agebox): Very similar in core philosophy but lacking many [features](#features).
-- [git-crypt](https://www.agwa.name/projects/git-crypt/): Uses PGP (requires an agent), complex, 100% tied to Git.
-- [SOPS](https://getsops.io/): Lots of features and very complex for simple use cases.
-- [dotenvx](https://dotenvx.com/): Also similar, but only supports dotenv files and doesn't manage .gitignore or have gitops features.
+### Age vs Other Encryption
+
+[age](https://age-encryption.org) supports SSH RSA and X25519 keys, allowing team members to use the same SSH keys to encrypt/decrypt secrets that they use to access git repos. It makes it ideal for GitOps optimized workflows.
+
+### Cottage vs SOPS
+
+While [SOPS](https://getsops.io/) and cottage has many overlapping features, cottage has the following advantages:
+
+- Auto manage .gitignore to ensure unencrypted secrets are never committed to git.
+- Encrypted secrets being pure age encrypted .age files, allows for better interoperability with an wider ecosystem of tools.
+- Cleaner diffs - unlike SOPS, which generates diffs for every values of every secrets, even if the actual change is just adding/removing a recipient, cottage only generates one diff per file, explicitely pointing out the change in recipients checksum.
+
+### Cottage vs Dotenvx
+
+- Supports any file type, not just dotenv files.
+- Manages multiple secrets in a repo.
+- Access control rules to encrypt secrets for specific recipients.
+- Cleaner diffs - see [Cottage vs SOPS](#cottage-vs-sops).
+
+### Cottage vs Agebox
+
+Very similar in core philosophy but lacking many [features](#features).
 
 ## Troubleshooting
 

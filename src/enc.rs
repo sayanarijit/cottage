@@ -212,6 +212,8 @@ pub fn encrypt_file(
                 format!("{}: could not write metadata file", metadata_path.display())
             })?;
 
+            edits.push(metadata_path);
+
             Some(OperationResult {
                 kind: OperationKind::Encrypt,
                 input: path.to_path_buf(),
@@ -221,7 +223,7 @@ pub fn encrypt_file(
             })
         };
 
-        if !opts.skip_timestamps {
+        if !opts.skip_timestamps && output_path.exists() {
             log::debug!("{}: updating timestamp", output_path.display());
             set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
         }

@@ -1,7 +1,9 @@
 # The default configuration for all upstreams.
 # You can override these settings for each specific upstream as needed.
-[upstream.defaults.vars]
-SCHEME = "https"
+[upstream.defaults]
+vars = {
+  SCHEME = "https"  # Example variable to be injected into the plugins or scripts.
+}
 
 # Default configuration for the "myvault" upstream.
 # You can also override settings for each specific tasks as needed.
@@ -42,7 +44,7 @@ echo "Auto injected cottage binary path is: '$ctg'" 1>&2
 echo "Pushing secret '${SECRET}' to ${URL}..." 1>&2
 '''
 
-# Define another upstream named "myvault" that uses a plugin to push/pull/rotate secrets.
+# Define another upstream named "myvault" that uses a plugin to push/pull secrets.
 # A plugin is any binary that takes "pull" or "push" as the first argument, reads env vars,
 # reads the secret from stdin for "push", and outputs the secret to stdout for "pull".
 [upstream.myvault]

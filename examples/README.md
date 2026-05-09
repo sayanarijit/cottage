@@ -373,9 +373,9 @@ script = 'curl -s -X POST -d @- "https://${HOST}/api/push${DESTINATION}"'
 [upstream.customvault]
 pull = true
 push = true
-
-[upstream.customvault.vars]
-DESTINATION = "/vault/myapp/env/staging"
+vars = {
+  DESTINATION = "/vault/myapp/env/staging"
+}
 ```
 
 <!-- end_slide -->
