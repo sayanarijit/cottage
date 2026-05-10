@@ -1,7 +1,7 @@
 use crate::{
     DecryptOptions, Identity, Metadata, OperationKind, OperationResult, Project, RecipientData,
-    StatusOptions, UpstreamMetadata, decrypt_into_memory, iter_metadata, run_upstream_script,
-    status::status_file, to_decrypted_path, to_encrypted_path,
+    StatusOptions, UpstreamMetadata, decrypt_into_memory, iter_encrypted, run_upstream_script,
+    status::status_file, to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -20,25 +20,23 @@ pub fn push_path<'a>(
     proj: &'a Project,
     opts: &'a PushOptions,
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
-    let iter = iter_metadata(path)
-        .filter_map(|e| {
-            Metadata::read_from_path(e.path())
-                .ok()
-                .map(|m| (e.path().to_path_buf(), m))
-        })
+    let iter = iter_encrypted(path)
+        .filter_map(|e| to_decrypted_path(e.path()).as_deref().map(to_metadata_path))
+        .filter_map(|p| Metadata::read_from_path(&p).ok().map(|m| (p, m)))
         .filter_map(|(p, m)| m.upstream.map(|um| (p, um)))
         .flat_map(move |(path, um)| {
             um.into_iter()
                 .filter_map(move |(upstream_name, upstream_metadata)| {
                     if let Some(requested) = &opts.upstream
-                        && requested != &upstream_name {
-                            log::trace!(
-                                "{}: skipping upstream '{}': not requested",
-                                path.display(),
-                                upstream_name
-                            );
-                            return None;
-                        }
+                        && requested != &upstream_name
+                    {
+                        log::trace!(
+                            "{}: skipping upstream '{}': not requested",
+                            path.display(),
+                            upstream_name
+                        );
+                        return None;
+                    }
                     if upstream_metadata.push != Some(true) {
                         log::debug!(
                             "{}: skipping upstream '{}': push is not explicitly enabled",

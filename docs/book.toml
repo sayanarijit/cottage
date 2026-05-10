@@ -1,0 +1,16 @@
+[book]
+title = "The Cottage Book"
+description = "cottage - A modern git based age-encrypted secrets manager for teams"
+authors = ["Arijit Basu"]
+language = "en"
+
+[output.html]
+git-repository-url = 'https://github.com/sayanarijit/cottage'
+edit-url-template = 'https://github.com/sayanarijit/cottage/edit/main/docs/{path}'
+default-theme = 'dark'
+preferred-dark-theme = 'coal'
+
+# [output.linkcheck]
+# optional = true
+
+# [preprocessor.cmdrun]

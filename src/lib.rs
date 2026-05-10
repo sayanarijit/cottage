@@ -34,9 +34,7 @@ pub(crate) use operation::{
     run_upstream_script, to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
 pub(crate) use preview::generate_preview;
-pub(crate) use project::{
-    Project, iter_encrypted, iter_metadata, remove_from_gitignore_if_present,
-};
+pub(crate) use project::{Project, iter_encrypted, remove_from_gitignore_if_present};
 pub(crate) use pull::{PullOptions, pull_path};
 pub(crate) use push::{PushOptions, push_path};
 
@@ -44,7 +42,7 @@ pub(crate) use recipients::{
     RecipientData, filter_recipients_by_metadata, load_recipients, make_recipients_checksum_data,
 };
 pub(crate) use run::{RunOptions, run};
-pub(crate) use status::{StatusOptions, /* status_file, */ status_path};
+pub(crate) use status::{StatusOptions, status_path};
 pub(crate) use sync::{SyncOptions, sync_path};
 pub(crate) use verify::{VerifyOptions, verify_file, verify_path};
 

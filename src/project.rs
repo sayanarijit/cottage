@@ -1,4 +1,4 @@
-use crate::{UpstreamMetadata, is_encrypted_path, is_metadata_path, to_decrypted_path};
+use crate::{UpstreamMetadata, is_encrypted_path, to_decrypted_path};
 use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result, anyhow};
 use indexmap::IndexMap;
@@ -433,15 +433,6 @@ pub fn iter_encrypted(path: &Path) -> impl Iterator<Item = walkdir::DirEntry> {
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())
         .filter(|e| is_encrypted_path(e.path()))
-}
-
-pub fn iter_metadata(path: &Path) -> impl Iterator<Item = walkdir::DirEntry> {
-    walkdir::WalkDir::new(path)
-        .sort_by_file_name()
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
-        .filter(|e| is_metadata_path(e.path()))
 }
 
 pub fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {

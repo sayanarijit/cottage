@@ -9,7 +9,7 @@
 [![Cottage Verify](https://github.com/sayanarijit/cottage/actions/workflows/cottage-verify.yml/badge.svg)](https://github.com/sayanarijit/cottage/actions/workflows/cottage-verify.yml)
 [![Crates.io Version](https://img.shields.io/crates/v/cottage)](https://crates.io/crates/cottage)
 [![PyPI - Version](https://img.shields.io/pypi/v/cottage)](https://pypi.org/project/cottage/)
-[![Docker Image Version](https://img.shields.io/docker/v/sayanarijit/cottage)](https://hub.docker.com/r/sayanarijit/cottage)
+[![Docker Image Version](https://img.shields.io/docker/v/sayanarijit/cottage?label=docker)](https://hub.docker.com/r/sayanarijit/cottage)
 
 Cottage is a GitOps tool for teams to manage [age-encrypted](https://age-encryption.org/) secrets in git repositories.
 
@@ -32,12 +32,12 @@ in plaintext.
    2. [Verification](#verification)
 8. [Any Provider as Upstream](#any-provider-as-upstream)
 9. [Learn More](#learn-more)
-10. [Compaison](#compaison)
+10. [Troubleshooting](#troubleshooting)
+11. [Comparison](#comparison)
     1. [Age vs Other Encryption](#age-vs-other-encryption)
     2. [Cottage vs SOPS](#cottage-vs-sops)
     3. [Cottage vs Dotenvx](#cottage-vs-dotenvx)
     4. [Cottage vs Agebox](#cottage-vs-agebox)
-11. [Troubleshooting](#troubleshooting)
 12. [License](#license)
 
 ## Features
@@ -276,7 +276,14 @@ See [upstream configuration specification](./SPECIFICATION.md#upstreamconfig) fo
 
 See [examples](examples/) directory for more usage examples.
 
-## Compaison
+## Troubleshooting
+
+```bash
+# See debug logs with -v, -vv or -vvv
+ctg run -vvv -- ./deploy.sh
+```
+
+## Comparison
 
 ### Age vs Other Encryption
 
@@ -284,11 +291,11 @@ See [examples](examples/) directory for more usage examples.
 
 ### Cottage vs SOPS
 
-While [SOPS](https://getsops.io/) and cottage has many overlapping features, cottage has the following advantages:
+While [SOPS](https://getsops.io/) and cottage have many overlapping features, cottage has the following advantages:
 
 - Auto manage .gitignore to ensure unencrypted secrets are never committed to git.
-- Encrypted secrets being pure age encrypted .age files, allows for better interoperability with an wider ecosystem of tools.
-- Cleaner diffs - unlike SOPS, which generates diffs for every values of every secrets, even if the actual change is just adding/removing a recipient, cottage only generates one diff per file, explicitely pointing out the change in recipients checksum.
+- Encrypted secrets being pure age encrypted .age files, allows for better interoperability with a wider ecosystem of tools.
+- Cleaner diffs - unlike SOPS, which generates diffs for every value of every secret, even if the actual change is just adding/removing a recipient, cottage only generates one diff per file, explicitly pointing out the change in recipients checksum.
 
 ### Cottage vs Dotenvx
 
@@ -301,14 +308,7 @@ Cottage borrows the `ctg env` API from [Dotenvx](https://dotenvx.com).
 
 ### Cottage vs Agebox
 
-[Agebox](https://github.com/slok/agebox) is very similar to cottage in core philosophy but lacking many [features](#features).
-
-## Troubleshooting
-
-```bash
-# See debug logs with -v, -vv or -vvv
-ctg run -vvv -- ./deploy.sh
-```
+[Agebox](https://github.com/slok/agebox) is very similar to cottage in core philosophy but lacks many [features](#features).
 
 ## License
 
