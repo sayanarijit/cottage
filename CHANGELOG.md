@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0](https://github.com/sayanarijit/cottage/compare/v0.4.5...v0.5.0) - 2026-05-10
+
+### Added
+
+- *(i686)* add target i686-unknown-linux-musl
+
+### Fixed
+
+- *(push/pull)* [**breaking**] use the encrypted secret paths, not metadata path
+
+### Other
+
+- Potential fix for code scanning alert no. 1: Workflow does not contain permissions
+- *(deps)* bump clap_complete from 4.6.3 to 4.6.4 ([#37](https://github.com/sayanarijit/cottage/pull/37))
+- *(deps)* bump filetime from 0.2.27 to 0.2.28 ([#36](https://github.com/sayanarijit/cottage/pull/36))
+- Set package ecosystem to 'cargo' in dependabot config
+- Update SECURITY.md to reflect new reporting process
+- *(cottagelab)* add lab link to try cottage without installing
+- *(readme)* fix typo
+- *(readme)* add links to similar projects
+- *(spec)* document toml specs.
+
 ## [0.4.5](https://github.com/sayanarijit/cottage/compare/v0.4.4...v0.4.5) - 2026-05-08
 
 ### Fixed
