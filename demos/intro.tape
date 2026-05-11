@@ -92,5 +92,5 @@ Type "ls -F" Enter
 Sleep 2s
 
 # Finish
-Type "# Done! Cottage: A modern git based age-encrypted secrets manager for teams" Enter
+Type "# Done! cottage: A modern git based age-encrypted secrets manager for teams" Enter
 Sleep 4s

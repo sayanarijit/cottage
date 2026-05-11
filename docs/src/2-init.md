@@ -1,4 +1,4 @@
-# Initializing Cottage
+# Initializing cottage
 
 Scenarios for initializing cottage in a new or existing git repository:
 

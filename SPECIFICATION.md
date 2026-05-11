@@ -1,4 +1,4 @@
-# Cottage Configuration Specification
+# cottage Configuration Specification
 
 This document describes the specification of `cottage.toml` and `*.cott.toml` files used by cottage.
 

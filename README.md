@@ -11,10 +11,10 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/cottage)](https://pypi.org/project/cottage/)
 [![Docker Image Version](https://img.shields.io/docker/v/sayanarijit/cottage?label=docker)](https://hub.docker.com/r/sayanarijit/cottage)
 
-Cottage is a GitOps tool for teams to manage [age-encrypted](https://age-encryption.org/) secrets in git repositories.
+**cott*age*** is a GitOps tool for teams to manage [age-encrypted](https://age-encryption.org/) secrets in git repositories.
 
 It provides a simple workflow to encrypt/decrypt secrets, manage recipients, and keep
-secrets out of the repo while still allowing for easy sharing via VCS. Cottage also
+secrets out of the repo while still allowing for easy sharing via VCS. cottage also
 generates redacted previews of encrypted secrets for better visibility and supports both
 persistent and temporary decryption workflows, while ensuring secrets are never committed
 in plaintext.
@@ -22,7 +22,7 @@ in plaintext.
 [![Intro Demo](https://vhs.charm.sh/vhs-6P2I0IyW7AJADjAEzVjOJP.gif)](https://swacn.com/lab/3b668c60-17c5-4f32-a10a-ab4891bde82d?embed=true)
 
 1. [Features](#features)
-2. [Try in Cottage Lab](#try-in-cottage-lab)
+2. [Try in cottage Lab](#try-in-cottage-lab)
 3. [Installation](#installation)
 4. [Quick Start](#quick-start)
 5. [GitOps](#gitops)
@@ -34,10 +34,10 @@ in plaintext.
 9. [Learn More](#learn-more)
 10. [Troubleshooting](#troubleshooting)
 11. [Comparison](#comparison)
-    1. [Age vs Other Encryption](#age-vs-other-encryption)
-    2. [Cottage vs SOPS](#cottage-vs-sops)
-    3. [Cottage vs Dotenvx](#cottage-vs-dotenvx)
-    4. [Cottage vs Agebox](#cottage-vs-agebox)
+    1. [age vs Other Encryption](#age-vs-other-encryption)
+    2. [cottage vs SOPS](#cottage-vs-sops)
+    3. [cottage vs dotenvx](#cottage-vs-dotenvx)
+    4. [cottage vs agebox](#cottage-vs-agebox)
 12. [License](#license)
 
 ## Features
@@ -57,9 +57,9 @@ in plaintext.
 - **Supports jj and non-git directories**: `ctg init` turns any directory into a secret store.
 - **Sync with any provider**: Lets you configure any provider with an API as the upstream, and start using `ctg pull/diff/push` like `git pull/diff/push`.
 
-## Try in Cottage Lab
+## Try in cottage Lab
 
-[Try cottage lab right in your browser without installing anything](https://swacn.com/lab/3b668c60-17c5-4f32-a10a-ab4891bde82d?embed=true).
+[Try cottage Lab right in your browser without installing anything](https://swacn.com/lab/3b668c60-17c5-4f32-a10a-ab4891bde82d?embed=true).
 
 > - powered by [swacn.com](https://swacn.com/).
 
@@ -285,11 +285,11 @@ ctg run -vvv -- ./deploy.sh
 
 ## Comparison
 
-### Age vs Other Encryption
+### age vs Other Encryption
 
 [age](https://age-encryption.org) supports SSH RSA and X25519 keys, allowing team members to use the same SSH keys to encrypt/decrypt secrets that they use to access git repos. It makes it ideal for GitOps optimized workflows.
 
-### Cottage vs SOPS
+### cottage vs SOPS
 
 While [SOPS](https://getsops.io/) and cottage have many overlapping features, cottage has the following advantages:
 
@@ -297,18 +297,18 @@ While [SOPS](https://getsops.io/) and cottage have many overlapping features, co
 - Encrypted secrets being pure age encrypted .age files, allows for better interoperability with a wider ecosystem of tools.
 - Cleaner diffs - unlike SOPS, which generates diffs for every value of every secret, even if the actual change is just adding/removing a recipient, cottage only generates one diff per file, explicitly pointing out the change in recipients checksum.
 
-### Cottage vs Dotenvx
+### cottage vs dotenvx
 
-Cottage borrows the `ctg env` API from [Dotenvx](https://dotenvx.com).
+cottage borrows the `ctg env` API from [dotenvx](https://dotenvx.com).
 
 - Supports any file type, not just dotenv files.
 - Manages multiple secrets in a repo.
 - Access control rules to encrypt secrets for specific recipients.
-- Cleaner diffs - see [Cottage vs SOPS](#cottage-vs-sops).
+- Cleaner diffs - see [cottage vs SOPS](#cottage-vs-sops).
 
-### Cottage vs Agebox
+### cottage vs agebox
 
-[Agebox](https://github.com/slok/agebox) is very similar to cottage in core philosophy but lacks many [features](#features).
+[agebox](https://github.com/slok/agebox) is very similar to cottage in core philosophy but lacks many [features](#features).
 
 ## License
 

@@ -4,7 +4,7 @@ Scenarios for encrypting new or existing secrets:
 
 1.  [I want to create a new encrypted file](#i-want-to-create-a-new-encrypted-file)
 2.  [I want to encrypt an existing cleartext file](#i-want-to-encrypt-an-existing-cleartext-file)
-3.  [I want want the cleartext secret deleted after encryption](#i-want-want-the-cleartext-secret-deleted-after-encryption)
+3.  [I want the cleartext secret deleted after encryption](#i-want-the-cleartext-secret-deleted-after-encryption)
 
 ## I want to create a new encrypted file
 
@@ -98,7 +98,7 @@ Let's verify what it did:
 
 Same as above.
 
-## I want want the cleartext secret deleted after encryption
+## I want the cleartext secret deleted after encryption
 
 Just add `--clean` flag to the `ctg encrypt` or `ctg edit` command:
 

@@ -1,5 +1,5 @@
 [book]
-title = "The Cottage Book"
+title = "The cottage Book"
 description = "cottage - A modern git based age-encrypted secrets manager for teams"
 authors = ["Arijit Basu"]
 language = "en"
