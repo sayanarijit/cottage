@@ -1,6 +1,6 @@
 [package]
 name = "cottage"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 description = "A modern git based age-encrypted secrets manager for teams."
 readme = "README.md"
