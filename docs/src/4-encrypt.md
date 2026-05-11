@@ -91,7 +91,7 @@ Let's verify what it did:
 >
 > ```stdout
 > age-encryption.org/v1
-> ...
+> ...XXX...
 > ```
 
 ## I want to encrypt an existing cleartext file

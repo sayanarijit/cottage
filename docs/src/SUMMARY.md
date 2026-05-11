@@ -6,3 +6,5 @@
 - [Encrypting Secrets](4-encrypt.md)
 - [Syncing with Git](5-git.md)
 - [Adding Recipient and Decrypting](6-recipient-decrypt.md)
+- [Configuration Specification](SPECIFICATION.md)
+- [CLI Usage Examples](examples/README.md)
