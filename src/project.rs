@@ -200,6 +200,13 @@ impl Project {
                 format!("{}: could not write identity file", identity_path.display())
             })?;
             log::debug!("{}: wrote file", identity_path.display());
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&identity_path, std::fs::Permissions::from_mode(0o600))?;
+                log::debug!("{}: set permissions to 600", identity_path.display());
+            }
         };
 
         let git = if root.join(".git").exists() {

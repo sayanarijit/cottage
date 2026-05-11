@@ -9,8 +9,7 @@ git-repository-url = 'https://github.com/sayanarijit/cottage'
 edit-url-template = 'https://github.com/sayanarijit/cottage/edit/main/docs/{path}'
 default-theme = 'dark'
 preferred-dark-theme = 'coal'
+theme = "theme"
 
 # [output.linkcheck]
 # optional = true
-
-# [preprocessor.cmdrun]
