@@ -2,6 +2,9 @@
 
 Scenarios for configuring keys for a new or existing git repository:
 
+1.  [Start using the auto-generated key pair accross projects](#start-using-the-auto-generated-key-pair-accross-projects)
+2.  [Use your existing SSH key pair](#use-your-existing-ssh-key-pair)
+
 ## Start using the auto-generated key pair accross projects
 
 [ctg init](2-init.md) auto generates a new key for convenience. You can (but don't have to) use the same key across multiple projects.
@@ -20,7 +23,7 @@ To do that, You can copy the private key to `$HOME/.cottage/identity/` and symli
 > '.cottage/identity' -> '/home/sayanarijit/.config/cottage/tmp.vehzl30boG'
 > ```
 
-## Use your existing SSH RSA/Ed25519 key pair
+## Use your existing SSH key pair
 
 If you already have an SSH key pair[^note] (e.g. the one you use with git), you can use it with cottage by adding a symlink to the private key in the `.cottage/identity` directory, and copying the public key to the `.cottage/recipients` directory.
 

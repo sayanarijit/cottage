@@ -2,6 +2,9 @@
 
 Scenarios for initializing cottage in a new or existing git repository:
 
+1. [Create a fresh new git repo and keep secrets in it](#create-a-fresh-new-git-repo-and-keep-secrets-in-it)
+2. [Add cottage to an existing git repo](#add-cottage-to-an-existing-git-repo)
+
 ## Create a fresh new git repo and keep secrets in it
 
 To start a fresh new repo with secrets, run:
