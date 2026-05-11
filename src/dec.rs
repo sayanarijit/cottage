@@ -85,8 +85,8 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
             })?;
 
             #[cfg(unix)]
-            use std::os::unix::fs::PermissionsExt;
             {
+                use std::os::unix::fs::PermissionsExt;
                 std::fs::set_permissions(&output_path, std::fs::Permissions::from_mode(0o600))?;
                 log::debug!("{}: set permissions to 600", output_path.display());
             }
