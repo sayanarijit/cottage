@@ -2,10 +2,11 @@
 
 Scenarios for initializing cottage in a new or existing git repository:
 
-1. [Create a fresh new git repo and keep secrets in it](#create-a-fresh-new-git-repo-and-keep-secrets-in-it)
-2. [Add cottage to an existing git repo](#add-cottage-to-an-existing-git-repo)
+1.  [I want to create a fresh new git repo and keep secrets in it](#i-want-to-create-a-fresh-new-git-repo-and-keep-secrets-in-it)
+2.  [I want to add cottage to an existing git repo](#i-want-to-add-cottage-to-an-existing-git-repo)
+3.  [I want to undo ctg init](#i-want-to-undo-ctg-init)
 
-## Create a fresh new git repo and keep secrets in it
+## I want to create a fresh new git repo and keep secrets in it
 
 To start a fresh new repo with secrets, run:
 
@@ -66,7 +67,7 @@ Check the contents of `.gitignore` and `.gitattributes`:
 > *.cott.age binary export-ignore filter=cottage-encrypted -diff
 > ```
 
-## Add cottage to an existing git repo
+## I want to add cottage to an existing git repo
 
 To add cottage to an existing git repository (e.g. sayanarijit/jf), run:
 
@@ -116,4 +117,15 @@ To confirm that `.gitignore` and `.gitattributes` are properly updated, run:
 >
 > ```stdout
 > *.cott.age binary export-ignore filter=cottage-encrypted -diff
+> ```
+
+## I want to undo ctg init
+
+For some reason, if you want to undo the `ctg init` command, you can run:
+
+> ```bash,test
+> ctg clean --all
+>
+> git status --short
+> # no output
 > ```
