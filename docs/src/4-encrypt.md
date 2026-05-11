@@ -10,7 +10,7 @@ Scenarios for encrypting new or existing secrets:
 
 There are many ways to create a new encrypted file. The simplest way is to use the `ctg encrypt` command:
 
-> ```bash,test
+> ```bash,test,session=myproject:7
 > cat > secret1.env <<EOF
 > DB_PASSWORD=supersecret
 > EOF
@@ -25,8 +25,8 @@ There are many ways to create a new encrypted file. The simplest way is to use t
 >    edit secret1.env.cott.toml
 > ```
 
-> ```bash,test
-> ctg edit secret2.env  # This will open the file in $EDITOR
+> ```bash,test,session=myproject:8
+> # ctg edit secret2.env  # This will open the file in $EDITOR
 >
 > # But you can also provide the content using stdin
 > ctg edit secret2.env <<EOF
@@ -43,7 +43,7 @@ There are many ways to create a new encrypted file. The simplest way is to use t
 
 Let's verify what it did:
 
-> ```bash,test
+> ```bash,test,session=myproject:9
 > ls -1
 > ```
 >
@@ -56,7 +56,7 @@ Let's verify what it did:
 > secret2.env.cott.toml
 > ```
 
-> ```bash,test
+> ```bash,test,session=myproject:10
 > cat .gitignore
 > ```
 >
@@ -72,17 +72,17 @@ Let's verify what it did:
 >
 > ```toml,stdout
 > [checksum]
-> encrypted = "blake3:65d42dc970a4d6f6726df1aa19692b365af1a882c4cc1893a7b2ff9f9ef89bcf"
-> recipients = "blake3:2821590e2c915e409228660ff185130496579a221f5810d296d35ce93b26c8f3"
+> encrypted = "blake3:...XXX..."
+> recipients = "blake3:...XXX..."
 >
 > [preview]
 > format = "dotenv"
 > preview = """
-> DB_PASSWORD=2026-05-11T12:44:02.427264873+00:00
+> DB_PASSWORD=XXXX-XX-XXTXX:XX:XX.XXXXXXXXX+00:00
 > """
 >
 > [secret]
-> timestamp = "2026-05-11T12:44:02.427264873+00:00"
+> timestamp = "XXXX-XX-XXTXX:XX:XX.XXXXXXXXX+00:00"
 > ```
 
 > ```bash,test
@@ -91,23 +91,45 @@ Let's verify what it did:
 >
 > ```stdout
 > age-encryption.org/v1
-> XXX
+> ...
 > ```
 
 ## I want to encrypt an existing cleartext file
 
 Same as above.
 
+## I want to re-encrypt all secrets in the current directory
+
+Just run `ctg encrypt` without any file argument to encrypt files that require encryption:
+
+> ```bash,test,session=myproject:11
+> ctg encrypt
+> # There is no change, so the encryption will be skipped
+> ```
+
+To force re-encryption, add `--force` flag:
+
+> ```bash,test,session=myproject:12
+> ctg encrypt --force
+> ```
+>
+> ```stdout
+> encrypt secret1.env
+>    into secret1.env.cott.age
+>    edit secret1.env.cott.toml
+> encrypt secret2.env
+>    into secret2.env.cott.age
+>    edit secret2.env.cott.toml
+> ```
+
 ## I want the cleartext secret deleted after encryption
 
 Just add `--clean` flag to the `ctg encrypt` or `ctg edit` command:
 
-> ```bash,test
+> ```bash,test,session=myproject:13
 > ctg edit --clean secret1.env <<EOF
 > DB_PASSWORD=editedsecret
 > EOF
->
-> ctg encrypt secret3.env --clean
 > ```
 >
 > ```stdout
@@ -119,7 +141,7 @@ Just add `--clean` flag to the `ctg encrypt` or `ctg edit` command:
 
 If there is no change, re-encryption will be skipped, but the cleartext file will still be deleted:
 
-> ```bash,test
+> ```bash,test,session=myproject:14
 > ctg encrypt --clean secret2.env
 > ```
 >
@@ -129,7 +151,7 @@ If there is no change, re-encryption will be skipped, but the cleartext file wil
 
 But the entries in `.gitignore` will still remain:
 
-> ```bash,test
+> ```bash,test,session=myproject:15
 > cat .gitignore
 > ```
 >

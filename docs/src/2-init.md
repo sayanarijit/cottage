@@ -10,7 +10,8 @@ Scenarios for initializing cottage in a new or existing git repository:
 
 To start a fresh new repo with secrets, run:
 
-> ```bash,test,newdir
+> ```bash,test,session=myproject:0
+> cd /tmp
 > mkdir myproject
 > cd myproject
 > git init
@@ -19,12 +20,12 @@ To start a fresh new repo with secrets, run:
 > ```
 >
 > ```stdout
-> Initialized empty Git repository in /tmp/tmp.XXX/.git/
+> Initialized empty Git repository in /tmp/tmp....XXX.../.git/
 > ```
 
 To confirm that the repository is properly initialized, run:
 
-> ```bash,test
+> ```bash,test,session=myproject:1
 > git status --short
 > ```
 >
@@ -36,7 +37,7 @@ To confirm that the repository is properly initialized, run:
 
 Check the contents in the `.cottage` directory:
 
-> ```bash,test
+> ```bash,test,session=myproject:2
 > tree .cottage
 > ```
 >
@@ -44,14 +45,14 @@ Check the contents in the `.cottage` directory:
 > .cottage
 > ├── identity
 > └── recipients
->     └── XXX
+>     └── ...XXX...
 >
 > 2 directories, 2 files
 > ```
 
 Check the contents of `.gitignore` and `.gitattributes`:
 
-> ```bash,test
+> ```bash,test,session=myproject:3
 > cat .gitignore
 > ```
 >
@@ -71,7 +72,7 @@ Check the contents of `.gitignore` and `.gitattributes`:
 
 To add cottage to an existing git repository (e.g. sayanarijit/jf), run:
 
-> ```bash,test,newdir
+> ```bash,test,session=jf:0
 > git clone git@github.com:sayanarijit/jf.git
 > cd jf
 >
@@ -80,7 +81,7 @@ To add cottage to an existing git repository (e.g. sayanarijit/jf), run:
 
 To confirm that the repository is properly initialized, run:
 
-> ```bash,test
+> ```bash,test,session=jf:1
 > git status --short
 > ```
 >
@@ -90,7 +91,7 @@ To confirm that the repository is properly initialized, run:
 > ?? .gitattributes
 > ```
 
-> ```bash,test
+> ```bash,test,session=jf:2
 > tree .cottage
 > ```
 >
@@ -98,12 +99,12 @@ To confirm that the repository is properly initialized, run:
 > .cottage
 > ├── identity
 > └── recipients
->     └── XXX
+>     └── ...XXX...
 > ```
 
 To confirm that `.gitignore` and `.gitattributes` are properly updated, run:
 
-> ```bash,test
+> ```bash,test,session=jf:3
 > grep .cottage/identity .gitignore
 > ```
 >
@@ -123,7 +124,7 @@ To confirm that `.gitignore` and `.gitattributes` are properly updated, run:
 
 For some reason, if you want to undo the `ctg init` command, you can run:
 
-> ```bash,test
+> ```bash,test,session=jf:4
 > ctg clean --all
 >
 > git status --short
