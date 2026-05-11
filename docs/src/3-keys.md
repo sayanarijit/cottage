@@ -14,8 +14,8 @@ To do that, You can copy the private key to `$HOME/.cottage/identity/` and symli
 > ```bash,test
 > mkdir -p ~/.config/cottage/identity
 > chmod 700 ~/.config/cottage/identity
-> mv -v ".cottage/identity" "~/.config/cottage/identity/$(basename $PWD)"
-> ln -s -v "~/.config/cottage/$(basename $PWD)" ".cottage/identity"
+> mv -v .cottage/identity ~/.config/cottage/identity/"$(basename $PWD)"
+> ln -s -v ~/.config/cottage/"$(basename $PWD)" .cottage/identity
 > ```
 >
 > ```stdout
