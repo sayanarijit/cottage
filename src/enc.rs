@@ -170,38 +170,32 @@ pub fn encrypt_file(
 
     // Write starts here ------------------------
 
-    if opts.dry_run {
-        log::debug!(
-            "{}: dry-run: skipping write of encrypted and metadata file",
-            path.display()
-        );
-        Ok(None)
-    } else {
-        let recp_matches = old_metadata
+    let recp_matches = old_metadata
+        .as_ref()
+        .map(|m| m.checksum.recipients == recp_checksum)
+        .unwrap_or(false);
+
+    let res = if recp_matches
+        && old_secret
             .as_ref()
-            .map(|m| m.checksum.recipients == recp_checksum)
-            .unwrap_or(false);
-
-        let res = if recp_matches
-            && old_secret
-                .as_ref()
-                .map(|c| c.expose_secret() == input.expose_secret())
-                .unwrap_or(false)
+            .map(|c| c.expose_secret() == input.expose_secret())
+            .unwrap_or(false)
+    {
+        log::debug!(
+            "{}: skipping write: content and recipient matches",
+            output_path.display()
+        );
+        None
+    } else {
+        let mut edits = Vec::new();
+        // First add to .gitignore before creating the encrypted file, because, why not!
+        if !opts.skip_gitignore
+            && let Some(gi) = append_to_gitignore_if_absent(path, opts.dry_run)?
         {
-            log::debug!(
-                "{}: skipping write: content and recipient matches",
-                output_path.display()
-            );
-            None
-        } else {
-            let mut edits = Vec::new();
-            // First add to .gitignore before creating the encrypted file, because, why not!
-            if !opts.skip_gitignore
-                && let Some(gi) = append_to_gitignore_if_absent(path, opts.dry_run)?
-            {
-                edits.push(gi);
-            }
+            edits.push(gi);
+        }
 
+        if !opts.dry_run {
             log::debug!("{}: writing encrypted file", output_path.display());
             std::fs::write(&output_path, output.expose_secret()).with_context(|| {
                 format!("{}: could not write encrypted file", output_path.display())
@@ -211,24 +205,26 @@ pub fn encrypt_file(
             std::fs::write(&metadata_path, toml::to_string(&metadata)?).with_context(|| {
                 format!("{}: could not write metadata file", metadata_path.display())
             })?;
-
-            edits.push(metadata_path);
-
-            Some(OperationResult {
-                kind: OperationKind::Encrypt,
-                input: path.to_path_buf(),
-                output: Some(output_path.clone()),
-                edits,
-                cleanups: vec![],
-            })
-        };
-
-        if !opts.skip_timestamps && output_path.exists() {
-            log::debug!("{}: updating timestamp", output_path.display());
-            set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
+        } else {
+            log::debug!("{}: dry run: skipping write", output_path.display());
         }
-        Ok(res)
+
+        edits.push(metadata_path);
+
+        Some(OperationResult {
+            kind: OperationKind::Encrypt,
+            input: path.to_path_buf(),
+            output: Some(output_path.clone()),
+            edits,
+            cleanups: vec![],
+        })
+    };
+
+    if !opts.dry_run && !opts.skip_timestamps && output_path.exists() {
+        log::debug!("{}: updating timestamp", output_path.display());
+        set_file_mtime(&output_path, FileTime::from_system_time(filemtime))?;
     }
+    Ok(res)
 }
 
 pub fn encrypt_dir(

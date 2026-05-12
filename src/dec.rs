@@ -57,28 +57,22 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
 
     // Write starts here ------------------------
 
-    if opts.dry_run {
-        log::debug!(
-            "{}: dry-run: skipping write of decrypted file",
-            output_path.display()
-        );
-        Ok(None)
+    let res = if output_path.exists()
+        && std::fs::read(&output_path)? == output.expose_secret().to_vec()
+    {
+        log::debug!("{}: skipping write: content matches", output_path.display());
+        None
     } else {
-        let res = if output_path.exists()
-            && std::fs::read(&output_path)? == output.expose_secret().to_vec()
+        let mut edits = vec![];
+        // First add to .gitignore before creating the decrypted file, so that if the operation fails
+        // for some reason, we won't have a decrypted file that is not ignored.
+        if !opts.skip_gitignore
+            && let Some(gi) = append_to_gitignore_if_absent(&output_path, opts.dry_run)?
         {
-            log::debug!("{}: skipping write: content matches", output_path.display());
-            None
-        } else {
-            let mut edits = vec![];
-            // First add to .gitignore before creating the decrypted file, so that if the operation fails
-            // for some reason, we won't have a decrypted file that is not ignored.
-            if !opts.skip_gitignore
-                && let Some(gi) = append_to_gitignore_if_absent(&output_path, opts.dry_run)?
-            {
-                edits.push(gi);
-            };
+            edits.push(gi);
+        };
 
+        if !opts.dry_run {
             log::debug!("{}: writing decrypted file", output_path.display());
             std::fs::write(&output_path, output.expose_secret()).with_context(|| {
                 format!("{}: could not write decrypted file", output_path.display())
@@ -90,21 +84,23 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
                 std::fs::set_permissions(&output_path, std::fs::Permissions::from_mode(0o600))?;
                 log::debug!("{}: set permissions to 600", output_path.display());
             }
+        } else {
+            log::debug!("{}: dry run: skipping write", output_path.display());
+        }
 
-            Some(OperationResult {
-                kind: OperationKind::Decrypt,
-                input: path.to_path_buf(),
-                output: Some(output_path.clone()),
-                edits,
-                cleanups: vec![],
-            })
-        };
-        if !opts.skip_timestamps {
-            log::debug!("{}: updating timestamp", output_path.display());
-            set_file_mtime(&output_path, FileTime::from_system_time(verified.mtime))?;
-        };
-        Ok(res)
-    }
+        Some(OperationResult {
+            kind: OperationKind::Decrypt,
+            input: path.to_path_buf(),
+            output: Some(output_path.clone()),
+            edits,
+            cleanups: vec![],
+        })
+    };
+    if !opts.dry_run && !opts.skip_timestamps && output_path.exists() {
+        log::debug!("{}: updating timestamp", output_path.display());
+        set_file_mtime(&output_path, FileTime::from_system_time(verified.mtime))?;
+    };
+    Ok(res)
 }
 
 pub fn decrypt_dir(
