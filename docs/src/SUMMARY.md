@@ -9,5 +9,6 @@
 - [Scenarios: Diff, Status, and Sync](7-diff-status-sync.md)
 - [Scenarios: Configuring Git Hooks](8-githooks.md)
 - [Scenarios: Access Control](9-access.md)
+- [Scenarios: Configuring Secret Providers & Plugins](10-providers-plugins.md)
 - [Configuration Specification](SPECIFICATION.md)
 - [Consolidated CLI Usage Examples](examples/README.md)
