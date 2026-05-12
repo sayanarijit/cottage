@@ -179,7 +179,7 @@ Verify that the `prod-server` is denied access:
 
 ## I want to ensure that access control rules are enforced for all secrets before I merge a pull request
 
-To ensure that access control rules are properly set up for all secrets before merging a pull request, you can add run `ctg verify` in a CI workflow or a git hook.
+To ensure that access control rules are properly set up for all secrets before merging a pull request, you can run `ctg verify` in a CI workflow or a git hook.
 
 Example using GitHub Actions:
 

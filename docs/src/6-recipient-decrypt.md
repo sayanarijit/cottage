@@ -98,7 +98,7 @@ Now admin should pull the changes and re-encrypt the secrets for the new key.
 
 > [!NOTE]
 > The `--force` flag is used to bypass the checksum verification when decrypting secrets.
-> This is necessary when adding a new recipient key, because the encrypted secret files and recipient checksum in the TOML files.
+> This is necessary when adding a new recipient key, because the encrypted secret files and recipient checksum in the TOML files need to be updated.
 
 > ```bash,test,session=myproject:25
 > git diff

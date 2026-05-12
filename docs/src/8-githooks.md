@@ -9,7 +9,7 @@ Scenarios for configuring git hooks:
 
 ## I want to see secret diff before git commit
 
-You can use [prek](https://github.com/j178/prek) to automatically show the diff of secrets before pushing. This acts as a final check to ensure you are pushing exactly what you intend.
+You can use [prek](https://github.com/j178/prek) to automatically show the diff of secrets before committing. This acts as a final check to ensure you are committing exactly what you intend.
 
 Add the following to your `prek.toml` in your project root:
 

@@ -5,7 +5,7 @@ Cottage allows you to synchronize your secrets with external providers such as H
 Scenarios for configuring secret providers:
 
 1. [I want to sync secrets with a non-git secret provider](#i-want-to-sync-secrets-with-a-non-git-secret-provider)
-2. [I want to use a provider specific plugin for cottage](#i-want-to-use-a-provider-specific-plugin-for-cottage)
+2. [I want to use a provider-specific plugin for cottage](#i-want-to-use-a-provider-specific-plugin-for-cottage)
 
 ## I want to sync secrets with a non-git secret provider
 
@@ -88,7 +88,7 @@ You can also push your local secret to the remote provider:
 >    into myvault
 > ```
 
-## I want to use a provider specific plugin for cottage
+## I want to use a provider-specific plugin for cottage
 
 Cottage supports plugins, which are external binaries that handle the logic for interacting with specific secret providers.
 
