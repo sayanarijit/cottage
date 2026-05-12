@@ -6,6 +6,7 @@
 - [Encrypting Secrets](4-encrypt.md)
 - [Syncing with Git](5-git.md)
 - [Adding Recipient and Decrypting](6-recipient-decrypt.md)
-- [Collaboration](7-collaborate.md)
+- [Diff, Status, and Sync](7-diff-status-sync.md)
+- [Configuring Git Hooks](8-githooks.md)
 - [Configuration Specification](SPECIFICATION.md)
 - [CLI Usage Examples](examples/README.md)
