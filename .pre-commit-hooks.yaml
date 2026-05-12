@@ -39,24 +39,24 @@
   description: verify the upstream modified secrets (content based)
   entry: ctg verify
   language: system
-  files: "\\.cott\\.(age|toml)$"
   pass_filenames: false
   stages: [post-checkout, post-merge]
+  always_run: true
 
 - id: cottage-sync-decrypt
   name: cottage-sync-decrypt
   description: decrypt the upstream modified secrets (timestamp based)
   entry: ctg sync --skip-encryption
   language: system
-  files: "\\.cott\\.(age|toml)$"
   pass_filenames: false
   stages: [post-checkout, post-merge]
+  always_run: true
 
 - id: cottage-decrypt
   name: cottage-decrypt
   description: decrypt the upstream modified secrets (content based)
   entry: ctg decrypt
   language: system
-  files: "\\.cott\\.(age|toml)$"
   pass_filenames: false
   stages: [post-checkout, post-merge]
+  always_run: true
