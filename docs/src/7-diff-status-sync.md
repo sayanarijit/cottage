@@ -37,8 +37,8 @@ Now you can compare your local changes with the upstream version:
 > --- a/secret1.env
 > +++ b/secret1.env
 > @@ -1 +1 @@
-> -DB_PASSWORD=my-local-password
-> +DB_PASSWORD=edited-by-admin
+> -DB_PASSWORD=editedsecret
+> +DB_PASSWORD=my-local-password
 > ```
 
 ## I want to sync locally modified changes with upstream
@@ -73,4 +73,25 @@ Verify that everything is in sync:
 > ```bash,test,session=myproject:31
 > ctg status
 > # No output means everything is in sync
+> ```
+
+Now you can commit and push the changes to the upstream repository:
+
+> ```bash,test,session=myproject:32
+> git add .
+> git commit -m "Sync local changes to upstream"
+> git push origin main
+> ```
+>
+> ```stdout
+> [main XXXXXXX] Sync local changes to upstream
+>  2 files changed, 3 insertions(+), 3 deletions(-)
+> Enumerating objects: 7, done.
+> Counting objects: 100% (7/7), done.
+> Delta compression using up to 20 threads
+> Compressing objects: 100% (4/4), done.
+> Writing objects: 100% (4/4), X.XX KiB | X.XX MiB/s, done.
+> Total 4 (delta 2), reused 0 (delta 0), pack-reused 0 (from 0)
+> To /tmp/upstream.git
+>    XXXXXXX..XXXXXXX  main -> main
 > ```

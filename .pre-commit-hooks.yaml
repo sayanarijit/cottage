@@ -17,7 +17,7 @@
   always_run: true
 
 - id: cottage-sync-encrypt
-  name: cottage-encrypt
+  name: cottage-sync-encrypt
   description: encrypt the locally modified secrets (timestamp based)
   entry: ctg sync --skip-decryption
   language: system
