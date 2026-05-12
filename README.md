@@ -193,6 +193,15 @@ You can use [prek](https://github.com/j178/prek) or [pre-commit](https://pre-com
 
 See the [example prek configuration here](examples/prek.toml).
 
+After adding the `prek.toml` file, run:
+
+```bash
+prek install
+prek install --hook-type post-checkout
+prek install --hook-type post-merge
+prek install --hook-type post-rewrite
+```
+
 ## Access Control
 
 ### Rules

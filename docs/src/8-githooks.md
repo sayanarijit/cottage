@@ -28,7 +28,6 @@ Add the following to your `prek.toml` in your project root:
 >
 > prek auto-update
 > prek install
-> prek install-hooks pre-commit
 > ```
 >
 > ```stdout
@@ -52,7 +51,7 @@ Add the following to your `prek.toml` in your project root:
 > hint: `prek auto-update` often fixes this",
 >
 > https://github.com/sayanarijit/cottage
->   updating rev `main` -> `v0.5.2`
+>   updating rev `main` -> `vX.X.X`
 > prek installed at `.git/hooks/pre-commit`
 > ```
 
@@ -130,7 +129,9 @@ Update your `prek.toml`:
 >
 > prek auto-update
 > prek install
-> prek install-hooks pre-commit pre-pull post-merge post-checkout post-rewrite
+> prek install --hook-type post-checkout
+> prek install --hook-type post-merge
+> prek install --hook-type post-rewrite
 > ```
 >
 > ```stdout
@@ -156,8 +157,12 @@ Update your `prek.toml`:
 > hint: `prek auto-update` often fixes this",
 >
 > https://github.com/sayanarijit/cottage
->   updating rev `main` -> `v0.5.2`
+>   updating rev `main` -> `vX.X.X`
 > prek installed at `.git/hooks/pre-commit`
+> prek installed at `.git/hooks/pre-commit`
+> prek installed at `.git/hooks/post-checkout`
+> prek installed at `.git/hooks/post-merge`
+> prek installed at `.git/hooks/post-rewrite`
 > ```
 
 With this setup:
@@ -201,4 +206,63 @@ Let's try again
 >    XXXXXXX..XXXXXXX  main -> main
 > ```
 
-TODO: Fix decrypt on pull.
+When you run `git pull`, any updated secrets will be automatically decrypted:
+
+> ```bash,test,session=myproject:38
+> cd /tmp/myproject-clone
+> prek install
+> prek install --hook-type post-checkout
+> prek install --hook-type post-merge
+> prek install --hook-type post-rewrite
+> git pull origin main
+> prek run --stage post-merge # Need to run manually for the first time
+> ```
+>
+> ```stdout
+> prek installed at `.git/hooks/pre-commit`
+> prek installed at `.git/hooks/post-checkout`
+> prek installed at `.git/hooks/post-merge`
+> prek installed at `.git/hooks/post-rewrite`
+> From /tmp/upstream
+>  * branch            main       -> FETCH_HEAD
+> Already up to date.
+> cottage-sync-decrypt.....................................................Passed
+> ```
+
+Now edit another secret in the original repo and push:
+
+> ```bash,test,session=myproject:39
+> cd /tmp/myproject
+> git pull origin main
+> echo "DB_PASSWORD=another-password" > secret3.env
+> ctg sync
+> git add .
+> git commit -m "Add another secret"
+> git push origin main
+> ```
+
+And pull in the clone repo:
+
+> ```bash,test,session=myproject:40
+> cd /tmp/myproject-clone
+> git pull origin main
+> cat secret3.env
+> ```
+>
+> ```stdout
+> remote: Enumerating objects: 4, done.
+> remote: Counting objects: 100% (4/4), done.
+> remote: Compressing objects: 100% (2/2), done.
+> remote: Total 3 (delta 1), reused 0 (delta 0), pack-reused 0 (from 0)
+> Unpacking objects: 100% (3/3), 945 bytes | 945.00 KiB/s, done.
+> From /tmp/upstream
+>  * branch            main       -> FETCH_HEAD
+>    4202309..e30b7f2  main       -> origin/main
+> Updating 4202309..e30b7f2
+> Fast-forward
+>  secret3.env | 1 +
+>  1 file changed, 1 insertion(+)
+>  create mode 100644 secret3.env
+> cottage-sync-decrypt.....................................................Passed
+> DB_PASSWORD=another-password
+> ```
