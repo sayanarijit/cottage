@@ -19,26 +19,25 @@ generates redacted previews of encrypted secrets for better visibility and suppo
 persistent and temporary decryption workflows, while ensuring secrets are never committed
 in plaintext.
 
-[![Intro Demo](https://vhs.charm.sh/vhs-6P2I0IyW7AJADjAEzVjOJP.gif)](https://swacn.com/lab/3b668c60-17c5-4f32-a10a-ab4891bde82d?embed=true)
+![Intro Demo](https://vhs.charm.sh/vhs-6P2I0IyW7AJADjAEzVjOJP.gif)
 
 1. [Features](#features)
-2. [Try in cottage Lab](#try-in-cottage-lab)
-3. [Installation](#installation)
-4. [Quick Start](#quick-start)
-5. [GitOps](#gitops)
-6. [Git Hooks](#git-hooks)
-7. [Access Control](#access-control)
+2. [Installation](#installation)
+3. [Quick Start](#quick-start)
+4. [GitOps](#gitops)
+5. [Git Hooks](#git-hooks)
+6. [Access Control](#access-control)
    1. [Rules](#rules)
    2. [Verification](#verification)
-8. [Any Provider as Upstream](#any-provider-as-upstream)
-9. [Learn More](#learn-more)
-10. [Troubleshooting](#troubleshooting)
-11. [Comparison](#comparison)
+7. [Any Provider as Upstream](#any-provider-as-upstream)
+8. [Learn More](#learn-more)
+9. [Troubleshooting](#troubleshooting)
+10. [Comparison](#comparison)
     1. [age vs Other Encryption](#age-vs-other-encryption)
     2. [cottage vs SOPS](#cottage-vs-sops)
     3. [cottage vs dotenvx](#cottage-vs-dotenvx)
     4. [cottage vs agebox](#cottage-vs-agebox)
-12. [License](#license)
+11. [License](#license)
 
 ## Features
 
@@ -56,12 +55,6 @@ in plaintext.
 - **Clean up**: `ctg clean` deletes all decrypted secrets from local repo to let you run your AI agents with a tiny bit less worry.
 - **Supports jj and non-git directories**: `ctg init` turns any directory into a secret store.
 - **Sync with any provider**: Lets you configure any provider with an API as the upstream, and start using `ctg pull/diff/push` like `git pull/diff/push`.
-
-## Try in cottage Lab
-
-[Try cottage Lab right in your browser without installing anything](https://swacn.com/lab/3b668c60-17c5-4f32-a10a-ab4891bde82d?embed=true).
-
-> - powered by [swacn.com](https://swacn.com/).
 
 ## Installation
 
