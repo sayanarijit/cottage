@@ -80,10 +80,14 @@ Now admin should pull the changes and re-encrypt the secrets for the new key.
 > ```
 
 > ```bash,test,session=myproject:24
-> ctg encrypt
+> ctg decrypt --force && ctg encrypt
 > ```
 >
 > ```stdout
+> decrypt secret1.env.cott.age
+>    into secret1.env
+> decrypt secret2.env.cott.age
+>    into secret2.env
 > encrypt secret1.env
 >    into secret1.env.cott.age
 >    edit secret1.env.cott.toml
@@ -91,6 +95,10 @@ Now admin should pull the changes and re-encrypt the secrets for the new key.
 >    into secret2.env.cott.age
 >    edit secret2.env.cott.toml
 > ```
+
+> [!NOTE]
+> The `--force` flag is used to bypass the checksum verification when decrypting secrets.
+> This is necessary when adding a new recipient key, because the encrypted secret files and recipient checksum in the TOML files.
 
 > ```bash,test,session=myproject:25
 > git diff
@@ -183,6 +191,6 @@ Now you can pull the changes in the cloned repository and decrypt the secrets:
 
 If you are sure that the encrypted secret file and recipient are correct, you can bypass the checksum verification by running:
 
-> ```bash,test,session=myproject:26
+> ```bash
 > ctg decrypt --force
 > ```

@@ -55,7 +55,7 @@ If that is also absent, it will try to load all keys from `~/.ssh`.
 
 You can also always mention the path to the private key using the `-i / --identity` flag or the `COTTAGE_IDENTITY` environment variable.
 
-> ```bash,test,session=myproject:6
+> ```bash
 > rm -v .cottage/identity
 > ```
 >
