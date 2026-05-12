@@ -40,7 +40,7 @@
   entry: ctg verify
   language: system
   pass_filenames: false
-  stages: [post-checkout, post-merge]
+  stages: [post-checkout, post-merge, post-rewrite]
   always_run: true
 
 - id: cottage-sync-decrypt
@@ -49,7 +49,7 @@
   entry: ctg sync --skip-encryption
   language: system
   pass_filenames: false
-  stages: [post-checkout, post-merge]
+  stages: [post-checkout, post-merge, post-rewrite]
   always_run: true
 
 - id: cottage-decrypt
@@ -58,5 +58,5 @@
   entry: ctg decrypt
   language: system
   pass_filenames: false
-  stages: [post-checkout, post-merge]
+  stages: [post-checkout, post-merge, post-rewrite]
   always_run: true

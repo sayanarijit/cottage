@@ -28,7 +28,7 @@ Add the following to your `prek.toml` in your project root:
 >
 > prek auto-update
 > prek install
-> prek install-hooks
+> prek install-hooks pre-commit
 > ```
 >
 > ```stdout
@@ -130,7 +130,7 @@ Update your `prek.toml`:
 >
 > prek auto-update
 > prek install
-> prek install-hooks
+> prek install-hooks pre-commit pre-pull post-merge post-checkout post-rewrite
 > ```
 >
 > ```stdout
