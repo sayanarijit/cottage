@@ -1,14 +1,21 @@
 ---
 title: "cottage (ctg)"
 sub_title: "A modern git-based age-encrypted secrets manager for teams"
-author: "Arijit Basu"
+author: "Arijit Basu <cottage@arijitbasu.in>"
 theme:
   name: dark
+options:
+  end_slide_shorthand: true
+  h1_slide_titles: true
 ---
 
 # cottage
 
-`ctg` (cottage) is a modern git-based age-encrypted secrets manager for teams.
+```bash +image
+cat ../logo/cottage-dark.png
+```
+
+**cott*age*** is a modern git-based age-encrypted secrets manager for teams.
 
 This guide covers all subcommands and their options with real examples.
 
@@ -17,7 +24,7 @@ This document is best viewed in a terminal with [presenterm](https://github.com/
 > [!NOTE]
 > The term _"tracked secret"_ or just _"secret"_ used in this guide refers to secrets that have been encrypted, i.e., that have a corresponding `.cott.age` file.
 
-<!-- end_slide -->
+---
 
 # Path Target Behavior
 
@@ -28,39 +35,39 @@ Most `ctg` commands can take a file or a directory as an argument.
 - **`.cott.age` file**: Usually treated as the source for decryption or the target for status/diff.
 - **`.cott.toml` file**: Metadata file. Most commands skip these directly as they are managed alongside the `.cott.age` files.
 
-<!-- end_slide -->
+---
 
 # `ctg init`
 
 Initialize cottage in the current directory. This creates a `.cottage` directory for recipients and identities.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
 ctg init
 # (Initializes the .cottage directory)
 ```
 
-<!-- end_slide -->
+---
 
 # `ctg encrypt`
 
 Encrypt files or directories. By default, it processes all the tracked secrets in the entire project root.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
 # First, un-track a secret by deleting the .cott.age file
-rm examples/secrets/secret.yaml.cott.*
+rm ./secrets/secret.yaml.cott.*
 
-echo "added: line" >> examples/secrets/secret.yaml
+echo "added: line" >> ./secrets/secret.yaml
 
 # Now encrypt the file and start tracking it again
-ctg encrypt examples/secrets/secret.yaml
+ctg encrypt ./secrets/secret.yaml
 # Output:
-# encrypt examples/secrets/secret.yaml
-#    into examples/secrets/secret.yaml.cott.age
-#    edit examples/secrets/secret.yaml.cott.toml
+# encrypt ./secrets/secret.yaml
+#    into ./secrets/secret.yaml.cott.age
+#    edit ./secrets/secret.yaml.cott.toml
 ```
 
 ### Target Behavior
@@ -70,20 +77,20 @@ ctg encrypt examples/secrets/secret.yaml
 - **`.cott.age`**: Skipped (already encrypted).
 - **`.cott.toml`**: Skipped (metadata).
 
-<!-- end_slide -->
+---
 
 # `ctg decrypt`
 
 Decrypt files or directories.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
 # Decrypt a specific secret
-ctg decrypt examples/secrets/secret.yaml.cott.age
+ctg decrypt ./secrets/secret.yaml.cott.age
 # Output:
-# decrypt examples/secrets/secret.yaml.cott.age
-#    into examples/secrets/secret.yaml
+# decrypt ./secrets/secret.yaml.cott.age
+#    into ./secrets/secret.yaml
 ```
 
 ### Target Behavior
@@ -93,58 +100,58 @@ ctg decrypt examples/secrets/secret.yaml.cott.age
 - **Decrypted File**: Skipped (already decrypted).
 - **`.cott.toml`**: Skipped (metadata).
 
-<!-- end_slide -->
+---
 
 # `ctg status`
 
 See pending actions based on timestamps.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
 # Check status
-ctg status examples/secrets/secret.yaml.cott.age
+ctg status ./secrets/secret.yaml.cott.age
 # Output:
-# decrypt examples/secrets/secret.yaml.cott.age
-#    into examples/secrets/secret.yaml
+# decrypt ./secrets/secret.yaml.cott.age
+#    into ./secrets/secret.yaml
 
 # Decrypt and modify to see pending encryption
-ctg decrypt examples/secrets/secret.yaml.cott.age -qq
-echo "status: change" >> examples/secrets/secret.yaml
+ctg decrypt ./secrets/secret.yaml.cott.age -qq
+echo "status: change" >> ./secrets/secret.yaml
 
-ctg status examples/secrets/secret.yaml
+ctg status ./secrets/secret.yaml
 # Output:
-# encrypt examples/secrets/secret.yaml
-#    into examples/secrets/secret.yaml.cott.age
+# encrypt ./secrets/secret.yaml
+#    into ./secrets/secret.yaml.cott.age
 ```
 
 ### Target Behavior
 
 - **Any Target**: Works on any path that is part of a secret (plain-text or `.cott.age`) or a directory containing them.
 
-<!-- end_slide -->
+---
 
 # `ctg diff`
 
 See the actual diff between encrypted and decrypted files. This decrypts the encrypted version in memory (safe from accidental exposure) to compare.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
 # Decrypt and modify a file
-ctg decrypt examples/secrets/secret.yaml.cott.age -qq
-echo "diff: change" >> examples/secrets/secret.yaml
+ctg decrypt ./secrets/secret.yaml.cott.age -qq
+echo "diff: change" >> ./secrets/secret.yaml
 
 # View the diff
-ctg diff examples/secrets/secret.yaml
+ctg diff ./secrets/secret.yaml
 ```
 
 Output:
 
 ```diff
-diff --git a/examples/secrets/secret.yaml b/examples/secrets/secret.yaml
---- a/examples/secrets/secret.yaml
-+++ b/examples/secrets/secret.yaml
+diff --git a/./secrets/secret.yaml b/./secrets/secret.yaml
+--- a/./secrets/secret.yaml
++++ b/./secrets/secret.yaml
 @@ -1 +1,2 @@
  SECRET: foobar
 +diff: change
@@ -154,23 +161,23 @@ diff --git a/examples/secrets/secret.yaml b/examples/secrets/secret.yaml
 
 - **Any Target**: Similar to `status`, it can be pointed at any file in a secret pair or a directory. It will decrypt the `.cott.age` file in memory and compare it with the on-disk plain-text file.
 
-<!-- end_slide -->
+---
 
 # `ctg verify`
 
 Verify the checksum matches for encrypted files and recipients. This is useful in CI to ensure that all changes to secrets and recipients are documented properly in the metadata file.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
 # Verify a specific secret
-ctg verify examples/secrets/secret.yaml.cott.age
-# (No output if everything is correct)
+ctg verify ./secrets/secret.yaml.cott.age
+# verified: all encrypted secrets are in sync with metadata
 
 # Try to verify with wrong recipients to see it fail
-ctg verify examples/secrets/secret.yaml.cott.age -R Cargo.toml
+ctg verify ./secrets/secret.yaml.cott.age -R Cargo.toml
 # Output:
-# Error: examples/secrets/secret.yaml.cott.toml: recipients mismatch: use --skip-verify-recipients to skip this check
+# Error: ./secrets/secret.yaml.cott.toml: recipients mismatch: use --skip-verify-recipients to skip this check
 ```
 
 ### Target Behavior
@@ -179,32 +186,32 @@ ctg verify examples/secrets/secret.yaml.cott.age -R Cargo.toml
 - **Directory**: Recursively finds and verifies all `.cott.age` files.
 - **Decrypted File**: Verifies the corresponding `.cott.age` file.
 
-<!-- end_slide -->
+---
 
 # `ctg sync`
 
 Keeps encrypted and decrypted files in sync based on timestamps.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
 # Decrypt and modify
-ctg decrypt examples/secrets/secret.yaml.cott.age -qq
-echo "sync: change" >> examples/secrets/secret.yaml
+ctg decrypt ./secrets/secret.yaml.cott.age -qq
+echo "sync: change" >> ./secrets/secret.yaml
 
 # Sync will encrypt the newer decrypted file
-ctg sync examples/secrets/secret.yaml
+ctg sync ./secrets/secret.yaml
 # Output:
-# encrypt examples/secrets/secret.yaml
-#    into examples/secrets/secret.yaml.cott.age
-#    edit examples/secrets/secret.yaml.cott.toml
+# encrypt ./secrets/secret.yaml
+#    into ./secrets/secret.yaml.cott.age
+#    edit ./secrets/secret.yaml.cott.toml
 ```
 
 ### Target Behavior
 
 - **File/Dir/Age**: Syncs the target(s). If a decrypted file is newer, it encrypts. If a `.cott.age` file is newer, it decrypts.
 
-<!-- end_slide -->
+---
 
 # `ctg edit`
 
@@ -212,16 +219,18 @@ Edit and encrypt a file directly. Opens it in your default `$EDITOR`, and re-enc
 
 Run it with `--clean` to automatically delete the decrypted file after editing.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
-ctg edit examples/secrets/secret.yaml.cott.age --clean
-# (Opens $EDITOR, then encrypts on save)
+# ctg edit ./secrets/secret.yaml.cott.age --clean # (Opens $EDITOR, then encrypts on save)
+
+echo foo | ctg edit ./secrets/secret.yaml.cott.age --clean
+
 # Output:
-# encrypt examples/secrets/secret.yaml
-#    into examples/secrets/secret.yaml.cott.age
-#    edit examples/secrets/secret.yaml.cott.toml
-# delete examples/secrets/secret.yaml
+# encrypt ./secrets/secret.yaml
+#    into ./secrets/secret.yaml.cott.age
+#    edit ./secrets/secret.yaml.cott.toml
+# delete ./secrets/secret.yaml
 ```
 
 ### Target Behavior
@@ -231,7 +240,7 @@ ctg edit examples/secrets/secret.yaml.cott.age --clean
 - **Directory**: Not supported (must target a specific secret).
 - **`.cott.toml`**: Not supported (cannot edit metadata directly).
 
-<!-- end_slide -->
+---
 
 # `ctg clean`
 
@@ -239,16 +248,18 @@ Delete all decrypted secrets to keep the workspace clean.
 
 Run it with `--gitignore` to also remove the gitignore entry.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg de ./secrets/secret.yaml.cott.age -qq
 
 # First, dry run to see what would be deleted
-ctg clean examples --dry-run
+ctg clean . --dry-run
+# Output:
+# delete ./secrets/secret.yaml
 
 # Actually delete decrypted secrets
-ctg clean examples
+ctg clean .
 # Output:
-# delete examples/secrets/secret.yaml
+# delete ./secrets/secret.yaml
 ```
 
 ### Target Behavior
@@ -257,26 +268,32 @@ ctg clean examples
 - **Directory**: Recursively deletes all decrypted secrets within.
 - **`.cott.age` / `.cott.toml`**: Skipped.
 
-> [!WARNING] > `ctg clean` is destructive for your local decrypted copies. Always ensure your changes are encrypted before cleaning.
+> [!WARNING]
+> ctg clean is destructive for your local decrypted copies.
+> Always ensure your changes are encrypted before cleaning.
 
-<!-- end_slide -->
+---
 
 # `ctg run` / `ctgx`
 
 Decrypt secrets, run a specified command, and automatically delete the decrypted secrets after the command finishes.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
 # Run 'ls' while secrets are temporarily decrypted
-ctg run -- ls examples/secrets/secret.yaml
-ctg run -- ls examples/secrets/secret.yaml.cott.age
+ctg run -- ls ./secrets/secret.yaml
+ctg run -- ls ./secrets/secret.yaml.cott.age
 # Output:
-# decrypt examples/secrets/secret.yaml.cott.age
-#    into examples/secrets/secret.yaml
-# examples/secrets/secret.yaml
-# delete examples/secrets/secret.yaml
+# decrypt ./secrets/secret.yaml.cott.age
+#    into ./secrets/secret.yaml
+# ./secrets/secret.yaml
+# decrypt ./secrets/secret.yaml.cott.age
+#    into ./secrets/secret.yaml
+# ./secrets/secret.yaml
 ```
+
+---
 
 # `ctg env`
 
@@ -284,16 +301,16 @@ Decrypt an environment file in memory and export its content as environment vari
 
 It defaults to `.env.cott.age` in the current directory.
 
-```bash
-git checkout examples && ctg clean -qq
+```bash +exec
+git checkout . -q && ctg clean -qq
 
 # Run 'printenv' with variables from .env.cott.age
-ctg env -F examples/.env.cott.age -- printenv SECRET
+ctg env -F ./.env.cott.age -- printenv SECRET
 # Output:
 # foobar
 
 # If the file is not a valid dotenv file, it exports the entire content as COTTAGE_SECRET
-ctg env -F examples/secrets/secret.yaml.cott.age -- sh -c 'echo "$COTTAGE_SECRET"'
+ctg env -F ./secrets/secret.yaml.cott.age -- sh -c 'echo "$COTTAGE_SECRET"'
 # Output:
 # SECRET: foobar
 ```
@@ -302,51 +319,7 @@ ctg env -F examples/secrets/secret.yaml.cott.age -- sh -c 'echo "$COTTAGE_SECRET
 
 - **`-F`, `--file`**: Specifies the encrypted file to use. It must be an encrypted file (ending in `.cott.age`).
 
-<!-- end_slide -->
-
-# `ctg pull`
-
-Fetch secrets from a remote upstream and encrypt them locally.
-
-```bash
-git checkout examples && ctg clean -qq
-
-# Pull a secret from the 'customvault' upstream
-ctg pull examples/secrets/secret.json.cott.age
-# Output:
-# pull    customvault
-#    into examples/secrets/secret.json.cott.age
-```
-
-### Target Behavior
-
-- **`.cott.age` File**: Pulls the secret for this specific file if it has an upstream configured in its metadata.
-- **Directory**: Recursively pulls secrets for all `.cott.age` files that have upstreams configured.
-- **Decrypted File**: Pulls for the corresponding `.cott.age` file.
-
-<!-- end_slide -->
-
-# `ctg push`
-
-Push locally encrypted secrets (decrypted in memory) to a remote upstream.
-
-```bash
-git checkout examples && ctg clean -qq
-
-# Push a secret to the 'customvault' upstream
-ctg push examples/secrets/secret.json.cott.age
-# Output:
-# push    examples/secrets/secret.json.cott.age
-#    into customvault
-```
-
-### Target Behavior
-
-- **`.cott.age` File**: Pushes the secret for this specific file if it has an upstream configured in its metadata.
-- **Directory**: Recursively pushes secrets for all `.cott.age` files that have upstreams configured.
-- **Decrypted File**: Pushes for the corresponding `.cott.age` file.
-
-<!-- end_slide -->
+---
 
 # Remote Upstreams
 
@@ -367,7 +340,7 @@ script = 'curl -s "https://${HOST}/api/pull${DESTINATION}"'
 script = 'curl -s -X POST -d @- "https://${HOST}/api/push${DESTINATION}"'
 ```
 
-### Linking a Secret (`examples/secrets/secret.json.cott.toml`)
+### Linking a Secret (`./secrets/secret.json.cott.toml`)
 
 ```toml
 [upstream.customvault]
@@ -378,7 +351,52 @@ vars = {
 }
 ```
 
-<!-- end_slide -->
+---
+
+# `ctg pull`
+
+Fetch secrets from a remote upstream and encrypt them locally.
+
+```bash +exec
+git checkout . -q && ctg clean -qq
+
+# Pull a secret from the 'customvault' upstream
+ctg pull customvault ./secrets/secret.json.cott.age
+# Output:
+# pull    customvault
+#    into ./secrets/secret.json.cott.age
+#    edit secrets/secret.json.cott.toml
+```
+
+### Target Behavior
+
+- **`.cott.age` File**: Pulls the secret for this specific file if it has an upstream configured in its metadata.
+- **Directory**: Recursively pulls secrets for all `.cott.age` files that have upstreams configured.
+- **Decrypted File**: Pulls for the corresponding `.cott.age` file.
+
+---
+
+# `ctg push`
+
+Push locally encrypted secrets (decrypted in memory) to a remote upstream.
+
+```bash +exec
+git checkout . -q && ctg clean -qq
+
+# Push a secret to the 'customvault' upstream
+ctg push customvault ./secrets/secret.json.cott.age
+# Output:
+# push    ./secrets/secret.json.cott.age
+#    into customvault
+```
+
+### Target Behavior
+
+- **`.cott.age` File**: Pushes the secret for this specific file if it has an upstream configured in its metadata.
+- **Directory**: Recursively pushes secrets for all `.cott.age` files that have upstreams configured.
+- **Decrypted File**: Pushes for the corresponding `.cott.age` file.
+
+---
 
 # Common Options
 
@@ -395,31 +413,33 @@ Many `ctg` commands share these common options:
 - `--skip-encryption`: Skip operations involving encryption (sync, diff, status).
 - `--skip-decryption`: Skip operations involving decryption (sync, diff, status).
 
-<!-- end_slide -->
+---
 
-### Command Option Examples
+# Command Option Examples
 
-```bash
+```bash +exec
+git checkout . -q && ctg clean -qq
+
+ctg decrypt ./secrets/secret.yaml.cott.age --force
+# Output:
+# decrypt ./secrets/secret.yaml.cott.age
+#    into ./secrets/secret.yaml
+# (Even if the decrypted file is up-to-date, it will be re-decrypted)
+
 # Dry run: see what would be decrypted
-ctg decrypt examples/secrets/secret.yaml.cott.age --dry-run
+ctg decrypt ./secrets/secret.json.cott.age --dry-run
 # Output:
-# decrypt examples/secrets/secret.yaml.cott.age
-#    into examples/secrets/secret.yaml
+# decrypt ./secrets/secret.json.cott.age
+#    into ./secrets/secret.json
 
-# Force re-encryption even if files are in sync
-ctg encrypt examples/secrets/secret.yaml --force
-# Output:
-# encrypt examples/secrets/secret.yaml
-#    into examples/secrets/secret.yaml.cott.age
-#    edit examples/secrets/secret.yaml.cott.toml
 
 # Skip encryption when checking status
-echo "change" >> examples/secrets/secret.yaml
-ctg status examples/secrets/secret.yaml --skip-encryption
+echo "change" >> ./secrets/secret.yaml
+ctg status ./secrets/secret.yaml --skip-encryption
 # (No output, as only pending encryption exists)
 ```
 
-<!-- end_slide -->
+---
 
 # `ctg autocomplete`
 

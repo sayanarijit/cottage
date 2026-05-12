@@ -229,7 +229,13 @@ pub(crate) fn run_upstream_script(
             skip_verify_encrypted: true,
             skip_verify_recipients: true,
         };
-        decrypt_into_cmd(proj, &mut cmd, envfile, &dec_opts)?;
+        let envfile = if envfile.is_relative() {
+            proj.root().join(envfile)
+        } else {
+            envfile.to_path_buf()
+        };
+
+        decrypt_into_cmd(proj, &mut cmd, &envfile, &dec_opts)?;
     }
 
     if let Some(vars) = &cfg.vars {
