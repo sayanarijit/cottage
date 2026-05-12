@@ -2,7 +2,18 @@
 
 This document describes the specification of `cottage.toml` and `*.cott.toml` files used by cottage.
 
-## Project Configuration: `cottage.toml`
+1.  [Project Configuration - cottage.toml](#project-configuration---cottage.toml)
+    1. [Root Fields](#root-fields)
+    2. [UpstreamConfig](#upstreamconfig)
+    3. [PullPushConfig](#pullpushconfig)
+2.  [Secret Metadata - .cott.toml](#secret-metadata---.cott.toml)
+    1. [Root Fields](#root-fields)
+    2. [ChecksumMetadata](#checksummetadata)
+    3. [PreviewMetadata](#previewmetadata)
+    4. [SecretMetadata](#secretmetadata)
+    5. [UpstreamMetadata](#upstreammetadata)
+
+## Project Configuration - cottage.toml
 
 The `cottage.toml` file is located at the project root and defines global and upstream settings.
 
@@ -12,7 +23,7 @@ The `cottage.toml` file is located at the project root and defines global and up
 | ---------- | ---------------------------------------------- | ---------------------------------------------------------------------- |
 | `upstream` | Map<String, [UpstreamConfig](#upstreamconfig)> | Optional. Defines upstream configurations for pulling/pushing secrets. |
 
-### `UpstreamConfig`
+### UpstreamConfig
 
 These settings can be defined at the top level of an upstream or within its `pull`/`push` sections.
 
@@ -26,7 +37,7 @@ These settings can be defined at the top level of an upstream or within its `pul
 | `push`    | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the push operation.                            |
 | `plugin`  | String                            | Optional. Path to a plugin executable.                                              |
 
-### `PullPushConfig`
+### PullPushConfig
 
 Inherits defaults from `UpstreamConfig`.
 
@@ -41,7 +52,7 @@ Inherits defaults from `UpstreamConfig`.
 
 ---
 
-## Secret Metadata: `*.cott.toml`
+## Secret Metadata - .cott.toml
 
 Every encrypted file `*.cott.age` has a corresponding `*.cott.toml` metadata file.
 
@@ -54,21 +65,21 @@ Every encrypted file `*.cott.age` has a corresponding `*.cott.toml` metadata fil
 | `secret`   | [SecretMetadata](#secretmetadata)                  | Metadata about the secret itself.                                               |
 | `upstream` | Map<String, [UpstreamMetadata](#upstreammetadata)> | Optional. Upstream-specific settings for this secret.                           |
 
-### `ChecksumMetadata`
+### ChecksumMetadata
 
 | Field        | Type   | Description                                                              |
 | ------------ | ------ | ------------------------------------------------------------------------ |
 | `encrypted`  | String | BLAKE3 checksum of the encrypted file content (prefixed with `blake3:`). |
 | `recipients` | String | BLAKE3 checksum of the recipients used to encrypt the file.              |
 
-### `PreviewMetadata`
+### PreviewMetadata
 
 | Field     | Type   | Description                                             |
 | --------- | ------ | ------------------------------------------------------- |
 | `format`  | String | One of: `yaml`, `json`, `toml`, `dotenv`, `ini`, `hcl`. |
 | `preview` | String | The value-redacted preview content.                     |
 
-### `SecretMetadata`
+### SecretMetadata
 
 | Field       | Type          | Description                                             |
 | ----------- | ------------- | ------------------------------------------------------- |
@@ -76,7 +87,7 @@ Every encrypted file `*.cott.age` has a corresponding `*.cott.toml` metadata fil
 | `allow`     | Array<String> | Optional. List of glob patterns for allowed recipients. |
 | `deny`      | Array<String> | Optional. List of glob patterns for denied recipients.  |
 
-### `UpstreamMetadata`
+### UpstreamMetadata
 
 | Field  | Type                | Description                                                              |
 | ------ | ------------------- | ------------------------------------------------------------------------ |
