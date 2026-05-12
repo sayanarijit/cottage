@@ -201,6 +201,4 @@ Let's try again
 >    XXXXXXX..XXXXXXX  main -> main
 > ```
 
-Now let's pull the changes in the original repo:
-
-TODO
+TODO: Fix decrypt on pull.
