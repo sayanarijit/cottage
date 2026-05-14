@@ -30,14 +30,15 @@ in plaintext.
    1. [Rules](#rules)
    2. [Verification](#verification)
 7. [Any Provider as Upstream](#any-provider-as-upstream)
-8. [Learn More](#learn-more)
-9. [Troubleshooting](#troubleshooting)
-10. [Comparison](#comparison)
+8. [Sync with any device](#sync-with-any-device)
+9. [Learn More](#learn-more)
+10. [Troubleshooting](#troubleshooting)
+11. [Comparison](#comparison)
     1. [age vs Other Encryption](#age-vs-other-encryption)
     2. [cottage vs SOPS](#cottage-vs-sops)
     3. [cottage vs dotenvx](#cottage-vs-dotenvx)
     4. [cottage vs agebox](#cottage-vs-agebox)
-11. [License](#license)
+12. [License](#license)
 
 ## Features
 
@@ -55,6 +56,7 @@ in plaintext.
 - **Clean up**: `ctg clean` deletes all decrypted secrets from local repo to let you run your AI agents with a tiny bit less worry.
 - **Supports jj and non-git directories**: `ctg init` turns any directory into a secret store.
 - **Sync with any provider**: Lets you configure any provider with an API as the upstream, and start using `ctg pull/diff/push` like `git pull/diff/push`.
+- **Sync with any device**: Secrets encrypted with cottage and managed in a git repo can be synced across devices with [Cottage Sync](https://cottage-sync.github.io).
 
 ## Installation
 
@@ -273,6 +275,10 @@ ctg push myvault
 ```
 
 See [upstream configuration specification](./SPECIFICATION.md#upstreamconfig) for more details.
+
+## Sync with any device
+
+Use [Cottage Sync](https://cottage-sync.github.io) to sync your secrets across your devices and browse without needing the CLI.
 
 ## Learn More
 
