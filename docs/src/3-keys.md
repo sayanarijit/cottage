@@ -26,7 +26,10 @@ To do that, you can copy the private key to `~/.config/cottage/identity/` and sy
 
 ## I want to use my existing SSH key pair
 
-If you already have an SSH key pair[^keypair] (e.g. the one you use with git), you can use it with cottage by adding a symlink to the private key in the `.cottage/identity` file or directory, and copying the public key to the `.cottage/recipients` directory.
+> [!WARNING]
+> While `cottage` supports using your existing SSH keys (e.g., the ones you use for Git authentication), it is highly recommended to maintain separation between keys used for different scopes and purposes.
+
+If you already have an SSH key pair[^keypair], you can use it with cottage by adding a symlink to the private key in the `.cottage/identity` file or directory, and copying the public key to the `.cottage/recipients` directory.
 
 > [^keypair]: (cott)age is compatible with RSA and Ed25519 keys that are generated without passphrase. You can always generate a new SSH (e.g. RSA) key using `ssh-keygen` (e.g. `ssh-keygen -t rsa`) to use with cottage.
 

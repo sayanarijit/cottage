@@ -295,7 +295,7 @@ ctg run -vvv -- ./deploy.sh
 
 ### age vs Other Encryption
 
-[age](https://age-encryption.org) supports SSH RSA and X25519 keys, allowing team members to use the same SSH keys to encrypt/decrypt secrets that they use to access git repos. It makes it ideal for GitOps optimized workflows.
+[age](https://age-encryption.org) uses a modern, simple algorithm optimized for secure file encryption, with a focus on usability and minimal attack surface. It also [supports SSH RSA and Ed25519 keys](https://words.filippo.io/using-ed25519-keys-for-encryption/), though it's recommended to use different keys for separate purposes and scopes.
 
 ### cottage vs SOPS
 

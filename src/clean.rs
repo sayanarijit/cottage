@@ -1,6 +1,6 @@
 use crate::{
     OperationKind, OperationResult, iter_encrypted, remove_from_gitignore_if_present,
-    to_decrypted_path, to_encrypted_path, to_metadata_path,
+    secure_remove_file, to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
 use anyhow::Result;
 use std::fs;
@@ -27,7 +27,7 @@ pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<Operation
     if path.exists() {
         if !opts.dry_run {
             log::debug!("{}: removing file", path.display());
-            fs::remove_file(&path)?;
+            secure_remove_file(&path)?;
         } else {
             log::debug!("{}: would remove file (dry run)", path.display());
         }

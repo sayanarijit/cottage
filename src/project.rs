@@ -1,4 +1,4 @@
-use crate::{UpstreamMetadata, is_encrypted_path, to_decrypted_path};
+use crate::{UpstreamMetadata, is_encrypted_path, secure_remove_file, to_decrypted_path};
 use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result, anyhow};
 use indexmap::IndexMap;
@@ -408,6 +408,7 @@ impl Project {
                     self.root().join(".cottage").display()
                 );
             } else {
+                secure_remove_file(self.identity_path())?;
                 std::fs::remove_dir_all(self.root().join(".cottage")).with_context(|| {
                     format!(
                         "{}: could not remove .cottage directory",

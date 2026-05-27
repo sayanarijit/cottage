@@ -150,6 +150,41 @@ pub fn to_decrypted_path(path: &Path) -> Option<PathBuf> {
     }
 }
 
+/// Securely removes a file by overwriting it with zeros and syncing to disk before unlinking.
+pub fn secure_remove_file(path: &Path) -> Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    let metadata = path.symlink_metadata().with_context(|| {
+        format!("{}: failed to get metadata for secure removal", path.display())
+    })?;
+
+    if metadata.is_file() {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .open(path)
+            .with_context(|| format!("{}: failed to open for secure removal", path.display()))?;
+
+        let length = metadata.len();
+        if length > 0 {
+            let chunk_size = 65536;
+            let mut remaining = length;
+            let chunk = vec![0u8; std::cmp::min(remaining as usize, chunk_size)];
+            while remaining > 0 {
+                let to_write = std::cmp::min(remaining, chunk_size as u64);
+                file.write_all(&chunk[..to_write as usize])?;
+                remaining -= to_write;
+            }
+            file.sync_all()?;
+        }
+    }
+
+    std::fs::remove_file(path)
+        .with_context(|| format!("{}: failed to remove file", path.display()))?;
+    Ok(())
+}
+
 pub(crate) fn run_upstream_script(
     proj: &Project,
     identities: &[Identity],
