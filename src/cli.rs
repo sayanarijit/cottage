@@ -143,7 +143,7 @@ struct EditArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -195,7 +195,7 @@ struct EncryptArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -243,7 +243,7 @@ struct DecryptArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -291,7 +291,7 @@ struct RunArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -331,7 +331,7 @@ struct EnvArgs {
     file: Option<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -372,7 +372,7 @@ struct SyncArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -432,7 +432,7 @@ struct DiffArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -516,7 +516,7 @@ struct PullArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
@@ -562,7 +562,7 @@ struct PushArgs {
     path: Vec<PathBuf>,
 
     /// Use the identity file at PATH. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.ssh.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<PathBuf>,
 
