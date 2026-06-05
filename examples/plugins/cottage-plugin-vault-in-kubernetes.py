@@ -56,7 +56,7 @@ from pydantic_settings import BaseSettings
 from pyreqwest.client import SyncClientBuilder
 
 
-class VaultConfig(BaseSettings):
+class VaultSecretConfig(BaseSettings):
     vault_token: str = Field(..., alias="VAULT_TOKEN", description="Pass via `envfile`")
     vault_mount: str = Field(..., alias="VAULT_MOUNT")
     vault_secret_path: str = Field(..., alias="VAULT_SECRET_PATH")
@@ -68,7 +68,7 @@ class VaultConfig(BaseSettings):
 
 
 @contextmanager
-def kube_proxy_vault_client(config: VaultConfig):
+def kube_proxy_vault_client(config: VaultSecretConfig):
     if ":" in config.kube_port_forward:
         local_port, remote_port = map(int, config.kube_port_forward.split(":", 1))
     else:
@@ -106,7 +106,7 @@ app = App()
 
 @app.command(name="pull")
 def cmd_pull():
-    vault_config = VaultConfig()
+    vault_config = VaultSecretConfig()
     remote_path = f"{vault_config.vault_mount}/data/{vault_config.vault_secret_path}"
     with kube_proxy_vault_client(vault_config) as client:
         resp = client.get(f"/v1/{remote_path}").build().send()
@@ -116,7 +116,7 @@ def cmd_pull():
 
 @app.command(name="push")
 def cmd_push():
-    vault_config = VaultConfig()
+    vault_config = VaultSecretConfig()
     remote_path = f"{vault_config.vault_mount}/data/{vault_config.vault_secret_path}"
     local_data = dotenv_values(stream=sys.stdin)
     payload = {"data": local_data}
