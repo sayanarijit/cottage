@@ -254,6 +254,8 @@ For that, create a file named `cottage.toml` in the project root and configure t
 
 See the [example `cottage.toml` here](./cottage.toml) and the [secret specific upstream configuration here](./examples/secrets/secret.json.cott.toml).
 
+See an [example plugin implementation here](./examples/plugins/cottage-plugin-vault-in-kubernetes.py).
+
 The workflow is similar to git, but instead of `git pull` and `git push`, you run `ctg pull` and `ctg push` to sync secrets with the configured upstream.
 
 Example:
