@@ -46,6 +46,10 @@ enum Command {
     #[command(name = "init")]
     Init,
 
+    /// Generate or re-generate key-pair in an existing cottage project.
+    #[command(name = "keygen")]
+    Keygen(KeygenArgs),
+
     /// Edit a file and encrypt it.
     #[command(name = "edit", aliases = ["ed"])]
     Edit(EditArgs),
@@ -130,6 +134,18 @@ struct CleanArgs {
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
+}
+
+#[derive(clap::Args, Debug, Default)]
+struct KeygenArgs {
+    /// The recipient key file name.
+    /// Defaults to $USER.
+    #[arg(short, long)]
+    name: Option<String>,
+
+    /// Force re-generation of key-pair if it already exists.
+    #[arg(long, short, env = "COTTAGE_FORCE")]
+    force: bool,
 }
 
 #[derive(clap::Args, Debug, Default)]
@@ -991,6 +1007,10 @@ fn run_verify_cmd(proj: &Project, args: VerifyArgs, quiet: bool) -> Result<()> {
     Ok(())
 }
 
+fn run_keygen_cmd(proj: &Project, args: KeygenArgs) -> Result<()> {
+    proj.keygen(args.name, args.force)
+}
+
 fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
     if let Command::AutoComplete { shell } = cmd {
         return run_complete_cmd(shell);
@@ -1008,6 +1028,7 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
 
     match cmd {
         Command::Init | Command::AutoComplete { shell: _ } => Ok(()), // already handled
+        Command::Keygen(args) => run_keygen_cmd(&proj, args),
         Command::Encrypt(args) => run_encrypt_cmd(&proj, args, is_silent),
         Command::Decrypt(args) => run_decrypt_cmd(&proj, args, is_silent),
         Command::Sync(args) => run_sync_cmd(&proj, args, is_silent),

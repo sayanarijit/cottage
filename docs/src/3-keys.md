@@ -5,6 +5,7 @@ Scenarios for configuring keys for a new or existing git repository:
 1.  [I want to use the auto-generated key pair across multiple projects](#i-want-to-use-the-auto-generated-key-pair-across-multiple-projects)
 2.  [I want to use my existing SSH key pair](#i-want-to-use-my-existing-ssh-key-pair)
 3.  [I want to avoid symlinking my private key in the workspace](#i-want-to-avoid-symlinking-my-private-key-in-the-workspace)
+4.  [I want to generate or re-generate a new key pair in an existing project](#i-want-to-generate-or-re-generate-a-new-key-pair-in-an-existing-project)
 
 ## I want to use the auto-generated key pair across multiple projects
 
@@ -64,4 +65,26 @@ You can also always mention the path to the private key using the `-i / --identi
 >
 > ```stdout
 > removed '.cottage/identity'
+> ```
+
+## I want to generate or re-generate a new key pair in an existing project
+
+If you are setting up keys in an existing cottage project, or want to re-generate existing keys, you can run the `ctg keygen` command:
+
+> ```bash
+> ctg keygen
+> ```
+
+By default, this generates a key pair where the recipient public key file is named after your system username (i.e., `$USER`).
+
+You can customize the name of the public key file in `.cottage/recipients/` using the `-n` or `--name` option:
+
+> ```bash
+> ctg keygen -n myname
+> ```
+
+To force re-generation of the key pair and overwrite any existing identity file, use the `--force` option:
+
+> ```bash
+> ctg keygen -n myname --force
 > ```
