@@ -21,17 +21,17 @@ Let's try to decrypt secrets in the cloned repository:
 Right... You need to set up your keys first. Let's add keys first.
 
 > ```bash,test,session=myproject:21
-> ssh-keygen -t rsa -f .cottage/identity -N ""
-> mv -v .cottage/identity.pub .cottage/recipients/newuser
+> ctg keygen -n newuser
+>
+> tree .cottage
 > ```
 >
 > ```stdout
-> Generating public/private rsa key pair.
-> Your identification has been saved in .cottage/identity
-> Your public key has been saved in .cottage/identity.pub
-> The key fingerprint is:
-> ...XXX...
-> renamed '.cottage/identity.pub' -> '.cottage/recipients/newuser'
+> .cottage
+> ├── identity
+> └── recipients
+>     ├── newuser
+>     └── sayanarijit
 > ```
 
 Let's commit and push the changes to the remote repository, so that someone with access (admin) can pull the changes and re-encrypt the secrets for the new key:

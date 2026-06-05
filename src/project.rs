@@ -111,7 +111,7 @@ pub struct Project {
 
 impl Project {
     pub fn init() -> Result<Self> {
-        Self::load().or_else(|_| {
+        let proj = Self::load().or_else(|_| {
             log::debug!("project root not found, initializing new project");
 
             let cwd = std::env::current_dir().context("could not get current working directory")?;
@@ -128,7 +128,13 @@ impl Project {
             })?;
             log::debug!("{}: created directory", cottage_dir.display());
             Self::load().context("could not load project after initialization")
-        })
+        })?;
+
+        if !proj.identity_path().exists() && !proj.recipients_path().exists() {
+            keygen(proj.identity_path(), proj.recipients_path(), None)?;
+        }
+
+        Ok(proj)
     }
 
     pub fn load() -> Result<Self> {
@@ -164,50 +170,6 @@ impl Project {
 
         let recipients_path = cottage_dir.join("recipients");
         let identity_path = cottage_dir.join("identity");
-        if !identity_path.exists() && !recipients_path.exists() {
-            let recipient = whoami::username().unwrap_or_else(|_| {
-                SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
-                    .to_string()
-            });
-            let recipient_path = recipients_path.join(&recipient);
-            log::debug!(
-                "init: {}: creating new recipient and identity for user {}",
-                recipient_path.display(),
-                recipient
-            );
-
-            let sk = age::x25519::Identity::generate();
-            let pk = sk.to_public();
-
-            std::fs::create_dir_all(&recipients_path).with_context(|| {
-                format!(
-                    "{}: could not create recipients directory",
-                    recipients_path.display()
-                )
-            })?;
-            log::debug!("{}: created directory", recipients_path.display());
-            std::fs::write(&recipient_path, pk.to_string()).with_context(|| {
-                format!(
-                    "{}: could not write recipient file",
-                    recipient_path.display()
-                )
-            })?;
-            log::debug!("{}: wrote file", recipient_path.display());
-            std::fs::write(&identity_path, sk.to_string().expose_secret()).with_context(|| {
-                format!("{}: could not write identity file", identity_path.display())
-            })?;
-            log::debug!("{}: wrote file", identity_path.display());
-
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(&identity_path, std::fs::Permissions::from_mode(0o600))?;
-                log::debug!("{}: set permissions to 600", identity_path.display());
-            }
-        };
 
         let git = if root.join(".git").exists() {
             Some(Git {
@@ -282,6 +244,20 @@ impl Project {
 
     pub fn config(&self) -> Option<&ProjectConfig> {
         self.config.as_ref()
+    }
+
+    pub fn keygen(&self, name: Option<String>, force: bool) -> Result<()> {
+        match (self.identity_path().exists(), force) {
+            (true, false) => Err(anyhow!(
+                "{}: identity file already exists, use --force to overwrite",
+                self.relative_to_root(self.identity_path()).display()
+            )),
+            (true, true) => {
+                secure_remove_file(self.identity_path())?;
+                keygen(self.identity_path(), self.recipients_path(), name)
+            }
+            (false, _) => keygen(self.identity_path(), self.recipients_path(), name),
+        }
     }
 
     pub fn resolve_upstream(
@@ -432,6 +408,53 @@ impl Project {
         }
         Ok(())
     }
+}
+
+pub fn keygen(identity_path: &Path, recipients_path: &Path, name: Option<String>) -> Result<()> {
+    let recipient = name.or(whoami::username().ok()).unwrap_or_else(|| {
+        SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            .to_string()
+    });
+
+    let recipient_path = recipients_path.join(&recipient);
+    log::debug!(
+        "init: {}: creating new recipient and identity for user {}",
+        recipient_path.display(),
+        recipient
+    );
+
+    let sk = age::x25519::Identity::generate();
+    let pk = sk.to_public();
+
+    std::fs::create_dir_all(recipients_path).with_context(|| {
+        format!(
+            "{}: could not create recipients directory",
+            recipients_path.display()
+        )
+    })?;
+    log::debug!("{}: created directory", recipients_path.display());
+    std::fs::write(&recipient_path, pk.to_string()).with_context(|| {
+        format!(
+            "{}: could not write recipient file",
+            recipient_path.display()
+        )
+    })?;
+    log::debug!("{}: wrote file", recipient_path.display());
+    std::fs::write(identity_path, sk.to_string().expose_secret())
+        .with_context(|| format!("{}: could not write identity file", identity_path.display()))?;
+    log::debug!("{}: wrote file", identity_path.display());
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(identity_path, std::fs::Permissions::from_mode(0o600))?;
+        log::debug!("{}: set permissions to 600", identity_path.display());
+    }
+
+    Ok(())
 }
 
 pub fn iter_encrypted(path: &Path) -> impl Iterator<Item = walkdir::DirEntry> {
