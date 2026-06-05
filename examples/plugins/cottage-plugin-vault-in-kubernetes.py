@@ -25,7 +25,7 @@ envfile = "./vault/dev.env.cott.age"
 vars = {
   ENCRYPTED_KUBE_CONFIG_PATH = "./kubeconfig/dev.yaml.cott.age",
 }
-plugin = "./cottage-plugin-vault-in-kubernetes.py"
+plugin = "./plugins/cottage-plugin-vault-in-kubernetes.py"
 """
 
 # vault/dev.env
