@@ -452,7 +452,7 @@ pub(crate) fn decrypt_required_secrets(
         recipients: recipients.to_vec(),
         dry_run: false,
         skip_gitignore,
-        skip_timestamps: true,
+        skip_timestamps: false,
         skip_verify_encrypted: false,
         skip_verify_recipients: false,
     };
