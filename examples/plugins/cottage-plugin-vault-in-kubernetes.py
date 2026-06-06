@@ -61,6 +61,15 @@ class VaultSecretConfig(BaseSettings):
     kube_namespace: str = Field("default", alias="KUBE_NAMESPACE")
     kube_pod_or_service: str = Field("vault", alias="KUBE_POD_OR_SERVICE")
 
+    @property
+    def vault_secret_urlpath(self) -> str:
+        return f"/v1/{self.vault_mount}/data/{self.vault_secret_path}"
+
+    def model_post_init(self, __context):
+        print(  # Use --debug to see this message
+            "Parsed configuration:", self, file=sys.stderr
+        )
+
 
 @contextmanager
 def kube_proxy_vault_client(config: VaultSecretConfig):
@@ -69,7 +78,6 @@ def kube_proxy_vault_client(config: VaultSecretConfig):
     else:
         local_port = remote_port = int(config.kube_port_forward)
 
-    base_url = f"http://localhost:{local_port}"
     with portforward.forward(
         namespace=config.kube_namespace,
         pod_or_service=config.kube_pod_or_service,
@@ -78,9 +86,13 @@ def kube_proxy_vault_client(config: VaultSecretConfig):
         config_path=str(config.kube_config_path),
         kube_context=config.kube_context or "",
     ):
+        print(  # Use --debug to see this message
+            f"Port forwarding established: 127.0.0.1:{local_port} -> {config.kube_pod_or_service}:{remote_port}",
+            file=sys.stderr,
+        )
         with (
             SyncClientBuilder()
-            .base_url(base_url)
+            .base_url(f"http://127.0.0.1:{local_port}")
             .default_headers({"X-Vault-Token": config.vault_token})
             .error_for_status()
             .build()
@@ -93,22 +105,25 @@ app = App()
 
 @app.command(name="pull")
 def cmd_pull():
-    vault_config = VaultSecretConfig()
-    remote_path = f"{vault_config.vault_mount}/data/{vault_config.vault_secret_path}"
-    with kube_proxy_vault_client(vault_config) as client:
-        resp = client.get(f"/v1/{remote_path}").build().send()
+    cfg = VaultSecretConfig()
+    with kube_proxy_vault_client(cfg) as client:
+        print(  # Use --debug to see this message
+            "Pulling from", cfg.vault_secret_urlpath, file=sys.stderr
+        )
+        resp = client.get(cfg.vault_secret_urlpath).build().send()
     secret_data = resp.json()["data"]["data"]
     print("\n".join(f"{k}={repr(v)}" for k, v in secret_data.items()))
 
 
 @app.command(name="push")
 def cmd_push():
-    vault_config = VaultSecretConfig()
-    remote_path = f"{vault_config.vault_mount}/data/{vault_config.vault_secret_path}"
-    local_data = dotenv_values(stream=sys.stdin)
-    payload = {"data": local_data}
-    with kube_proxy_vault_client(vault_config) as client:
-        client.post(f"/v1/{remote_path}").body_json(payload).build().send()
+    cfg = VaultSecretConfig()
+    payload = {"data": dotenv_values(stream=sys.stdin)}
+    with kube_proxy_vault_client(cfg) as client:
+        print(  # Use --debug to see this message
+            "Pushing to", cfg.vault_secret_urlpath, file=sys.stderr
+        )
+        client.post(cfg.vault_secret_urlpath).body_json(payload).build().send()
 
 
 if __name__ == "__main__":
