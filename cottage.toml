@@ -5,7 +5,7 @@ vars = {
   SCHEME = "https"  # Example variable to be injected into the plugins or scripts.
 }
 
-# Default configuration for the "myvault" upstream.
+# Default configuration for the "customvault" upstream.
 # You can also override settings for each specific tasks as needed.
 [upstream.customvault]
 envfile = "./examples/.env.cott.age" # Load environment variables from this encrypted file. Default is no env file.
