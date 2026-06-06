@@ -1,5 +1,7 @@
 use crate::project::ResolvedUpstream;
-use crate::{DecryptOptions, Identity, Project, decrypt_into_cmd};
+use crate::{
+    CleanOptions, DecryptOptions, Identity, Project, RecipientData, decrypt_file, decrypt_into_cmd,
+};
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -157,7 +159,10 @@ pub fn secure_remove_file(path: &Path) -> Result<()> {
     }
 
     let metadata = path.symlink_metadata().with_context(|| {
-        format!("{}: failed to get metadata for secure removal", path.display())
+        format!(
+            "{}: failed to get metadata for secure removal",
+            path.display()
+        )
     })?;
 
     if metadata.is_file() {
@@ -320,4 +325,81 @@ pub(crate) fn run_upstream_script(
     }
 
     Ok(SecretSlice::new(output.stdout.into()))
+}
+
+pub(crate) fn decrypt_required_secrets(
+    requires: Option<&indexmap::IndexSet<PathBuf>>,
+    identities: &[Identity],
+    recipients: &[RecipientData],
+    metadata_path: &Path,
+    upstream_name: &str,
+    skip_gitignore: bool,
+) -> Result<Vec<PathBuf>> {
+    let mut req_decrypted = vec![];
+    if let Some(requires) = requires {
+        let dec_opts = DecryptOptions {
+            identities: identities.to_vec(),
+            recipients: recipients.to_vec(),
+            dry_run: false,
+            skip_gitignore,
+            skip_timestamps: true,
+            skip_verify_encrypted: false,
+            skip_verify_recipients: false,
+        };
+        for req_path in requires.iter() {
+            let (req_enc_path, req_dec_path) = if is_encrypted_path(req_path) {
+                let req_dec_path = to_decrypted_path(req_path).with_context(|| {
+                    format!(
+                        "{}: could not determine decrypted path for required secret '{}'",
+                        metadata_path.display(),
+                        req_path.display()
+                    )
+                })?;
+                (req_path.clone(), req_dec_path)
+            } else {
+                (to_encrypted_path(req_path), req_path.clone())
+            };
+
+            if !req_dec_path.exists() && decrypt_file(&req_enc_path, &dec_opts)?.is_some() {
+                req_decrypted.push(req_dec_path.clone());
+                log::info!(
+                    "decrypted requirement {} into {} for upstream: {}",
+                    req_enc_path.display(),
+                    req_dec_path.display(),
+                    upstream_name
+                );
+            }
+        }
+    }
+    Ok(req_decrypted)
+}
+
+pub(crate) fn clean_decrypted_secrets(
+    req_decrypted: Vec<PathBuf>,
+    upstream_name: &str,
+    kind: OperationKind,
+) -> Result<()> {
+    let clean_opts = CleanOptions {
+        dry_run: false,
+        encrypted: false,
+        gitignore: false,
+    };
+
+    let action = match kind {
+        OperationKind::Pull => "pull from",
+        OperationKind::Push => "push to",
+        _ => "operation with",
+    };
+
+    for req_enc_path in req_decrypted.into_iter() {
+        if let Some(res) = crate::clean::clean_file(req_enc_path, &clean_opts)? {
+            log::info!(
+                "cleaned decrypted requirement {} after {} upstream '{}'",
+                res.input.display(),
+                action,
+                upstream_name
+            );
+        }
+    }
+    Ok(())
 }

@@ -1,7 +1,8 @@
 use crate::{
     EncryptOptions, Identity, Metadata, OperationKind, OperationResult, Project, RecipientData,
-    StatusOptions, UpstreamMetadata, encrypt_file, iter_encrypted, run_upstream_script,
-    status::status_file, to_decrypted_path, to_metadata_path,
+    StatusOptions, UpstreamMetadata, clean_decrypted_secrets, decrypt_required_secrets,
+    encrypt_file, iter_encrypted, run_upstream_script, status::status_file, to_decrypted_path,
+    to_metadata_path,
 };
 use age::secrecy::SecretSlice;
 use anyhow::{Context, Result};
@@ -96,6 +97,16 @@ pub fn pull_upstream(
             )
         })?;
 
+    // Decrypt required secrets
+    let req_decrypted = decrypt_required_secrets(
+        resolved.requires.as_ref(),
+        &opts.identities,
+        &opts.recipients,
+        metadata_path,
+        upstream_name,
+        proj.git().is_none(),
+    )?;
+
     log::info!(
         "{}: pulling from upstream '{}'",
         metadata_path.display(),
@@ -121,6 +132,8 @@ pub fn pull_upstream(
             opts.debug,
         )?
     };
+
+    clean_decrypted_secrets(req_decrypted, upstream_name, OperationKind::Pull)?;
 
     let enc_opts = EncryptOptions {
         recipients: opts.recipients.clone(),

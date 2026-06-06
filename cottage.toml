@@ -9,6 +9,7 @@ vars = {
 # You can also override settings for each specific tasks as needed.
 [upstream.customvault]
 envfile = "./examples/.env.cott.age" # Load environment variables from this encrypted file. Default is no env file.
+# requires = ["./examples/another_secret.txt"] # Decrypt these secrets before running pull/push (and clean them up afterwards).
 vars = {  # Extra variables overwriting the env file.
   HOST = "customvault.example.com"
 }
