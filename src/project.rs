@@ -711,6 +711,12 @@ impl Project {
         }
     }
 
+    pub fn with_toml_config(mut self, toml_str: &str) -> Result<Self> {
+        self.config = Some(toml::from_str::<ProjectConfig>(toml_str)?);
+        Ok(self)
+    }
+
+
     pub fn init_test_recipients(&self) {
         let sk = age::x25519::Identity::generate();
         let pk = sk.to_public();
