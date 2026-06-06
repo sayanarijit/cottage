@@ -360,10 +360,8 @@ Instead of writing scripts directly in `cottage.toml`, you can use external bina
 See the [Python-based Kubernetes/Vault plugin example](./plugins/cottage-plugin-vault-in-kubernetes.py).
 
 This plugin script:
-- Decrypts a Kubernetes configuration (`kubeconfig`) in-memory.
 - Forwards ports to connect to a Vault service inside a Kubernetes cluster.
 - Pulls/pushes secrets via Vault's REST API.
-- Cleans up temporary files automatically after execution.
 
 To use a plugin, define `plugin` in the upstream configuration in `cottage.toml`:
 
