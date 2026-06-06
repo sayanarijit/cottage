@@ -54,7 +54,7 @@ echo "Pushing secret '${SECRET}' to ${URL}..." 1>&2
 # pull = true
 # push = true
 # vars = {
-#   VAULT_SECRET_PATH = "secret/data/myapp/config",
+#   VAULT_SECRET_PATH = "myapp/config",
 # }
 # ```
 [upstream.myvault]
