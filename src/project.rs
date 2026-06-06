@@ -45,26 +45,69 @@ fn merge_non_existing_items<T: Clone + Eq + std::hash::Hash>(
     }
 }
 
+impl PullPushConfig {
+    pub fn merge_fallback(&mut self, fallback: &PullPushConfig) {
+        if self.cwd.is_none() {
+            self.cwd = fallback.cwd;
+        }
+        if self.envfile.is_none() {
+            self.envfile = fallback.envfile.clone();
+        }
+        self.vars = merge_non_existing_pairs(self.vars.take(), fallback.vars.as_ref());
+        self.requires = merge_non_existing_items(self.requires.take(), fallback.requires.as_ref());
+        if self.shell.is_none() {
+            self.shell = fallback.shell.clone();
+        }
+        if self.plugin.is_none() {
+            self.plugin = fallback.plugin.clone();
+        }
+        if self.script.is_none() {
+            self.script = fallback.script.clone();
+        }
+    }
+}
+
+impl From<&UpstreamConfig> for PullPushConfig {
+    fn from(cfg: &UpstreamConfig) -> Self {
+        Self {
+            cwd: cfg.cwd,
+            envfile: cfg.envfile.clone(),
+            vars: cfg.vars.clone(),
+            requires: cfg.requires.clone(),
+            shell: cfg.shell.clone(),
+            plugin: cfg.plugin.clone(),
+            script: None,
+        }
+    }
+}
+
 fn resolve_pull_push_config(
     config: &Option<PullPushConfig>,
     defaults: &UpstreamConfig,
 ) -> PullPushConfig {
     let mut res = config.clone().unwrap_or_default();
-    if res.cwd.is_none() {
-        res.cwd = defaults.cwd;
-    }
-    if res.envfile.is_none() {
-        res.envfile = defaults.envfile.clone();
-    }
-    res.vars = merge_non_existing_pairs(res.vars.take(), defaults.vars.as_ref());
-    res.requires = merge_non_existing_items(res.requires.take(), defaults.requires.as_ref());
-    if res.shell.is_none() {
-        res.shell = defaults.shell.clone();
-    }
-    if res.plugin.is_none() {
-        res.plugin = defaults.plugin.clone();
-    }
+    res.merge_fallback(&PullPushConfig::from(defaults));
     res
+}
+
+fn resolve_pull_or_push(
+    pull_or_push: &mut Option<PullPushConfig>,
+    default_pull_or_push: Option<&PullPushConfig>,
+    meta_enabled: Option<bool>,
+    meta_vars: Option<&IndexMap<String, String>>,
+) {
+    if matches!(meta_enabled, Some(true)) {
+        if let Some(cfg) = pull_or_push.as_mut() {
+            if let Some(fallback) = default_pull_or_push {
+                cfg.merge_fallback(fallback);
+            }
+            cfg.vars = merge_non_existing_pairs(meta_vars.cloned(), cfg.vars.as_ref());
+        } else {
+            *pull_or_push = default_pull_or_push.cloned();
+        }
+    } else {
+        *pull_or_push = None;
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -302,108 +345,12 @@ impl Project {
             .and_then(|u| u.get(name))
             .map(|u| u.resolved())
         {
-            if matches!(meta.pull, Some(true)) {
-                if let Some(pull) = res.pull.as_mut() {
-                    pull.cwd = pull.cwd.or(defaults
-                        .as_ref()
-                        .and_then(|d| d.pull.as_ref())
-                        .and_then(|p| p.cwd));
-                    pull.envfile = pull.envfile.clone().or_else(|| {
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.pull.as_ref())
-                            .and_then(|p| p.envfile.clone())
-                    });
-                    pull.vars = merge_non_existing_pairs(meta.vars.clone(), pull.vars.as_ref());
-                    pull.vars = merge_non_existing_pairs(
-                        pull.vars.take(),
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.pull.as_ref())
-                            .and_then(|p| p.vars.as_ref()),
-                    );
-                    pull.requires = merge_non_existing_items(
-                        pull.requires.take(),
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.pull.as_ref())
-                            .and_then(|p| p.requires.as_ref()),
-                    );
-                    pull.shell = pull.shell.clone().or_else(|| {
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.pull.as_ref())
-                            .and_then(|p| p.shell.clone())
-                    });
-                    pull.plugin = pull.plugin.clone().or_else(|| {
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.pull.as_ref())
-                            .and_then(|p| p.plugin.clone())
-                    });
-                    pull.script = pull.script.clone().or_else(|| {
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.pull.as_ref())
-                            .and_then(|p| p.script.clone())
-                    });
-                } else {
-                    res.pull = defaults.as_ref().and_then(|d| d.pull.clone());
-                }
-            } else {
-                res.pull = None;
-            }
-            if matches!(meta.push, Some(true)) {
-                if let Some(push) = res.push.as_mut() {
-                    push.cwd = push.cwd.or(defaults
-                        .as_ref()
-                        .and_then(|d| d.push.as_ref())
-                        .and_then(|p| p.cwd));
-                    push.envfile = push.envfile.clone().or_else(|| {
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.push.as_ref())
-                            .and_then(|p| p.envfile.clone())
-                    });
-                    push.vars = merge_non_existing_pairs(meta.vars.clone(), push.vars.as_ref());
-                    push.vars = merge_non_existing_pairs(
-                        push.vars.take(),
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.push.as_ref())
-                            .and_then(|p| p.vars.as_ref()),
-                    );
-                    push.requires = merge_non_existing_items(
-                        push.requires.take(),
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.push.as_ref())
-                            .and_then(|p| p.requires.as_ref()),
-                    );
-                    push.shell = push.shell.clone().or_else(|| {
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.push.as_ref())
-                            .and_then(|p| p.shell.clone())
-                    });
-                    push.plugin = push.plugin.clone().or_else(|| {
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.push.as_ref())
-                            .and_then(|p| p.plugin.clone())
-                    });
-                    push.script = push.script.clone().or_else(|| {
-                        defaults
-                            .as_ref()
-                            .and_then(|d| d.push.as_ref())
-                            .and_then(|p| p.script.clone())
-                    });
-                } else {
-                    res.push = defaults.as_ref().and_then(|d| d.push.clone());
-                }
-            } else {
-                res.push = None;
-            }
+            let default_pull = defaults.as_ref().and_then(|d| d.pull.as_ref());
+            let default_push = defaults.as_ref().and_then(|d| d.push.as_ref());
+
+            resolve_pull_or_push(&mut res.pull, default_pull, meta.pull, meta.vars.as_ref());
+            resolve_pull_or_push(&mut res.push, default_push, meta.push, meta.vars.as_ref());
+
             Some(res)
         } else {
             None
