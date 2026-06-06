@@ -27,28 +27,30 @@ The `cottage.toml` file is located at the project root and defines global and up
 
 These settings can be defined at the top level of an upstream or within its `pull`/`push` sections.
 
-| Field     | Type                              | Description                                                                         |
-| --------- | --------------------------------- | ----------------------------------------------------------------------------------- |
-| `cwd`     | Boolean                           | Optional. If true, run the script in the directory of the secret.                   |
-| `envfile` | Path                              | Optional. Path to an encrypted file to use as environment variables for the script. |
-| `vars`    | Map<String, String>               | Optional. Environment variables to pass to the script.                              |
-| `shell`   | String                            | Optional. The shell to use for running scripts (default: `sh`).                     |
-| `pull`    | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the pull operation.                            |
-| `push`    | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the push operation.                            |
-| `plugin`  | String                            | Optional. Path to a plugin executable.                                              |
+| Field      | Type                              | Description                                                                                                              |
+| ---------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `cwd`      | Boolean                           | Optional. If true, run the script in the directory of the secret.                                                        |
+| `envfile`  | Path                              | Optional. Path to an encrypted file to use as environment variables for the script.                                      |
+| `vars`     | Map<String, String>               | Optional. Environment variables to pass to the script.                                                                   |
+| `requires` | Array<Path>                       | Optional. List of secret paths to be decrypted before running push/pull operations (and securely cleaned up afterwards). |
+| `shell`    | String                            | Optional. The shell to use for running scripts (default: `sh`).                                                          |
+| `pull`     | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the pull operation.                                                                 |
+| `push`     | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the push operation.                                                                 |
+| `plugin`   | String                            | Optional. Path to a plugin executable.                                                                                   |
 
 ### PullPushConfig
 
 Inherits defaults from `UpstreamConfig`.
 
-| Field     | Type                | Description                                              |
-| --------- | ------------------- | -------------------------------------------------------- |
-| `cwd`     | Boolean             | Optional.                                                |
-| `envfile` | Path                | Optional.                                                |
-| `vars`    | Map<String, String> | Optional.                                                |
-| `shell`   | String              | Optional.                                                |
-| `script`  | String              | Optional. The shell script to execute for the operation. |
-| `plugin`  | String              | Optional. Path to a plugin executable.                   |
+| Field      | Type                | Description                                              |
+| ---------- | ------------------- | -------------------------------------------------------- |
+| `cwd`      | Boolean             | Optional.                                                |
+| `envfile`  | Path                | Optional.                                                |
+| `vars`     | Map<String, String> | Optional.                                                |
+| `requires` | Array<Path>         | Optional.                                                |
+| `shell`    | String              | Optional.                                                |
+| `script`   | String              | Optional. The shell script to execute for the operation. |
+| `plugin`   | String              | Optional. Path to a plugin executable.                   |
 
 ---
 

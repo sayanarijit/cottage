@@ -1,7 +1,7 @@
 use crate::{UpstreamMetadata, is_encrypted_path, secure_remove_file, to_decrypted_path};
 use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result, anyhow};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::{BufRead, Read, Seek, SeekFrom, Write};
@@ -11,7 +11,7 @@ use std::time::SystemTime;
 const COTTAGE_GITATTRIBUTES_LINE: &str =
     "*.cott.age binary export-ignore filter=cottage-encrypted -diff";
 
-fn merge_non_existing(
+fn merge_non_existing_pairs(
     target: Option<IndexMap<String, String>>,
     source: Option<&IndexMap<String, String>>,
 ) -> Option<IndexMap<String, String>> {
@@ -19,6 +19,23 @@ fn merge_non_existing(
         (Some(mut t), Some(s)) => {
             for (k, v) in s {
                 t.entry(k.clone()).or_insert_with(|| v.clone());
+            }
+            Some(t)
+        }
+        (Some(t), None) => Some(t),
+        (None, Some(s)) => Some(s.clone()),
+        (None, None) => None,
+    }
+}
+
+fn merge_non_existing_items<T: Clone + Eq + std::hash::Hash>(
+    target: Option<IndexSet<T>>,
+    source: Option<&IndexSet<T>>,
+) -> Option<IndexSet<T>> {
+    match (target, source) {
+        (Some(mut t), Some(s)) => {
+            for v in s {
+                t.insert(v.clone());
             }
             Some(t)
         }
@@ -39,7 +56,8 @@ fn resolve_pull_push_config(
     if res.envfile.is_none() {
         res.envfile = defaults.envfile.clone();
     }
-    res.vars = merge_non_existing(res.vars.take(), defaults.vars.as_ref());
+    res.vars = merge_non_existing_pairs(res.vars.take(), defaults.vars.as_ref());
+    res.requires = merge_non_existing_items(res.requires.take(), defaults.requires.as_ref());
     if res.shell.is_none() {
         res.shell = defaults.shell.clone();
     }
@@ -54,6 +72,7 @@ pub struct PullPushConfig {
     pub cwd: Option<bool>,
     pub envfile: Option<PathBuf>,
     pub vars: Option<IndexMap<String, String>>,
+    pub requires: Option<IndexSet<PathBuf>>,
     pub shell: Option<String>,
     pub script: Option<String>,
     pub plugin: Option<String>,
@@ -64,6 +83,7 @@ pub struct UpstreamConfig {
     pub cwd: Option<bool>,
     pub envfile: Option<PathBuf>,
     pub vars: Option<IndexMap<String, String>>,
+    pub requires: Option<IndexSet<PathBuf>>,
     pub shell: Option<String>,
     pub pull: Option<PullPushConfig>,
     pub push: Option<PullPushConfig>,
@@ -294,13 +314,20 @@ impl Project {
                             .and_then(|d| d.pull.as_ref())
                             .and_then(|p| p.envfile.clone())
                     });
-                    pull.vars = merge_non_existing(meta.vars.clone(), pull.vars.as_ref());
-                    pull.vars = merge_non_existing(
+                    pull.vars = merge_non_existing_pairs(meta.vars.clone(), pull.vars.as_ref());
+                    pull.vars = merge_non_existing_pairs(
                         pull.vars.take(),
                         defaults
                             .as_ref()
                             .and_then(|d| d.pull.as_ref())
                             .and_then(|p| p.vars.as_ref()),
+                    );
+                    pull.requires = merge_non_existing_items(
+                        pull.requires.take(),
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.pull.as_ref())
+                            .and_then(|p| p.requires.as_ref()),
                     );
                     pull.shell = pull.shell.clone().or_else(|| {
                         defaults
@@ -338,13 +365,20 @@ impl Project {
                             .and_then(|d| d.push.as_ref())
                             .and_then(|p| p.envfile.clone())
                     });
-                    push.vars = merge_non_existing(meta.vars.clone(), push.vars.as_ref());
-                    push.vars = merge_non_existing(
+                    push.vars = merge_non_existing_pairs(meta.vars.clone(), push.vars.as_ref());
+                    push.vars = merge_non_existing_pairs(
                         push.vars.take(),
                         defaults
                             .as_ref()
                             .and_then(|d| d.push.as_ref())
                             .and_then(|p| p.vars.as_ref()),
+                    );
+                    push.requires = merge_non_existing_items(
+                        push.requires.take(),
+                        defaults
+                            .as_ref()
+                            .and_then(|d| d.push.as_ref())
+                            .and_then(|p| p.requires.as_ref()),
                     );
                     push.shell = push.shell.clone().or_else(|| {
                         defaults

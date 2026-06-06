@@ -118,3 +118,137 @@ script = "cat > /dev/null"
     assert!(stdout.contains("secret1.txt.cott.age"));
     assert!(!stdout.contains("secret2.txt.cott.age"));
 }
+
+#[test]
+fn test_pull_push_requires() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Init
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Create required secret
+    temp.child("required_secret.txt")
+        .write_str("important key")
+        .unwrap();
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("required_secret.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Remove required_secret.txt (we want cottage to decrypt it automatically)
+    std::fs::remove_file(temp.path().join("required_secret.txt")).unwrap();
+
+    // Create main secret
+    temp.child("secret1.txt")
+        .write_str("dummy value")
+        .unwrap();
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("secret1.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Delete secret1.txt to avoid "dirty" error on pull
+    std::fs::remove_file(temp.path().join("secret1.txt")).unwrap();
+
+    // Configure cottage.toml with requires
+    temp.child("cottage.toml")
+        .write_str(
+            r#"
+[upstream.my-upstream]
+requires = ["required_secret.txt"]
+
+[upstream.my-upstream.pull]
+shell = "bash"
+script = """
+if [ ! -f "required_secret.txt" ]; then
+    echo "required_secret.txt not found!" >&2
+    exit 1
+fi
+content=$(cat required_secret.txt)
+if [ "$content" != "important key" ]; then
+    echo "Incorrect content in required_secret.txt: $content" >&2
+    exit 1
+fi
+echo '{"SECRET": "pulled value"}'
+"""
+
+[upstream.my-upstream.push]
+shell = "bash"
+script = """
+if [ ! -f "required_secret.txt" ]; then
+    echo "required_secret.txt not found!" >&2
+    exit 1
+fi
+content=$(cat required_secret.txt)
+if [ "$content" != "important key" ]; then
+    echo "Incorrect content in required_secret.txt: $content" >&2
+    exit 1
+fi
+"""
+"#,
+        )
+        .unwrap();
+
+    // Add upstream config to secret1.txt.cott.toml
+    let metadata_path1 = temp.path().join("secret1.txt.cott.toml");
+    let mut metadata1: toml::Value =
+        toml::from_str(&std::fs::read_to_string(&metadata_path1).unwrap()).unwrap();
+    metadata1.as_table_mut().unwrap().insert(
+        "upstream".to_string(),
+        toml::from_str(
+            r#"
+        [my-upstream]
+        pull = true
+        push = true
+    "#,
+        )
+        .unwrap(),
+    );
+    std::fs::write(&metadata_path1, toml::to_string(&metadata1).unwrap()).unwrap();
+
+    // Ensure required_secret.txt does not exist before running pull
+    assert!(!temp.path().join("required_secret.txt").exists());
+
+    // PULL
+    let output = Command::new(bin_path)
+        .arg("pull")
+        .arg("my-upstream")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(output.status.success(), "PULL failed: {}", stderr);
+    assert!(stdout.contains("secret1.txt.cott.age"));
+
+    // Ensure required_secret.txt was cleaned up after pull
+    assert!(!temp.path().join("required_secret.txt").exists());
+
+    // PUSH
+    let output = Command::new(bin_path)
+        .arg("push")
+        .arg("my-upstream")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(output.status.success(), "PUSH failed: {}", stderr);
+    assert!(stdout.contains("secret1.txt.cott.age"));
+
+    // Ensure required_secret.txt was cleaned up after push
+    assert!(!temp.path().join("required_secret.txt").exists());
+}

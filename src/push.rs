@@ -1,7 +1,8 @@
 use crate::{
     DecryptOptions, Identity, Metadata, OperationKind, OperationResult, Project, RecipientData,
-    StatusOptions, UpstreamMetadata, decrypt_into_memory, iter_encrypted, run_upstream_script,
-    status::status_file, to_decrypted_path, to_encrypted_path, to_metadata_path,
+    StatusOptions, UpstreamMetadata, clean_decrypted_secrets, decrypt_into_memory,
+    decrypt_required_secrets, iter_encrypted, run_upstream_script, status::status_file,
+    to_decrypted_path, to_encrypted_path, to_metadata_path,
 };
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -101,6 +102,16 @@ pub fn push_upstream(
         );
     }
 
+    // Decrypt required secrets
+    let req_decrypted = decrypt_required_secrets(
+        resolved.requires.as_ref(),
+        &opts.identities,
+        &opts.recipients,
+        metadata_path,
+        upstream_name,
+        proj.git().is_none(),
+    )?;
+
     log::info!(
         "{}: pushing to upstream '{}'",
         metadata_path.display(),
@@ -146,6 +157,8 @@ pub fn push_upstream(
         Some(secret),
         opts.debug,
     )?;
+
+    clean_decrypted_secrets(req_decrypted, upstream_name, OperationKind::Push)?;
 
     Ok(Some(OperationResult {
         kind: OperationKind::Push,
