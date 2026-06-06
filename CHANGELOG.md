@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2](https://github.com/sayanarijit/cottage/compare/v0.6.1...v0.6.2) - 2026-06-06
+
+### Added
+
+- feat!(upstream): Check status pre-requirements decryption
+
+### Fixed
+
+- *(upstream)* Update timestamps post-requirements-decryption
+
+### Other
+
+- format
+- Simplify plugin features description in documentation
+- Improve plugin docs
+- Rearrange KUBE_NAMESPACE and VAULT_MOUNT in config
+- Update required secrets file in cottage.toml
+- Rename upstream from 'myvault' to 'customvault'
+- Fix examples doc
+- minor docs cleanup
+- *(plugin)* Update cottage.toml example docs
+
 ## [0.6.1](https://github.com/sayanarijit/cottage/compare/v0.6.0...v0.6.1) - 2026-06-06
 
 ### Added
