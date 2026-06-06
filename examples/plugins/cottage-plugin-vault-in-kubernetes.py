@@ -80,7 +80,7 @@ def kube_proxy_vault_client(config: VaultSecretConfig):
         pod_or_service=config.kube_pod_or_service,
         from_port=local_port,
         to_port=remote_port,
-        config_path=config.kube_config_path,
+        config_path=str(config.kube_config_path),
         kube_context=config.kube_context or "",
     ):
         with (
