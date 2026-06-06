@@ -327,6 +327,69 @@ pub(crate) fn run_upstream_script(
     Ok(SecretSlice::new(output.stdout.into()))
 }
 
+#[derive(Debug)]
+pub struct TempDecryptedFile {
+    path: PathBuf,
+    was_present: bool,
+    force_cleanup: bool,
+    disarmed: bool,
+}
+
+impl TempDecryptedFile {
+    pub fn new(path: PathBuf, force_cleanup: bool) -> Self {
+        let was_present = path.exists();
+        Self {
+            path,
+            was_present,
+            force_cleanup,
+            disarmed: false,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn was_present(&self) -> bool {
+        self.was_present
+    }
+
+    pub fn disarm(&mut self) {
+        self.disarmed = true;
+    }
+
+    pub fn cleanup(&mut self, dry_run: bool) -> Result<Option<OperationResult>> {
+        self.disarm();
+        if self.force_cleanup || !self.was_present {
+            let clean_opts = CleanOptions {
+                dry_run,
+                gitignore: false,
+                encrypted: false,
+            };
+            crate::clean::clean_file(self.path.clone(), &clean_opts)
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl Drop for TempDecryptedFile {
+    fn drop(&mut self) {
+        if !self.disarmed && (self.force_cleanup || !self.was_present) {
+            if self.path.exists() {
+                if let Err(e) = secure_remove_file(&self.path) {
+                    log::error!(
+                        "failed to secure remove temporary decrypted file {}: {:?}",
+                        self.path.display(),
+                        e
+                    );
+                }
+            }
+        }
+    }
+}
+
 pub(crate) fn decrypt_required_secrets(
     requires: Option<&indexmap::IndexSet<PathBuf>>,
     identities: &[Identity],
@@ -334,7 +397,7 @@ pub(crate) fn decrypt_required_secrets(
     metadata_path: &Path,
     upstream_name: &str,
     skip_gitignore: bool,
-) -> Result<Vec<PathBuf>> {
+) -> Result<Vec<TempDecryptedFile>> {
     let mut req_decrypted = vec![];
     if let Some(requires) = requires {
         let dec_opts = DecryptOptions {
@@ -360,8 +423,10 @@ pub(crate) fn decrypt_required_secrets(
                 (to_encrypted_path(req_path), req_path.clone())
             };
 
-            if !req_dec_path.exists() && decrypt_file(&req_enc_path, &dec_opts)?.is_some() {
-                req_decrypted.push(req_dec_path.clone());
+            let temp_file = TempDecryptedFile::new(req_dec_path.clone(), false);
+
+            if !temp_file.was_present() && decrypt_file(&req_enc_path, &dec_opts)?.is_some() {
+                req_decrypted.push(temp_file);
                 log::info!(
                     "decrypted requirement {} into {} for upstream: {}",
                     req_enc_path.display(),
@@ -375,24 +440,18 @@ pub(crate) fn decrypt_required_secrets(
 }
 
 pub(crate) fn clean_decrypted_secrets(
-    req_decrypted: Vec<PathBuf>,
+    req_decrypted: Vec<TempDecryptedFile>,
     upstream_name: &str,
     kind: OperationKind,
 ) -> Result<()> {
-    let clean_opts = CleanOptions {
-        dry_run: false,
-        encrypted: false,
-        gitignore: false,
-    };
-
     let action = match kind {
         OperationKind::Pull => "pull from",
         OperationKind::Push => "push to",
         _ => "operation with",
     };
 
-    for req_enc_path in req_decrypted.into_iter() {
-        if let Some(res) = crate::clean::clean_file(req_enc_path, &clean_opts)? {
+    for mut temp_file in req_decrypted {
+        if let Some(res) = temp_file.cleanup(false)? {
             log::info!(
                 "cleaned decrypted requirement {} after {} upstream '{}'",
                 res.input.display(),

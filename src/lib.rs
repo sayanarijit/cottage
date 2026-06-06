@@ -30,9 +30,10 @@ pub(crate) use metadata::{
     make_checksum, verify_checksum,
 };
 pub(crate) use operation::{
-    Operation, OperationKind, OperationResult, clean_decrypted_secrets, decrypt_required_secrets,
-    is_encrypted_path, is_metadata_path, print_result, run_upstream_script, secure_remove_file,
-    to_decrypted_path, to_encrypted_path, to_metadata_path,
+    Operation, OperationKind, OperationResult, TempDecryptedFile, clean_decrypted_secrets,
+    decrypt_required_secrets, is_encrypted_path, is_metadata_path, print_result,
+    run_upstream_script, secure_remove_file, to_decrypted_path, to_encrypted_path,
+    to_metadata_path,
 };
 pub(crate) use preview::generate_preview;
 pub(crate) use project::{Project, iter_encrypted, remove_from_gitignore_if_present};
