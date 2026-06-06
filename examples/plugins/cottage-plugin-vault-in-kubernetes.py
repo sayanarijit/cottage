@@ -22,8 +22,9 @@ vars = {
 
 [upstream.dev-vault]
 envfile = "./vault/dev.env.cott.age"
+requires = ["./kubeconfig/dev.yaml.cott.age"]
 vars = {
-  ENCRYPTED_KUBE_CONFIG_PATH = "./kubeconfig/dev.yaml.cott.age",
+  KUBE_CONFIG_PATH = "./kubeconfig/dev.yaml",
 }
 plugin = "./plugins/cottage-plugin-vault-in-kubernetes.py"
 """
@@ -43,7 +44,6 @@ push = true
 VAULT_SECRET_PATH = "dockerconfigjson"
 """
 
-import subprocess as sh
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -60,7 +60,7 @@ class VaultSecretConfig(BaseSettings):
     vault_token: str = Field(..., alias="VAULT_TOKEN", description="Pass via `envfile`")
     vault_mount: str = Field(..., alias="VAULT_MOUNT")
     vault_secret_path: str = Field(..., alias="VAULT_SECRET_PATH")
-    encrypted_kube_config_path: Path = Field(..., alias="ENCRYPTED_KUBE_CONFIG_PATH")
+    kube_config_path: Path = Field(..., alias="KUBE_CONFIG_PATH")
     kube_context: str | None = Field(None, alias="KUBE_CONTEXT")
     kube_port_forward: str = Field("8200:8200", alias="KUBE_PORT_FORWARD")
     kube_namespace: str = Field("default", alias="KUBE_NAMESPACE")
@@ -74,31 +74,23 @@ def kube_proxy_vault_client(config: VaultSecretConfig):
     else:
         local_port = remote_port = int(config.kube_port_forward)
 
-    kubeconfig_path = str(config.encrypted_kube_config_path).removesuffix(".cott.age")
-    sh.run(
-        ["ctg", "decrypt", config.encrypted_kube_config_path], stdout=sh.PIPE
-    ).check_returncode()
-
-    try:
-        base_url = f"http://localhost:{local_port}"
-        with portforward.forward(
-            namespace=config.kube_namespace,
-            pod_or_service=config.kube_pod_or_service,
-            from_port=local_port,
-            to_port=remote_port,
-            config_path=kubeconfig_path,
-            kube_context=config.kube_context or "",
-        ):
-            with (
-                SyncClientBuilder()
-                .base_url(base_url)
-                .default_headers({"X-Vault-Token": config.vault_token})
-                .error_for_status()
-                .build()
-            ) as client:
-                yield client
-    finally:
-        sh.run(["ctg", "clean", kubeconfig_path], stdout=sh.PIPE).check_returncode()
+    base_url = f"http://localhost:{local_port}"
+    with portforward.forward(
+        namespace=config.kube_namespace,
+        pod_or_service=config.kube_pod_or_service,
+        from_port=local_port,
+        to_port=remote_port,
+        config_path=config.kube_config_path,
+        kube_context=config.kube_context or "",
+    ):
+        with (
+            SyncClientBuilder()
+            .base_url(base_url)
+            .default_headers({"X-Vault-Token": config.vault_token})
+            .error_for_status()
+            .build()
+        ) as client:
+            yield client
 
 
 app = App()
