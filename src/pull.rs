@@ -97,9 +97,15 @@ pub fn pull_upstream(
             )
         })?;
 
+    let pull_cfg = resolved
+        .pull
+        .as_ref()
+        .context(format!("{upstream_name}: pull operation is not configured for this upstream"))?;
+
     // Decrypt required secrets
     let req_decrypted = decrypt_required_secrets(
-        resolved.requires.as_ref(),
+        pull_cfg.requires.as_ref(),
+        pull_cfg.vars.as_ref(),
         &opts.identities,
         &opts.recipients,
         metadata_path,

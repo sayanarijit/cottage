@@ -376,22 +376,21 @@ impl TempDecryptedFile {
 
 impl Drop for TempDecryptedFile {
     fn drop(&mut self) {
-        if !self.disarmed && (self.force_cleanup || !self.was_present) {
-            if self.path.exists() {
-                if let Err(e) = secure_remove_file(&self.path) {
+        if !self.disarmed && (self.force_cleanup || !self.was_present)
+            && self.path.exists()
+                && let Err(e) = secure_remove_file(&self.path) {
                     log::error!(
                         "failed to secure remove temporary decrypted file {}: {:?}",
                         self.path.display(),
                         e
                     );
                 }
-            }
-        }
     }
 }
 
 pub(crate) fn decrypt_required_secrets(
     requires: Option<&indexmap::IndexSet<PathBuf>>,
+    vars: Option<&indexmap::IndexMap<String, String>>,
     identities: &[Identity],
     recipients: &[RecipientData],
     metadata_path: &Path,
@@ -399,41 +398,56 @@ pub(crate) fn decrypt_required_secrets(
     skip_gitignore: bool,
 ) -> Result<Vec<TempDecryptedFile>> {
     let mut req_decrypted = vec![];
-    if let Some(requires) = requires {
-        let dec_opts = DecryptOptions {
-            identities: identities.to_vec(),
-            recipients: recipients.to_vec(),
-            dry_run: false,
-            skip_gitignore,
-            skip_timestamps: true,
-            skip_verify_encrypted: false,
-            skip_verify_recipients: false,
-        };
-        for req_path in requires.iter() {
-            let (req_enc_path, req_dec_path) = if is_encrypted_path(req_path) {
-                let req_dec_path = to_decrypted_path(req_path).with_context(|| {
-                    format!(
-                        "{}: could not determine decrypted path for required secret '{}'",
-                        metadata_path.display(),
-                        req_path.display()
-                    )
-                })?;
-                (req_path.clone(), req_dec_path)
+    let mut requires = requires.cloned().unwrap_or_default();
+    if let Some(vars) = vars {
+        requires.extend(vars.iter().filter_map(|(_, val)| {
+            let enc_path = to_encrypted_path(&PathBuf::from(val));
+            if enc_path.exists() {
+                Some(enc_path)
             } else {
-                (to_encrypted_path(req_path), req_path.clone())
-            };
-
-            let temp_file = TempDecryptedFile::new(req_dec_path.clone(), false);
-
-            if !temp_file.was_present() && decrypt_file(&req_enc_path, &dec_opts)?.is_some() {
-                req_decrypted.push(temp_file);
-                log::info!(
-                    "decrypted requirement {} into {} for upstream: {}",
-                    req_enc_path.display(),
-                    req_dec_path.display(),
-                    upstream_name
-                );
+                None
             }
+        }));
+    }
+
+    if requires.is_empty() {
+        return Ok(req_decrypted);
+    }
+
+    let dec_opts = DecryptOptions {
+        identities: identities.to_vec(),
+        recipients: recipients.to_vec(),
+        dry_run: false,
+        skip_gitignore,
+        skip_timestamps: true,
+        skip_verify_encrypted: false,
+        skip_verify_recipients: false,
+    };
+
+    for req_path in requires.iter() {
+        let (req_enc_path, req_dec_path) = if is_encrypted_path(req_path) {
+            let req_dec_path = to_decrypted_path(req_path).with_context(|| {
+                format!(
+                    "{}: could not determine decrypted path for required secret '{}'",
+                    metadata_path.display(),
+                    req_path.display()
+                )
+            })?;
+            (req_path.clone(), req_dec_path)
+        } else {
+            (to_encrypted_path(req_path), req_path.clone())
+        };
+
+        let temp_file = TempDecryptedFile::new(req_dec_path.clone(), false);
+
+        if !temp_file.was_present() && decrypt_file(&req_enc_path, &dec_opts)?.is_some() {
+            req_decrypted.push(temp_file);
+            log::info!(
+                "decrypted requirement {} into {} for upstream: {}",
+                req_enc_path.display(),
+                req_dec_path.display(),
+                upstream_name
+            );
         }
     }
     Ok(req_decrypted)

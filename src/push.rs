@@ -102,9 +102,15 @@ pub fn push_upstream(
         );
     }
 
+    let push_cfg = resolved
+        .push
+        .as_ref()
+        .context(format!("{upstream_name}: push operation is not configured for this upstream"))?;
+
     // Decrypt required secrets
     let req_decrypted = decrypt_required_secrets(
-        resolved.requires.as_ref(),
+        push_cfg.requires.as_ref(),
+        push_cfg.vars.as_ref(),
         &opts.identities,
         &opts.recipients,
         metadata_path,
