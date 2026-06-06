@@ -14,15 +14,11 @@
 
 # cottage.toml
 """
-[upstream.defaults]
-vars = {
-  KUBE_NAMESPACE = "vault",
-  VAULT_MOUNT = "secrets",
-}
-
 [upstream.dev-vault]
 envfile = "./vault/dev.env.cott.age"
 vars = {
+  VAULT_MOUNT = "secrets",
+  KUBE_NAMESPACE = "vault",
   KUBE_CONFIG_PATH = "./kubeconfig/dev.yaml",
 }
 plugin = "./plugins/cottage-plugin-vault-in-kubernetes.py"
