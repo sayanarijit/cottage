@@ -108,11 +108,11 @@ pub fn push_upstream(
 
     // Decrypt required secrets
     let req_decrypted = decrypt_required_secrets(
+        proj,
         push_cfg.requires.as_ref(),
         push_cfg.vars.as_ref(),
         &opts.identities,
         &opts.recipients,
-        metadata_path,
         upstream_name,
         proj.git().is_none(),
     )?;

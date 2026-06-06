@@ -1,6 +1,8 @@
 use crate::project::ResolvedUpstream;
+use crate::status::status_file;
 use crate::{
-    CleanOptions, DecryptOptions, Identity, Project, RecipientData, decrypt_file, decrypt_into_cmd,
+    CleanOptions, DecryptOptions, Identity, Project, RecipientData, StatusOptions, decrypt_file,
+    decrypt_into_cmd,
 };
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result};
@@ -391,21 +393,33 @@ impl Drop for TempDecryptedFile {
 }
 
 pub(crate) fn decrypt_required_secrets(
+    proj: &Project,
     requires: Option<&indexmap::IndexSet<PathBuf>>,
     vars: Option<&indexmap::IndexMap<String, String>>,
     identities: &[Identity],
     recipients: &[RecipientData],
-    metadata_path: &Path,
     upstream_name: &str,
     skip_gitignore: bool,
 ) -> Result<Vec<TempDecryptedFile>> {
     let mut req_decrypted = vec![];
-    let mut requires = requires.cloned().unwrap_or_default();
+    let mut requires: indexmap::IndexSet<PathBuf> = requires
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| {
+            if is_encrypted_path(&p) {
+                to_decrypted_path(&p).unwrap_or(p)
+            } else {
+                p
+            }
+        })
+        .collect();
+
     if let Some(vars) = vars {
         requires.extend(vars.iter().filter_map(|(_, val)| {
-            let enc_path = to_encrypted_path(&PathBuf::from(val));
-            if enc_path.exists() {
-                Some(enc_path)
+            let p = PathBuf::from(val);
+            if to_encrypted_path(&p).exists() {
+                Some(p)
             } else {
                 None
             }
@@ -414,6 +428,23 @@ pub(crate) fn decrypt_required_secrets(
 
     if requires.is_empty() {
         return Ok(req_decrypted);
+    }
+
+    let status_opts = StatusOptions {
+        skip_encryption: false,
+        skip_decryption: false,
+    };
+
+    for req_dec_path in requires.iter() {
+        if req_dec_path.exists()
+            && let Some(res) = status_file(req_dec_path, status_opts)?
+        {
+            anyhow::bail!(
+                "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
+                "pending sync".red(),
+                proj.relative_to_cwd(&res.input).display()
+            );
+        }
     }
 
     let dec_opts = DecryptOptions {
@@ -426,20 +457,8 @@ pub(crate) fn decrypt_required_secrets(
         skip_verify_recipients: false,
     };
 
-    for req_path in requires.iter() {
-        let (req_enc_path, req_dec_path) = if is_encrypted_path(req_path) {
-            let req_dec_path = to_decrypted_path(req_path).with_context(|| {
-                format!(
-                    "{}: could not determine decrypted path for required secret '{}'",
-                    metadata_path.display(),
-                    req_path.display()
-                )
-            })?;
-            (req_path.clone(), req_dec_path)
-        } else {
-            (to_encrypted_path(req_path), req_path.clone())
-        };
-
+    for req_dec_path in requires.iter() {
+        let req_enc_path = to_encrypted_path(req_dec_path);
         let temp_file = TempDecryptedFile::new(req_dec_path.clone(), false);
 
         if !temp_file.was_present() && decrypt_file(&req_enc_path, &dec_opts)?.is_some() {

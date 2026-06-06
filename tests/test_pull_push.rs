@@ -531,3 +531,331 @@ fi
     // Ensure required_secret.txt was cleaned up after push
     assert!(!temp.path().join("required_secret.txt").exists());
 }
+
+#[test]
+fn test_pull_push_dirty_requirements() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Init
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Create required secret and encrypt it
+    temp.child("required_secret.txt")
+        .write_str("important key")
+        .unwrap();
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("required_secret.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Make required_secret.txt dirty by writing new content
+    temp.child("required_secret.txt")
+        .write_str("important key - modified but not encrypted")
+        .unwrap();
+
+    // Create main secret
+    temp.child("secret1.txt").write_str("dummy value").unwrap();
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("secret1.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Delete secret1.txt to avoid "dirty" error on pull for the main secret itself
+    std::fs::remove_file(temp.path().join("secret1.txt")).unwrap();
+
+    // Configure cottage.toml with requires
+    temp.child("cottage.toml")
+        .write_str(
+            r#"
+[upstream.my-upstream]
+requires = ["required_secret.txt"]
+
+[upstream.my-upstream.pull]
+shell = "bash"
+script = "echo '{\"SECRET\": \"pulled value\"}'"
+
+[upstream.my-upstream.push]
+shell = "bash"
+script = "cat > /dev/null"
+"#,
+        )
+        .unwrap();
+
+    // Add upstream config to secret1.txt.cott.toml
+    let metadata_path1 = temp.path().join("secret1.txt.cott.toml");
+    let mut metadata1: toml::Value =
+        toml::from_str(&std::fs::read_to_string(&metadata_path1).unwrap()).unwrap();
+    metadata1.as_table_mut().unwrap().insert(
+        "upstream".to_string(),
+        toml::from_str(
+            r#"
+        [my-upstream]
+        pull = true
+        push = true
+    "#,
+        )
+        .unwrap(),
+    );
+    std::fs::write(&metadata_path1, toml::to_string(&metadata1).unwrap()).unwrap();
+
+    // PULL should fail because required_secret.txt is dirty
+    let output_pull = Command::new(bin_path)
+        .arg("pull")
+        .arg("my-upstream")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+
+    let stderr_pull = String::from_utf8_lossy(&output_pull.stderr);
+    assert!(
+        !output_pull.status.success(),
+        "PULL succeeded but should have failed since requirement is dirty"
+    );
+    assert!(
+        stderr_pull
+            .contains("required_secret.txt is dirty, please run `ctg sync` or `ctg encrypt` first"),
+        "Unexpected error: {}",
+        stderr_pull
+    );
+
+    // PUSH should fail because required_secret.txt is dirty
+    let output_push = Command::new(bin_path)
+        .arg("push")
+        .arg("my-upstream")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+
+    let stderr_push = String::from_utf8_lossy(&output_push.stderr);
+    assert!(
+        !output_push.status.success(),
+        "PUSH succeeded but should have failed since requirement is dirty"
+    );
+    assert!(
+        stderr_push
+            .contains("required_secret.txt is dirty, please run `ctg sync` or `ctg encrypt` first"),
+        "Unexpected error: {}",
+        stderr_push
+    );
+}
+
+#[test]
+fn test_pull_push_dirty_requirements_via_vars() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Init
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Create required secret and encrypt it
+    temp.child("required_secret.txt")
+        .write_str("important key")
+        .unwrap();
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("required_secret.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Make required_secret.txt dirty by writing new content
+    temp.child("required_secret.txt")
+        .write_str("important key - modified but not encrypted")
+        .unwrap();
+
+    // Create main secret
+    temp.child("secret1.txt").write_str("dummy value").unwrap();
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("secret1.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Delete secret1.txt to avoid "dirty" error on pull for the main secret itself
+    std::fs::remove_file(temp.path().join("secret1.txt")).unwrap();
+
+    // Configure cottage.toml with vars referencing required_secret.txt
+    temp.child("cottage.toml")
+        .write_str(
+            r#"
+[upstream.my-upstream]
+vars = { MY_VAR = "required_secret.txt" }
+
+[upstream.my-upstream.pull]
+shell = "bash"
+script = "echo '{\"SECRET\": \"pulled value\"}'"
+
+[upstream.my-upstream.push]
+shell = "bash"
+script = "cat > /dev/null"
+"#,
+        )
+        .unwrap();
+
+    // Add upstream config to secret1.txt.cott.toml
+    let metadata_path1 = temp.path().join("secret1.txt.cott.toml");
+    let mut metadata1: toml::Value =
+        toml::from_str(&std::fs::read_to_string(&metadata_path1).unwrap()).unwrap();
+    metadata1.as_table_mut().unwrap().insert(
+        "upstream".to_string(),
+        toml::from_str(
+            r#"
+        [my-upstream]
+        pull = true
+        push = true
+    "#,
+        )
+        .unwrap(),
+    );
+    std::fs::write(&metadata_path1, toml::to_string(&metadata1).unwrap()).unwrap();
+
+    // PULL should fail because required_secret.txt is dirty
+    let output_pull = Command::new(bin_path)
+        .arg("pull")
+        .arg("my-upstream")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+
+    let stderr_pull = String::from_utf8_lossy(&output_pull.stderr);
+    assert!(
+        !output_pull.status.success(),
+        "PULL succeeded but should have failed since requirement from vars is dirty"
+    );
+    assert!(
+        stderr_pull
+            .contains("required_secret.txt is dirty, please run `ctg sync` or `ctg encrypt` first"),
+        "Unexpected error: {}",
+        stderr_pull
+    );
+
+    // PUSH should fail because required_secret.txt is dirty
+    let output_push = Command::new(bin_path)
+        .arg("push")
+        .arg("my-upstream")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+
+    let stderr_push = String::from_utf8_lossy(&output_push.stderr);
+    assert!(
+        !output_push.status.success(),
+        "PUSH succeeded but should have failed since requirement from vars is dirty"
+    );
+    assert!(
+        stderr_push
+            .contains("required_secret.txt is dirty, please run `ctg sync` or `ctg encrypt` first"),
+        "Unexpected error: {}",
+        stderr_push
+    );
+}
+
+#[test]
+fn test_pull_push_dirty_requirements_encrypted_path() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Init
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Create required secret and encrypt it
+    temp.child("required_secret.txt")
+        .write_str("important key")
+        .unwrap();
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("required_secret.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Make required_secret.txt dirty by writing new content
+    temp.child("required_secret.txt")
+        .write_str("important key - modified but not encrypted")
+        .unwrap();
+
+    // Create main secret
+    temp.child("secret1.txt").write_str("dummy value").unwrap();
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("secret1.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Delete secret1.txt to avoid "dirty" error on pull for the main secret itself
+    std::fs::remove_file(temp.path().join("secret1.txt")).unwrap();
+
+    // Configure cottage.toml with requires pointing to the encrypted file
+    temp.child("cottage.toml")
+        .write_str(
+            r#"
+[upstream.my-upstream]
+requires = ["required_secret.txt.cott.age"]
+
+[upstream.my-upstream.pull]
+shell = "bash"
+script = "echo '{\"SECRET\": \"pulled value\"}'"
+
+[upstream.my-upstream.push]
+shell = "bash"
+script = "cat > /dev/null"
+"#,
+        )
+        .unwrap();
+
+    // Add upstream config to secret1.txt.cott.toml
+    let metadata_path1 = temp.path().join("secret1.txt.cott.toml");
+    let mut metadata1: toml::Value =
+        toml::from_str(&std::fs::read_to_string(&metadata_path1).unwrap()).unwrap();
+    metadata1.as_table_mut().unwrap().insert(
+        "upstream".to_string(),
+        toml::from_str(
+            r#"
+        [my-upstream]
+        pull = true
+        push = true
+    "#,
+        )
+        .unwrap(),
+    );
+    std::fs::write(&metadata_path1, toml::to_string(&metadata1).unwrap()).unwrap();
+
+    // PULL should fail because required_secret.txt is dirty
+    let output_pull = Command::new(bin_path)
+        .arg("pull")
+        .arg("my-upstream")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+
+    let stderr_pull = String::from_utf8_lossy(&output_pull.stderr);
+    assert!(
+        !output_pull.status.success(),
+        "PULL succeeded but should have failed since requirement is dirty"
+    );
+    assert!(
+        stderr_pull
+            .contains("required_secret.txt is dirty, please run `ctg sync` or `ctg encrypt` first"),
+        "Unexpected error: {}",
+        stderr_pull
+    );
+}
