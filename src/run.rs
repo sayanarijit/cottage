@@ -1,5 +1,5 @@
 use crate::{
-    CleanOptions, DecryptOptions, OperationResult, StatusOptions, clean_path, decrypt_path,
+    DecryptOptions, OperationResult, StatusOptions, TempDecryptedFile, decrypt_path,
     is_encrypted_path, status_path, to_decrypted_path, to_encrypted_path,
 };
 use anyhow::Result;
@@ -20,7 +20,7 @@ pub struct RunResult {
 
 pub fn run(
     proj_root: &Path,
-    relative_to_cwd: impl Fn(&Path) -> PathBuf,
+    relative_cwd: impl Fn(&Path) -> PathBuf,
     opts: RunOptions,
 ) -> Result<RunResult> {
     let mut input_paths = vec![];
@@ -65,8 +65,23 @@ pub fn run(
             anyhow::bail!(
                 "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
                 "pending encryption".red(),
-                relative_to_cwd(&res.input).display()
+                relative_cwd(&res.input).display()
             );
+        }
+    }
+
+    let mut temp_files = vec![];
+    for path in &input {
+        if path.is_file() && is_encrypted_path(path) {
+            if let Some(dec) = to_decrypted_path(path) {
+                temp_files.push(TempDecryptedFile::new(dec, false));
+            }
+        } else if path.is_dir() {
+            for entry in crate::iter_encrypted(path) {
+                if let Some(dec) = to_decrypted_path(entry.path()) {
+                    temp_files.push(TempDecryptedFile::new(dec, false));
+                }
+            }
         }
     }
 
@@ -93,21 +108,11 @@ pub fn run(
             .map(|s| (s.success(), s.code()))
     };
 
-    let clean_opts = CleanOptions {
-        dry_run: opts.dry_run,
-        gitignore: false,
-        encrypted: false,
-    };
-
-    for path in input.iter().map(|p| {
-        if p.is_file() && is_encrypted_path(p) {
-            to_decrypted_path(p).unwrap_or_else(|| p.clone())
-        } else {
-            p.clone()
-        }
-    }) {
-        for res in clean_path(&path, &clean_opts) {
-            results.push(res);
+    for mut temp_file in temp_files {
+        match temp_file.cleanup(opts.dry_run) {
+            Ok(Some(res)) => results.push(Ok(res)),
+            Ok(None) => {}
+            Err(e) => results.push(Err(e)),
         }
     }
 
