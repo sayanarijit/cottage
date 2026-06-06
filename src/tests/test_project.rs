@@ -173,7 +173,7 @@ fn test_project_clean() -> anyhow::Result<()> {
 
 #[test]
 fn test_upstream_config_resolved_direct() {
-    use crate::project::{UpstreamConfig, PullPushConfig};
+    use crate::project::{PullPushConfig, UpstreamConfig};
     use indexmap::{IndexMap, IndexSet};
     use std::path::PathBuf;
 
@@ -254,8 +254,8 @@ script = "pull.sh"
 script = "push.sh"
 "#;
 
-    let proj = Project::generate_test_project(temp_dir.path())
-        .with_toml_config(cottage_toml_content)?;
+    let proj =
+        Project::generate_test_project(temp_dir.path()).with_toml_config(cottage_toml_content)?;
 
     // Case 1: pull = true, push = true
     let meta_both = UpstreamMetadata {
@@ -365,12 +365,18 @@ d = "upstream_pull"
 e = "upstream_pull"
 "#;
 
-    let proj = Project::generate_test_project(temp_dir.path())
-        .with_toml_config(cottage_toml_content)?;
+    let proj =
+        Project::generate_test_project(temp_dir.path()).with_toml_config(cottage_toml_content)?;
 
     // Verify resolving nonexistent or reserved
-    assert!(proj.resolve_upstream("nonexistent", &UpstreamMetadata::default()).is_none());
-    assert!(proj.resolve_upstream("defaults", &UpstreamMetadata::default()).is_none());
+    assert!(
+        proj.resolve_upstream("nonexistent", &UpstreamMetadata::default())
+            .is_none()
+    );
+    assert!(
+        proj.resolve_upstream("defaults", &UpstreamMetadata::default())
+            .is_none()
+    );
 
     // Setup metadata vars (layer 1)
     let meta = UpstreamMetadata {
@@ -389,9 +395,15 @@ e = "upstream_pull"
     // Verify 5-layer variables priority:
     let pull_vars = pull.vars.as_ref().expect("vars should exist");
     assert_eq!(pull_vars.get("a").map(|v| v.as_str()), Some("defaults_top"));
-    assert_eq!(pull_vars.get("b").map(|v| v.as_str()), Some("defaults_pull"));
+    assert_eq!(
+        pull_vars.get("b").map(|v| v.as_str()),
+        Some("defaults_pull")
+    );
     assert_eq!(pull_vars.get("c").map(|v| v.as_str()), Some("upstream_top"));
-    assert_eq!(pull_vars.get("d").map(|v| v.as_str()), Some("upstream_pull"));
+    assert_eq!(
+        pull_vars.get("d").map(|v| v.as_str()),
+        Some("upstream_pull")
+    );
     assert_eq!(pull_vars.get("e").map(|v| v.as_str()), Some("meta"));
 
     // Verify pull properties
@@ -419,4 +431,3 @@ e = "upstream_pull"
 
     Ok(())
 }
-

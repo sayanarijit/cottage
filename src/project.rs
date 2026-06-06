@@ -663,7 +663,6 @@ impl Project {
         Ok(self)
     }
 
-
     pub fn init_test_recipients(&self) {
         let sk = age::x25519::Identity::generate();
         let pk = sk.to_public();

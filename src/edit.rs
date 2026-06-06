@@ -1,6 +1,6 @@
 use crate::{
-    DecryptOptions, EncryptOptions, OperationResult, TempDecryptedFile, decrypt_file,
-    encrypt_file, is_encrypted_path, is_metadata_path, to_decrypted_path, to_encrypted_path,
+    DecryptOptions, EncryptOptions, OperationResult, TempDecryptedFile, decrypt_file, encrypt_file,
+    is_encrypted_path, is_metadata_path, to_decrypted_path, to_encrypted_path,
 };
 use anyhow::{Result, anyhow};
 use std::fs::File;

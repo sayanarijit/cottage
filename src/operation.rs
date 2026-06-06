@@ -376,15 +376,17 @@ impl TempDecryptedFile {
 
 impl Drop for TempDecryptedFile {
     fn drop(&mut self) {
-        if !self.disarmed && (self.force_cleanup || !self.was_present)
+        if !self.disarmed
+            && (self.force_cleanup || !self.was_present)
             && self.path.exists()
-                && let Err(e) = secure_remove_file(&self.path) {
-                    log::error!(
-                        "failed to secure remove temporary decrypted file {}: {:?}",
-                        self.path.display(),
-                        e
-                    );
-                }
+            && let Err(e) = secure_remove_file(&self.path)
+        {
+            log::error!(
+                "failed to secure remove temporary decrypted file {}: {:?}",
+                self.path.display(),
+                e
+            );
+        }
     }
 }
 

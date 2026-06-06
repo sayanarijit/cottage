@@ -146,9 +146,7 @@ fn test_pull_push_requires() {
     std::fs::remove_file(temp.path().join("required_secret.txt")).unwrap();
 
     // Create main secret
-    temp.child("secret1.txt")
-        .write_str("dummy value")
-        .unwrap();
+    temp.child("secret1.txt").write_str("dummy value").unwrap();
     Command::new(bin_path)
         .arg("encrypt")
         .arg("secret1.txt")
@@ -280,9 +278,7 @@ fn test_pull_push_auto_require_vars() {
     std::fs::remove_file(temp.path().join("required_secret.txt")).unwrap();
 
     // Create main secret
-    temp.child("secret1.txt")
-        .write_str("dummy value")
-        .unwrap();
+    temp.child("secret1.txt").write_str("dummy value").unwrap();
     Command::new(bin_path)
         .arg("encrypt")
         .arg("secret1.txt")
@@ -422,9 +418,7 @@ fn test_pull_push_auto_require_vars_operation_specific() {
     std::fs::remove_file(temp.path().join("required_secret.txt")).unwrap();
 
     // Create main secret
-    temp.child("secret1.txt")
-        .write_str("dummy value")
-        .unwrap();
+    temp.child("secret1.txt").write_str("dummy value").unwrap();
     Command::new(bin_path)
         .arg("encrypt")
         .arg("secret1.txt")
