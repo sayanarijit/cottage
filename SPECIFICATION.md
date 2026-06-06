@@ -31,7 +31,7 @@ These settings can be defined at the top level of an upstream or within its `pul
 | ---------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `cwd`      | Boolean                           | Optional. If true, run the script in the directory of the secret.                                                        |
 | `envfile`  | Path                              | Optional. Path to an encrypted file to use as environment variables for the script.                                      |
-| `vars`     | Map<String, String>               | Optional. Environment variables to pass to the script.                                                                   |
+| `vars`     | Map<String, String>               | Optional. Environment variables to pass to the script. If any variable value is a path to a decrypted secret that has a corresponding encrypted counterpart, it is automatically added to the `requires` list. |
 | `requires` | Array<Path>                       | Optional. List of secret paths to be decrypted before running push/pull operations (and securely cleaned up afterwards). |
 | `shell`    | String                            | Optional. The shell to use for running scripts (default: `sh`).                                                          |
 | `pull`     | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the pull operation.                                                                 |

@@ -22,7 +22,6 @@ vars = {
 
 [upstream.dev-vault]
 envfile = "./vault/dev.env.cott.age"
-requires = ["./kubeconfig/dev.yaml.cott.age"]
 vars = {
   KUBE_CONFIG_PATH = "./kubeconfig/dev.yaml",
 }
