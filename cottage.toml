@@ -45,19 +45,19 @@ echo "Auto injected cottage binary path is: '$ctg'" 1>&2
 echo "Pushing secret '${SECRET}' to ${URL}..." 1>&2
 '''
 
-# Define another upstream named "myvault" that uses a plugin to push/pull secrets.
+# Define another upstream named "kubevault" that uses a plugin to push/pull secrets.
 # A plugin is any binary that takes "pull" or "push" as the first argument, reads env vars,
 # reads the secret from stdin for "push", and outputs the secret to stdout for "pull".
 # To manage secrets with this plugin, you need to add the following lines to the secret metadata:
 # ```
-# [upstream.myvault]
+# [upstream.kubevault]
 # pull = true
 # push = true
 # vars = {
 #   VAULT_SECRET_PATH = "myapp/config",
 # }
 # ```
-[upstream.myvault]
+[upstream.kubevault]
 envfile = "./examples/.env.cott.age"  # Should export VAULT_TOKEN.
 vars = {
   VAULT_MOUNT = "secrets",
@@ -65,3 +65,12 @@ vars = {
   KUBE_CONFIG_PATH = "./examples/secrets/secret.yaml",  # Will be auto-decrypted before running the plugin.
 }
 plugin = "./examples/plugins/cottage-plugin-vault-in-kubernetes.py"
+
+# Similarly
+[upstream.personalvault]
+envfile = "./examples/.env.cott.age" # Should export VAULT_TOKEN.
+vars = {
+  VAULT_ADDR = "http://localhost:8200",
+  VAULT_MOUNT = "secret",
+}
+plugin = "./examples/plugins/cottage-plugin-vault.py"

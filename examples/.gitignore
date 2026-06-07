@@ -4,3 +4,4 @@
 /secrets/secret.toml
 /secrets/secret.yaml
 /secrets/secret.ini
+/podman-compose.yaml

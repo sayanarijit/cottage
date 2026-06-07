@@ -1,0 +1,26 @@
+[checksum]
+encrypted = "blake3:6ff385fd83cccd87c895d33664c2dad273af673a9868c30604f0628b1c699c16"
+recipients = "blake3:062ade60132b939be278f8c227bfaba803735c43c9981ef8462f69e68cf70ab3"
+
+[preview]
+format = "yaml"
+preview = """
+services:
+  vault:
+    image: 2026-06-07T03:39:09.439861399+00:00
+    container_name: 2026-06-07T03:39:09.439861399+00:00
+    environment:
+    - 2026-06-07T04:34:23.800822142+00:00
+    - 2026-06-07T04:34:23.800822142+00:00
+    ports:
+    - 2026-06-07T03:39:09.439861399+00:00
+    volumes:
+    - 2026-06-07T04:34:23.800822142+00:00
+    - 2026-06-07T04:34:23.800822142+00:00
+volumes:
+  vault_data: null
+  vault_config: null
+"""
+
+[secret]
+timestamp = "2026-06-07T04:34:23.800822142+00:00"
