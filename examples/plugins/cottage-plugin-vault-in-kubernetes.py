@@ -5,7 +5,7 @@
 # dependencies = [
 #     "cyclopts>=4.5.1",
 #     "portforward>=0.7.6",
-#     "pydantic-settings>=2.14.1",
+#     "pydantic>=2.13.4",
 #     "pyreqwest>=0.10.1",
 # ]
 # ///
@@ -23,46 +23,58 @@ vars = {
 plugin = "./plugins/cottage-plugin-vault-in-kubernetes.py"
 """
 
-# vault/dev.env
-"""
-VAULT_TOKEN=dev-token
-"""
-
-# dockerconfigjson/dev.env.cott.toml
+# myapp/dev.json.cott.toml
 """
 [upstream.dev-vault]
 pull = true
 push = true
 
 [upstream.dev-vault.vars]
-VAULT_SECRET_PATH = "dockerconfigjson"
+VAULT_SECRET_PATH = "myapp/env/dev"
 """
 
 import json
+import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
 
 import portforward
 from cyclopts import App
-from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel, Field, model_validator
 from pyreqwest.client import SyncClientBuilder
 
 
-class VaultSecretConfig(BaseSettings):
+class VaultSecretConfig(BaseModel):
     vault_token: str = Field(..., alias="VAULT_TOKEN", description="Pass via `envfile`")
     vault_mount: str = Field(..., alias="VAULT_MOUNT")
     vault_secret_path: str = Field(..., alias="VAULT_SECRET_PATH")
+    vault_namespace: str | None = Field(None, alias="VAULT_NAMESPACE")
     kube_config_path: Path = Field(..., alias="KUBE_CONFIG_PATH")
     kube_context: str | None = Field(None, alias="KUBE_CONTEXT")
     kube_port_forward: str = Field("8200:8200", alias="KUBE_PORT_FORWARD")
     kube_namespace: str = Field("default", alias="KUBE_NAMESPACE")
     kube_pod_or_service: str = Field("vault", alias="KUBE_POD_OR_SERVICE")
 
+    @model_validator(mode="after")
+    def resolve_paths(self) -> "VaultSecretConfig":
+        if self.kube_config_path:
+            self.kube_config_path = self.kube_config_path.expanduser()
+        return self
+
     @property
     def vault_secret_urlpath(self) -> str:
         return f"/v1/{self.vault_mount}/data/{self.vault_secret_path}"
+
+    @property
+    def vault_headers(self) -> dict[str, str]:
+        headers = {
+            "X-Vault-Request": "true",
+            "X-Vault-Token": self.vault_token,
+        }
+        if self.vault_namespace:
+            headers["X-Vault-Namespace"] = self.vault_namespace
+        return headers
 
     def model_post_init(self, __context):
         print(  # Use --debug to see this message
@@ -92,7 +104,7 @@ def kube_proxy_vault_client(config: VaultSecretConfig):
         with (
             SyncClientBuilder()
             .base_url(f"http://127.0.0.1:{local_port}")
-            .default_headers({"X-Vault-Token": config.vault_token})
+            .default_headers(config.vault_headers)
             .error_for_status()
             .build()
         ) as client:
@@ -104,7 +116,7 @@ app = App()
 
 @app.command(name="pull")
 def cmd_pull():
-    cfg = VaultSecretConfig()
+    cfg = VaultSecretConfig.model_validate(os.environ)
     with kube_proxy_vault_client(cfg) as client:
         print(  # Use --debug to see this message
             "Pulling from", cfg.vault_secret_urlpath, file=sys.stderr
@@ -115,7 +127,7 @@ def cmd_pull():
 
 @app.command(name="push")
 def cmd_push():
-    cfg = VaultSecretConfig()
+    cfg = VaultSecretConfig.model_validate(os.environ)
     payload = {"data": json.loads(input())}
     with kube_proxy_vault_client(cfg) as client:
         print(  # Use --debug to see this message
