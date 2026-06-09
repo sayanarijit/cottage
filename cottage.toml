@@ -74,3 +74,109 @@ vars = {
   VAULT_MOUNT = "secret",
 }
 plugin = "./examples/plugins/cottage-plugin-vault.py"
+
+[upstream.awssecrets]
+envfile = "./examples/.env.cott.age" # Should export AWS credentials.
+vars = {
+  AWS_SECRET_ID = "myapp/dev/secrets",
+  AWS_REGION_NAME = "us-east-1",
+}
+plugin = "./examples/plugins/cottage-plugin-aws-secretsmanager.py"
+
+[upstream.gcpsecrets]
+envfile = "./examples/.env.cott.age" # Should export GCP credentials.
+vars = {
+  GCP_PROJECT = "my-gcp-project",
+  GCP_SECRET_ID = "myapp-dev-secrets",
+}
+plugin = "./examples/plugins/cottage-plugin-gcp-secretmanager.py"
+
+[upstream.doppler]
+envfile = "./examples/.env.cott.age" # Should export DOPPLER_TOKEN.
+vars = {
+  DOPPLER_PROJECT = "my-project",
+  DOPPLER_CONFIG = "dev",
+}
+plugin = "./examples/plugins/cottage-plugin-doppler.py"
+
+[upstream.azurekeyvault]
+envfile = "./examples/.env.cott.age" # Should export Azure credentials.
+vars = {
+  AZURE_KEYVAULT_URL = "https://my-keyvault.vault.azure.net/",
+  AZURE_SECRET_NAME = "myapp-dev-secrets",
+}
+plugin = "./examples/plugins/cottage-plugin-azure-keyvault.py"
+
+[upstream.onepassword]
+envfile = "./examples/.env.cott.age" # Should export OP_SERVICE_ACCOUNT_TOKEN.
+vars = {
+  OP_VAULT_ID = "your-vault-uuid-here",
+  OP_ITEM_TITLE = "myapp-dev-secrets",
+}
+plugin = "./examples/plugins/cottage-plugin-onepassword.py"
+
+[upstream.bitwarden]
+envfile = "./examples/.env.cott.age" # Should export BWS_ACCESS_TOKEN.
+vars = {
+  BW_SECRET_ID = "your-secret-uuid-here",
+}
+plugin = "./examples/plugins/cottage-plugin-bitwarden.py"
+
+[upstream.zoho]
+envfile = "./examples/.env.cott.age" # Should export ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN.
+vars = {
+  ZOHO_SECRET_ID = "1234567890",
+  ZOHO_VAULT_URL = "https://vault.zoho.com",
+}
+plugin = "./examples/plugins/cottage-plugin-zoho-vault.py"
+
+[upstream.pass]
+vars = {
+  PASS_SECRET_PATH = "myapp/dev/secrets",
+  PASSWORD_STORE_DIR = "~/.password-store", # Optional override
+}
+plugin = "./examples/plugins/cottage-plugin-pass.py"
+
+[upstream.dashlane]
+vars = {
+  DASHLANE_SECRET_ID = "your-secret-uuid-here",
+}
+plugin = "./examples/plugins/cottage-plugin-dashlane.py"
+
+[upstream.ejson]
+vars = {
+  EJSON_PATH = "./examples/secrets.ejson",
+}
+plugin = "./examples/plugins/cottage-plugin-ejson.py"
+
+[upstream.keyring]
+vars = {
+  KEYRING_SERVICE = "cottage-secrets",
+  KEYRING_USERNAME = "myapp-dev",
+}
+plugin = "./examples/plugins/cottage-plugin-keyring.py"
+
+[upstream.keeper]
+envfile = "./examples/.env.cott.age" # Should export KSM_CONFIG.
+vars = {
+  KEEPER_RECORD_UID = "your-record-uid-here",
+}
+plugin = "./examples/plugins/cottage-plugin-keeper.py"
+
+[upstream.lastpass]
+vars = {
+  LPASS_SECRET_NAME = "myapp/dev/secrets",
+}
+plugin = "./examples/plugins/cottage-plugin-lastpass.py"
+
+[upstream.passhole]
+vars = {
+  PASSHOLE_SECRET_PATH = "myapp/dev/secrets",
+}
+plugin = "./examples/plugins/cottage-plugin-passhole.py"
+
+[upstream.protonpass]
+vars = {
+  PROTON_ITEM_TITLE = "myapp-dev-secrets",
+}
+plugin = "./examples/plugins/cottage-plugin-protonpass.py"

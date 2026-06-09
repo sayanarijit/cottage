@@ -4,7 +4,7 @@
 # requires-python = ">=3.14"
 # dependencies = [
 #     "cyclopts>=4.5.1",
-#     "pydantic-settings>=2.14.1",
+#     "pydantic>=2.13.4",
 #     "pyreqwest>=0.10.1",
 # ]
 # ///
@@ -33,27 +33,27 @@ vars = {
 plugin = "./plugins/cottage-plugin-vault.py"
 """
 
-# secret.env.cott.toml
+# myapp/dev.json.cott.toml
 """
 [upstream.dev-vault]
 pull = true
 push = true
 
 [upstream.dev-vault.vars]
-VAULT_SECRET_PATH = "dockerconfigjson"
+VAULT_SECRET_PATH = "myapp/env/dev"
 """
 
 import json
+import os
 import sys
 from contextlib import contextmanager
 
 from cyclopts import App
-from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel, Field
 from pyreqwest.client import SyncClientBuilder
 
 
-class VaultSecretConfig(BaseSettings):
+class VaultSecretConfig(BaseModel):
     vault_addr: str = Field(..., alias="VAULT_ADDR")
     vault_token: str = Field(..., alias="VAULT_TOKEN", description="Pass via `envfile`")
     vault_mount: str = Field(..., alias="VAULT_MOUNT")
@@ -101,7 +101,7 @@ app = App()
 
 @app.command(name="pull")
 def cmd_pull():
-    cfg = VaultSecretConfig()
+    cfg = VaultSecretConfig.model_validate(os.environ)
     with vault_client(cfg) as client:
         print(  # Use --debug to see this message
             "Pulling from", cfg.vault_secret_urlpath, file=sys.stderr
@@ -112,7 +112,7 @@ def cmd_pull():
 
 @app.command(name="push")
 def cmd_push():
-    cfg = VaultSecretConfig()
+    cfg = VaultSecretConfig.model_validate(os.environ)
     payload = {"data": json.loads(input())}
     with vault_client(cfg) as client:
         print(  # Use --debug to see this message
