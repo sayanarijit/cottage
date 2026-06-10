@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3](https://github.com/sayanarijit/cottage/compare/v0.6.2...v0.6.3) - 2026-06-10
+
+### Fixed
+
+- pull/push from subdirectory
+
+### Other
+
+- *(deps)* bump log from 0.4.29 to 0.4.30
+- *(deps)* bump assert_fs from 1.1.3 to 1.1.4
+- cleanup redundant docs
+- list the plugins in readme and docs
+- add more plugin examples (mostly AI generated)
+- Add direct vault plugin example
+
 ## [0.6.2](https://github.com/sayanarijit/cottage/compare/v0.6.1...v0.6.2) - 2026-06-06
 
 ### Added
