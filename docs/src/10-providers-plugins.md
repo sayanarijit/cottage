@@ -160,15 +160,6 @@ Verify the update:
 > delete db-secret.json
 > ```
 
-### Real-world Kubernetes & Vault Plugin Example
-
-For a complete, real-world example of a plugin, see the Python-based plugin [cottage-plugin-vault-in-kubernetes.py](examples/plugins/cottage-plugin-vault-in-kubernetes.py) in the repository's `examples/plugins` directory.
-
-This plugin handles authentication and communication with HashiCorp Vault running in a Kubernetes cluster:
-1. **Env Mappings:** It defines configuration properties mapping environment variables to plugin settings using `pydantic-settings`.
-2. **Kubernetes Port-Forwarding:** It establishes a secure port-forward connection to Vault using the `portforward` Python package.
-3. **API Integration:** It pulls/pushes secret payloads directly to Vault's REST API using `pyreqwest`.
-
 ### Example plugins
 
 Cottage provides ready-to-use plugin scripts for various secret managers in the [examples/plugins](examples/plugins/) directory:
@@ -192,4 +183,3 @@ Cottage provides ready-to-use plugin scripts for various secret managers in the 
 
 > [!TIP]
 > See the configuration specification for more details on how to configure upstreams and plugins: [Configuration Specification](SPECIFICATION.md).
-
