@@ -226,7 +226,13 @@ pub(crate) fn run_upstream_script(
 
     let (mut cmd, _tmppath) = match (cfg.plugin.as_ref(), cfg.script.as_ref()) {
         (Some(plugin), None) => {
-            let mut cmd = Command::new(plugin);
+            let plugin_path = Path::new(plugin);
+            let resolved_plugin = if plugin_path.is_relative() && plugin_path.components().count() > 1 {
+                proj.root().join(plugin_path)
+            } else {
+                plugin_path.to_path_buf()
+            };
+            let mut cmd = Command::new(resolved_plugin);
             cmd.arg(op);
             (cmd, None)
         }
@@ -407,10 +413,15 @@ pub(crate) fn decrypt_required_secrets(
         .unwrap_or_default()
         .into_iter()
         .map(|p| {
-            if is_encrypted_path(&p) {
-                to_decrypted_path(&p).unwrap_or(p)
+            let resolved = if p.is_relative() {
+                proj.root().join(&p)
             } else {
                 p
+            };
+            if is_encrypted_path(&resolved) {
+                to_decrypted_path(&resolved).unwrap_or(resolved)
+            } else {
+                resolved
             }
         })
         .collect();
@@ -418,6 +429,11 @@ pub(crate) fn decrypt_required_secrets(
     if let Some(vars) = vars {
         requires.extend(vars.iter().filter_map(|(_, val)| {
             let p = PathBuf::from(val);
+            let p = if p.is_relative() {
+                proj.root().join(&p)
+            } else {
+                p
+            };
             if to_encrypted_path(&p).exists() {
                 Some(p)
             } else {

@@ -859,3 +859,93 @@ script = "cat > /dev/null"
         stderr_pull
     );
 }
+
+#[test]
+fn test_pull_push_from_subdirectory() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Init project at project root
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Create subdirectory
+    let subdir = temp.path().join("subdir");
+    std::fs::create_dir_all(&subdir.join("secrets")).unwrap();
+
+    // Create required secret in subdir
+    let req_secret_path = subdir.join("secrets").join("req_secret.txt");
+    std::fs::write(&req_secret_path, "important key").unwrap();
+
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("subdir/secrets/req_secret.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Remove required decrypted file
+    std::fs::remove_file(&req_secret_path).unwrap();
+
+    // Create main secret in subdir
+    let secret_path = subdir.join("secrets").join("secret.txt");
+    std::fs::write(&secret_path, "secret content").unwrap();
+
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("subdir/secrets/secret.txt")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Configure cottage.toml at project root with relative requires path relative to project root
+    temp.child("cottage.toml")
+        .write_str(
+            r#"
+[upstream.my-upstream]
+requires = ["./subdir/secrets/req_secret.txt"]
+
+[upstream.my-upstream.push]
+shell = "bash"
+script = "cat > /dev/null"
+"#,
+        )
+        .unwrap();
+
+    // Add upstream config to secret.txt.cott.toml
+    let metadata_path = subdir.join("secrets").join("secret.txt.cott.toml");
+    let mut metadata: toml::Value =
+        toml::from_str(&std::fs::read_to_string(&metadata_path).unwrap()).unwrap();
+    metadata.as_table_mut().unwrap().insert(
+        "upstream".to_string(),
+        toml::from_str(
+            r#"
+        [my-upstream]
+        push = true
+    "#,
+        )
+        .unwrap(),
+    );
+    std::fs::write(&metadata_path, toml::to_string(&metadata).unwrap()).unwrap();
+
+    // PUSH from subdir directory, referencing the secret.txt.cott.age relatively
+    let output = Command::new(bin_path)
+        .arg("push")
+        .arg("my-upstream")
+        .arg("./secrets/secret.txt.cott.age")
+        .current_dir(&subdir)
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "PUSH failed from subdirectory. Stderr: {}\nStdout: {}",
+        stderr,
+        stdout
+    );
+}
