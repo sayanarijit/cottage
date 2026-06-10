@@ -169,6 +169,27 @@ This plugin handles authentication and communication with HashiCorp Vault runnin
 2. **Kubernetes Port-Forwarding:** It establishes a secure port-forward connection to Vault using the `portforward` Python package.
 3. **API Integration:** It pulls/pushes secret payloads directly to Vault's REST API using `pyreqwest`.
 
+### Example plugins
+
+Cottage provides ready-to-use plugin scripts for various secret managers in the [examples/plugins](examples/plugins/) directory:
+
+- [1Password](examples/plugins/cottage-plugin-onepassword.py)
+- [AWS Secrets Manager](examples/plugins/cottage-plugin-aws-secretsmanager.py)
+- [Azure Key Vault](examples/plugins/cottage-plugin-azure-keyvault.py)
+- [Bitwarden](examples/plugins/cottage-plugin-bitwarden.py)
+- [Dashlane](examples/plugins/cottage-plugin-dashlane.py)
+- [Doppler](examples/plugins/cottage-plugin-doppler.py)
+- [ejson](examples/plugins/cottage-plugin-ejson.py)
+- [Google Cloud Secret Manager](examples/plugins/cottage-plugin-gcp-secretmanager.py)
+- [HashiCorp Vault](examples/plugins/cottage-plugin-vault.py) (also see [Vault in Kubernetes](examples/plugins/cottage-plugin-vault-in-kubernetes.py))
+- [Keeper Security](examples/plugins/cottage-plugin-keeper.py)
+- [KeePass (Passhole)](examples/plugins/cottage-plugin-passhole.py)
+- [LastPass](examples/plugins/cottage-plugin-lastpass.py)
+- [pass (password-store)](examples/plugins/cottage-plugin-pass.py)
+- [Proton Pass](examples/plugins/cottage-plugin-protonpass.py)
+- [System Keyring](examples/plugins/cottage-plugin-keyring.py)
+- [Zoho Vault](examples/plugins/cottage-plugin-zoho-vault.py)
+
 > [!TIP]
 > See the configuration specification for more details on how to configure upstreams and plugins: [Configuration Specification](SPECIFICATION.md).
 

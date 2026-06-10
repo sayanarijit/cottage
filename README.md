@@ -30,6 +30,7 @@ in plaintext.
    1. [Rules](#rules)
    2. [Verification](#verification)
 7. [Any Provider as Upstream](#any-provider-as-upstream)
+   1. [Example plugins](#example-plugins)
 8. [Sync with any device](#sync-with-any-device)
 9. [Learn More](#learn-more)
 10. [Troubleshooting](#troubleshooting)
@@ -277,6 +278,27 @@ ctg push myvault
 ```
 
 See [upstream configuration specification](./SPECIFICATION.md#upstreamconfig) for more details.
+
+### Example plugins
+
+Cottage supports various plugin providers to sync your secrets. Ready-to-use plugin scripts are available in the [examples/plugins](examples/plugins/) directory:
+
+- [1Password](examples/plugins/cottage-plugin-onepassword.py)
+- [AWS Secrets Manager](examples/plugins/cottage-plugin-aws-secretsmanager.py)
+- [Azure Key Vault](examples/plugins/cottage-plugin-azure-keyvault.py)
+- [Bitwarden](examples/plugins/cottage-plugin-bitwarden.py)
+- [Dashlane](examples/plugins/cottage-plugin-dashlane.py)
+- [Doppler](examples/plugins/cottage-plugin-doppler.py)
+- [ejson](examples/plugins/cottage-plugin-ejson.py)
+- [Google Cloud Secret Manager](examples/plugins/cottage-plugin-gcp-secretmanager.py)
+- [HashiCorp Vault](examples/plugins/cottage-plugin-vault.py) (also see [Vault in Kubernetes](examples/plugins/cottage-plugin-vault-in-kubernetes.py))
+- [Keeper Security](examples/plugins/cottage-plugin-keeper.py)
+- [KeePass (Passhole)](examples/plugins/cottage-plugin-passhole.py)
+- [LastPass](examples/plugins/cottage-plugin-lastpass.py)
+- [pass (password-store)](examples/plugins/cottage-plugin-pass.py)
+- [Proton Pass](examples/plugins/cottage-plugin-protonpass.py)
+- [System Keyring](examples/plugins/cottage-plugin-keyring.py)
+- [Zoho Vault](examples/plugins/cottage-plugin-zoho-vault.py)
 
 ## Sync with any device
 
