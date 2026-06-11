@@ -18,7 +18,7 @@ defaults:
     shell: bash
 
 jobs:
-  upload-assets:
+  publish-bins:
     name: ${{ matrix.target }}
     if: github.repository_owner == 'sayanarijit' && startsWith(github.event.release.name, 'v')
     runs-on: ${{ matrix.os }}
@@ -71,3 +71,45 @@ jobs:
           tar: all
           checksum: sha256
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-npm:
+    name: Publish to NPM
+    if: github.repository_owner == 'sayanarijit' && startsWith(github.event.release.name, 'v')
+    runs-on: ubuntu-latest
+    needs: publish-bins
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "node"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Configure Package Version & Publish
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          VERSION="${TAG_NAME#v}"
+
+          cd npm
+
+          # Update package.json version
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+          # Copy files for distribution
+          cp ../README.md ./
+          cp ../LICENSE-MIT ./ || true
+          cp ../LICENSE-APACHE ./ || true
+
+          # Publish to NPM registry
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

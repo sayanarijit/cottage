@@ -62,17 +62,19 @@ in plaintext.
 ## Installation
 
 ```bash
-# rust cargo-binstall
+# rust: cargo-binstall/cargo
 cargo binstall --locked cottage
-
-# rust cargo
 cargo install --locked cottage
 
-# python pip
+# python: pip/uv/uvx
 pip install cottage
-
-# python uv
 uv pip install cottage
+uvx --from cottage ctg --version
+
+# node: yarn/pnpm/npx
+yarn global add @sayanarijit/cottage
+pnpm add -g @sayanarijit/cottage
+npx -p @sayanarijit/cottage ctg --version
 ```
 
 Also available as docker images:

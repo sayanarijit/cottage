@@ -70,3 +70,10 @@ docs/_build/
 
 # Pyenv
 .python-version
+
+# NPM binaries
+/npm/bin/ctg
+/npm/bin/ctgx
+/npm/bin/ctg.exe
+/npm/bin/ctgx.exe
+

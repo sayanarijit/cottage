@@ -1,0 +1,35 @@
+{
+  "name": "@sayanarijit/cottage",
+  "version": "0.6.3",
+  "description": "A modern git based age-encrypted secrets manager for teams.",
+  "bin": {
+    "ctg": "bin/ctg.js",
+    "ctgx": "bin/ctgx.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sayanarijit/cottage.git"
+  },
+  "keywords": [
+    "age",
+    "git",
+    "secrets",
+    "cli",
+    "command-line"
+  ],
+  "author": "Arijit Basu <cottage@arijitbasu.in>",
+  "license": "MIT OR Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin/",
+    "install.js",
+    "README.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ]
+}
