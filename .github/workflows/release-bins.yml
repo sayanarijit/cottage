@@ -78,6 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-bins
     permissions:
+      id-token: write # Required for OIDC
       contents: read
     steps:
       - name: Checkout repository
@@ -110,6 +111,5 @@ jobs:
           cp ../LICENSE-APACHE ./ || true
 
           # Publish to NPM registry
+          npm ci
           npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
