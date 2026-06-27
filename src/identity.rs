@@ -29,21 +29,30 @@ impl From<Identity> for Box<dyn age::Identity> {
     }
 }
 
-pub fn parse_identity_file(path: &Path) -> Result<Identity> {
+pub fn parse_identity_file(path: &Path) -> Result<Box<dyn Iterator<Item = Identity>>> {
     log::debug!("{}: parsing identity", path.display());
     let s = std::fs::read_to_string(path)
-        .with_context(|| format!("{}: could not read identity file", path.display()))?;
+        .with_context(|| format!("{}: could not read identity file", path.display()))?
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n");
 
     if s.starts_with("AGE-SECRET-KEY-1") {
-        let identity = age::x25519::Identity::from_str(&s)
-            .map_err(|e| anyhow!("{}: could not parse age identity", e))?;
-        log::debug!("{}: parsed age identity", path.display());
-        return Ok(Identity::X25519(identity));
+        let mut ids = vec![];
+        for line in s.lines() {
+            let identity = age::x25519::Identity::from_str(&line)
+                .map_err(|e| anyhow!("{}: could not parse age identity", e))?;
+            log::debug!("{}: parsed age identity", path.display());
+            ids.push(Identity::X25519(identity));
+        }
+        return Ok(Box::new(ids.into_iter()));
     }
 
     let identity = age::ssh::Identity::from_buffer(s.as_bytes(), None)?;
     log::debug!("{}: parsed ssh identity", path.display());
-    Ok(Identity::Ssh(identity))
+    Ok(Box::new(std::iter::once(Identity::Ssh(identity))))
 }
 
 pub fn parse_identities_dir(path: &Path) -> Box<dyn Iterator<Item = Identity>> {
@@ -55,12 +64,13 @@ pub fn parse_identities_dir(path: &Path) -> Box<dyn Iterator<Item = Identity>> {
         .filter(|e| e.path().is_file() && !e.file_name().to_string_lossy().ends_with(".pub"))
         .map(|entry| entry.path().to_path_buf())
         .filter_map(move |p| match parse_identity_file(&p) {
-            Ok(identity) => Some(identity),
+            Ok(identities) => Some(identities),
             Err(e) => {
                 log::warn!("skipped: {}: {}", p.display(), e);
                 None
             }
-        });
+        })
+        .flatten();
     Box::new(iter)
 }
 
@@ -74,7 +84,7 @@ pub fn parse_identities_path(path: &Path) -> Option<Box<dyn Iterator<Item = Iden
         Some(parse_identities_dir(path))
     } else if path.is_file() {
         match parse_identity_file(path) {
-            Ok(identity) => Some(Box::new(std::iter::once(identity))),
+            Ok(identities) => Some(identities),
             Err(e) => {
                 log::warn!("{}: could not parse identity file: {}", path.display(), e);
                 None
@@ -128,12 +138,13 @@ pub fn load_identities(
         let iter = identities
             .into_iter()
             .filter_map(|p| match parse_identity_file(&p) {
-                Ok(identity) => Some(identity),
+                Ok(identities) => Some(identities),
                 Err(e) => {
                     log::warn!("skipped: {}: {}", p.display(), e);
                     None
                 }
-            });
+            })
+            .flatten();
         Box::new(iter)
     }
 }
