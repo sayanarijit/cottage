@@ -66,8 +66,8 @@ def get_aws_client(config: AWSSecretConfig):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = AWSSecretConfig.model_validate(os.environ)
     client = get_aws_client(cfg)
     print(  # Use --debug to see this message
@@ -97,8 +97,8 @@ def cmd_pull():
         sys.exit(1)
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = AWSSecretConfig.model_validate(os.environ)
     client = get_aws_client(cfg)
     payload_str = json.dumps(json.loads(input()))

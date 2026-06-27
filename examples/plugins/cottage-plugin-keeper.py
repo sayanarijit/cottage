@@ -67,8 +67,8 @@ def get_keeper_client(config: KeeperSecretConfig) -> SecretsManager:
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = KeeperSecretConfig.model_validate(os.environ)
     client = get_keeper_client(cfg)
     print(  # Use --debug to see this message
@@ -122,8 +122,8 @@ def cmd_pull():
     print(json.dumps(secrets))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = KeeperSecretConfig.model_validate(os.environ)
     client = get_keeper_client(cfg)
     payload = json.loads(input())

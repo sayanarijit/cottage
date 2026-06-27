@@ -53,8 +53,8 @@ class AzureKeyVaultConfig(BaseModel):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = AzureKeyVaultConfig.model_validate(os.environ)
     credential = DefaultAzureCredential()
     client = SecretClient(vault_url=cfg.azure_keyvault_url, credential=credential)
@@ -77,8 +77,8 @@ def cmd_pull():
         print(json.dumps({"value": secret.value}))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = AzureKeyVaultConfig.model_validate(os.environ)
     credential = DefaultAzureCredential()
     client = SecretClient(vault_url=cfg.azure_keyvault_url, credential=credential)

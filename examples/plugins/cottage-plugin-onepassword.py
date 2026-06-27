@@ -138,14 +138,14 @@ async def push_async(cfg: OPSecretConfig, payload: dict):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = OPSecretConfig.model_validate(os.environ)
     asyncio.run(pull_async(cfg))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = OPSecretConfig.model_validate(os.environ)
     payload = json.loads(input())
     asyncio.run(push_async(cfg, payload))

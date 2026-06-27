@@ -67,8 +67,8 @@ def doppler_client(config: DopplerSecretConfig):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = DopplerSecretConfig.model_validate(os.environ)
     with doppler_client(cfg) as client:
         urlpath = f"/v3/configs/config/secrets/download?project={cfg.doppler_project}&config={cfg.doppler_config}&format=json"
@@ -80,8 +80,8 @@ def cmd_pull():
     print(json.dumps(resp.json()))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = DopplerSecretConfig.model_validate(os.environ)
     secrets_data = json.loads(input())
     payload = {

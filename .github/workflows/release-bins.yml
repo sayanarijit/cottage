@@ -111,5 +111,4 @@ jobs:
           cp ../LICENSE-APACHE ./ || true
 
           # Publish to NPM registry
-          npm ci
           npm publish

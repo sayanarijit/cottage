@@ -50,8 +50,8 @@ class KeyringSecretConfig(BaseModel):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = KeyringSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
         f"Retrieving password for service '{cfg.keyring_service}', username '{cfg.keyring_username}' from OS Keyring...",
@@ -77,8 +77,8 @@ def cmd_pull():
         print(json.dumps({"value": val}))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = KeyringSecretConfig.model_validate(os.environ)
     payload_str = json.dumps(json.loads(input()))
     print(  # Use --debug to see this message

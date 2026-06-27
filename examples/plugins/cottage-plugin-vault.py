@@ -99,8 +99,8 @@ def vault_client(config: VaultSecretConfig):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = VaultSecretConfig.model_validate(os.environ)
     with vault_client(cfg) as client:
         print(  # Use --debug to see this message
@@ -110,8 +110,8 @@ def cmd_pull():
     print(json.dumps(resp.json()["data"]["data"]))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = VaultSecretConfig.model_validate(os.environ)
     payload = {"data": json.loads(input())}
     with vault_client(cfg) as client:

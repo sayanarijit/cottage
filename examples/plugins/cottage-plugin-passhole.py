@@ -54,8 +54,8 @@ class PassholeSecretConfig(BaseModel):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = PassholeSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
         f"Pulling secret '{cfg.passhole_secret_path}' from Passhole...",
@@ -94,8 +94,8 @@ def cmd_pull():
     print(json.dumps(data))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = PassholeSecretConfig.model_validate(os.environ)
     print(
         f"Error: The Passhole CLI ('{cfg.passhole_bin_path}') is designed for interactive database management and "

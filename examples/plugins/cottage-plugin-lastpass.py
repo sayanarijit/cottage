@@ -56,8 +56,8 @@ class LastPassSecretConfig(BaseModel):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = LastPassSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
         f"Pulling notes for secret '{cfg.lpass_secret_name}' from LastPass...",
@@ -115,8 +115,8 @@ def cmd_pull():
     print(json.dumps(secrets))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = LastPassSecretConfig.model_validate(os.environ)
     payload = json.loads(input())
 

@@ -57,8 +57,8 @@ class ProtonPassSecretConfig(BaseModel):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = ProtonPassSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
         f"Pulling item '{cfg.proton_item_title}' from Proton Pass...",
@@ -122,8 +122,8 @@ def cmd_pull():
     print(json.dumps(secrets))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = ProtonPassSecretConfig.model_validate(os.environ)
     payload = json.loads(input())
     content = json.dumps(payload)

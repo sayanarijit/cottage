@@ -52,8 +52,8 @@ class GCPSecretConfig(BaseModel):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = GCPSecretConfig.model_validate(os.environ)
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{cfg.gcp_project}/secrets/{cfg.gcp_secret_id}/versions/{cfg.gcp_secret_version}"
@@ -77,8 +77,8 @@ def cmd_pull():
         print(json.dumps({"value": payload}))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = GCPSecretConfig.model_validate(os.environ)
     client = secretmanager.SecretManagerServiceClient()
     payload = json.dumps(json.loads(input())).encode("UTF-8")

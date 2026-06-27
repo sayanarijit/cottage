@@ -146,8 +146,8 @@ def encrypt_data(plain_payload: dict, passphrase: str | None) -> str:
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = ZohoVaultConfig.model_validate(os.environ)
     token = get_access_token(cfg)
 
@@ -178,8 +178,8 @@ def cmd_pull():
     print(json.dumps(decrypted))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = ZohoVaultConfig.model_validate(os.environ)
     token = get_access_token(cfg)
 

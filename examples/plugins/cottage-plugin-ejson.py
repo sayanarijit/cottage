@@ -56,8 +56,8 @@ class EjsonSecretConfig(BaseModel):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = EjsonSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
         f"Decrypting EJSON file '{cfg.ejson_path}'...",
@@ -84,8 +84,8 @@ def cmd_pull():
     print(res.stdout)
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = EjsonSecretConfig.model_validate(os.environ)
     payload = json.loads(input())
 

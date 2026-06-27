@@ -59,8 +59,8 @@ class PassSecretConfig(BaseModel):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = PassSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
         f"Pulling secret '{cfg.pass_secret_path}' from GNU pass...",
@@ -109,8 +109,8 @@ def cmd_pull():
     print(json.dumps(data))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = PassSecretConfig.model_validate(os.environ)
     payload = json.loads(input())
 

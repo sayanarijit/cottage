@@ -59,8 +59,8 @@ def get_bw_client(config: BWSecretConfig) -> BitwardenClient:
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = BWSecretConfig.model_validate(os.environ)
     client = get_bw_client(cfg)
     print(  # Use --debug to see this message
@@ -80,8 +80,8 @@ def cmd_pull():
         print(json.dumps({"value": secret.value}))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = BWSecretConfig.model_validate(os.environ)
     client = get_bw_client(cfg)
     payload_str = json.dumps(json.loads(input()))

@@ -54,8 +54,8 @@ class DashlaneSecretConfig(BaseModel):
 app = App()
 
 
-@app.command(name="pull")
-def cmd_pull():
+@app.command()
+def pull():
     cfg = DashlaneSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
         f"Pulling secret '{cfg.dashlane_secret_id}' via Dashlane CLI (dcli)...",
@@ -84,8 +84,8 @@ def cmd_pull():
         print(json.dumps({"value": output}))
 
 
-@app.command(name="push")
-def cmd_push():
+@app.command()
+def push():
     cfg = DashlaneSecretConfig.model_validate(os.environ)
     print(
         f"Error: The Dashlane CLI ('{cfg.dashlane_bin_path}') does not support writing/creating secrets directly. "

@@ -42,7 +42,7 @@ pub fn parse_identity_file(path: &Path) -> Result<Box<dyn Iterator<Item = Identi
     if s.starts_with("AGE-SECRET-KEY-1") {
         let mut ids = vec![];
         for line in s.lines() {
-            let identity = age::x25519::Identity::from_str(&line)
+            let identity = age::x25519::Identity::from_str(line)
                 .map_err(|e| anyhow!("{}: could not parse age identity", e))?;
             log::debug!("{}: parsed age identity", path.display());
             ids.push(Identity::X25519(identity));
