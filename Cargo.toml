@@ -21,7 +21,7 @@ default = ["autocomplete"]
 autocomplete = ["dep:clap_complete"]
 
 [dependencies]
-age = { version = "0.11", features = ["armor", "ssh"] }
+age = { version = "0.12", features = ["armor", "ssh"] }
 clap = { version = "4.6", features = ["derive", "env", "color"] }
 anyhow = "1.0"
 walkdir = "2.5"
