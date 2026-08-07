@@ -20,7 +20,7 @@ generates redacted previews of encrypted secrets for better visibility and suppo
 persistent and temporary decryption workflows, while ensuring secrets are never committed
 in plaintext.
 
-![Intro Demo](https://vhs.charm.sh/vhs-6P2I0IyW7AJADjAEzVjOJP.gif)
+![Intro Demo](https://vhs.charm.sh/vhs-3XYLEtFXbPinb8HXgguuZ9.gif)
 
 1. [Features](#features)
 2. [Installation](#installation)
