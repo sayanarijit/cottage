@@ -29,8 +29,10 @@ in plaintext.
 5. [Git Hooks](#git-hooks)
 6. [AI Agent Integrations](#ai-agent-integrations)
    1. [Claude Code](#claude-code-integration)
-   2. [Codex](#codex-integration)
-   3. [Antigravity (agy)](#antigravity-agy-integration)
+    2. [GitHub Copilot](#github-copilot-integration)
+    3. [Codex](#codex-integration)
+    4. [Antigravity (agy)](#antigravity-agy-integration)
+    5. [Cursor](#cursor-integration)
 7. [Access Control](#access-control)
    1. [Rules](#rules)
    2. [Verification](#verification)
@@ -211,6 +213,12 @@ prek install --hook-type post-rewrite
 
 If you are using Claude Code, add [`.claude/settings.json`](.claude/settings.json) to your repos with secrets so Claude Code sessions handle secrets safely, or install the [claude-plugin-cottage](https://github.com/sayanarijit/claude-plugin-cottage) plugin.
 
+### GitHub Copilot Integration
+
+If you are using GitHub Copilot in VS Code, add [`.github/hooks/ctg-policy.json`](.github/hooks/ctg-policy.json) and [`.github/hooks/scripts/deny_ctg_command.py`](.github/hooks/scripts/deny_ctg_command.py) to your repos with secrets so Copilot sessions clean decrypted files and block direct `ctg` shell commands.
+
+VS Code loads [`.claude/settings.json`](.claude/settings.json) hook definitions too. If you keep both Claude and Copilot hook files in the same repo, make sure you do not accidentally run the same cleanup hook twice.
+
 ### Codex Integration
 
 If you are using Codex, add [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/hooks/deny-ctg.py`](.codex/hooks/deny-ctg.py) to your repos with secrets so Codex sessions handle secrets safely, or install the [codex-plugin-cottage](https://github.com/sayanarijit/codex-plugin-cottage) plugin.
@@ -220,6 +228,12 @@ Codex requires local hooks to be reviewed before they run. After adding the file
 ### Antigravity (agy) Integration
 
 If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) to your repos with secrets so Antigravity sessions handle secrets safely, or install the [agy-plugin-cottage](https://github.com/sayanarijit/agy-plugin-cottage) plugin.
+
+### Cursor Integration
+
+If you are using Cursor, add [`.cursor/hooks.json`](.cursor/hooks.json), [`.cursor/hooks/deny-ctg.py`](.cursor/hooks/deny-ctg.py), and [`.cursor/rules/deny-ctg.mdc`](.cursor/rules/deny-ctg.mdc) to your repos with secrets so Cursor sessions handle secrets safely.
+
+Cursor requires hooks to be enabled first. Open Cursor Settings > Hooks and enable hooks, then restart the agent session so the project hooks take effect.
 
 ## Access Control
 
