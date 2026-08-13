@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "deny": ["Bash(ctg*)"]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ctg clean -qqq || true"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ctg decrypt -qqq || true"
+          }
+        ]
+      }
+    ]
+  }
+}

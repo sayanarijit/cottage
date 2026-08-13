@@ -27,20 +27,21 @@ in plaintext.
 3. [Quick Start](#quick-start)
 4. [GitOps](#gitops)
 5. [Git Hooks](#git-hooks)
-6. [Access Control](#access-control)
+6. [Claude Code Integration](#claude-code-integration)
+7. [Access Control](#access-control)
    1. [Rules](#rules)
    2. [Verification](#verification)
-7. [Any Provider as Upstream](#any-provider-as-upstream)
+8. [Any Provider as Upstream](#any-provider-as-upstream)
    1. [Example plugins](#example-plugins)
-8. [Sync with any device](#sync-with-any-device)
-9. [Learn More](#learn-more)
-10. [Troubleshooting](#troubleshooting)
-11. [Comparison](#comparison)
+9. [Sync with any device](#sync-with-any-device)
+10. [Learn More](#learn-more)
+11. [Troubleshooting](#troubleshooting)
+12. [Comparison](#comparison)
     1. [age vs Other Encryption](#age-vs-other-encryption)
     2. [cottage vs SOPS](#cottage-vs-sops)
     3. [cottage vs dotenvx](#cottage-vs-dotenvx)
     4. [cottage vs agebox](#cottage-vs-agebox)
-12. [License](#license)
+13. [License](#license)
 
 ## Features
 
@@ -200,6 +201,14 @@ prek install --hook-type post-checkout
 prek install --hook-type post-merge
 prek install --hook-type post-rewrite
 ```
+
+## Claude Code Integration
+
+This repo ships a [`.claude/settings.json`](.claude/settings.json) so Claude Code sessions handle secrets safely:
+
+- `SessionStart` hook runs `ctg clean` to remove any decrypted secrets left on disk before Claude starts working.
+- `SessionEnd` hook runs `ctg decrypt` to restore decrypted secrets for local use once the session ends.
+- A `Bash(ctg*)` deny permission stops Claude itself from invoking `ctg` directly, so only the harness-controlled hooks above ever touch secrets.
 
 ## Access Control
 
