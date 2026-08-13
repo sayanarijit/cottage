@@ -22,6 +22,16 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ctg clean -qqq"
+          }
+        ]
+      }
     ]
   }
 }

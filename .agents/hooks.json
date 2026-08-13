@@ -13,13 +13,15 @@
       }
     ]
   },
-  "session-end": {
-    "Stop": [
+  "turn-start": {
+    "UserPromptSubmit": [
       {
         "type": "command",
-        "command": "ctg decrypt -qqq"
+        "command": "ctg clean -qqq"
       }
-    ],
+    ]
+  },
+  "session-end": {
     "SessionEnd": [
       {
         "type": "command",

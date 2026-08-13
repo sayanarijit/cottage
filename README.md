@@ -29,7 +29,8 @@ in plaintext.
 5. [Git Hooks](#git-hooks)
 6. [AI Agent Integrations](#ai-agent-integrations)
    1. [Claude Code](#claude-code-integration)
-   2. [Antigravity (agy)](#antigravity-agy-integration)
+   2. [Codex](#codex-integration)
+   3. [Antigravity (agy)](#antigravity-agy-integration)
 7. [Access Control](#access-control)
    1. [Rules](#rules)
    2. [Verification](#verification)
@@ -208,11 +209,17 @@ prek install --hook-type post-rewrite
 
 ### Claude Code Integration
 
-If you are using claude code, add [`.claude/settings.json`](.claude/settings.json) to your repos with secrets so Claude Code sessions handle secrets safely:
+If you are using Claude Code, add [`.claude/settings.json`](.claude/settings.json) to your repos with secrets so Claude Code sessions handle secrets safely.
+
+### Codex Integration
+
+If you are using Codex, add [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/hooks/deny-ctg.py`](.codex/hooks/deny-ctg.py) to your repos with secrets so Codex sessions handle secrets safely.
+
+Codex requires local hooks to be reviewed before they run. After adding the files, start Codex in the repo and use `/hooks` to review and trust the project hooks.
 
 ### Antigravity (agy) Integration
 
-If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) to your repos with secrets so Antigravity sessions handle secrets safely:
+If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) to your repos with secrets so Antigravity sessions handle secrets safely.
 
 ## Access Control
 
