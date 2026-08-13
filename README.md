@@ -209,17 +209,17 @@ prek install --hook-type post-rewrite
 
 ### Claude Code Integration
 
-If you are using Claude Code, add [`.claude/settings.json`](.claude/settings.json) to your repos with secrets so Claude Code sessions handle secrets safely.
+If you are using Claude Code, add [`.claude/settings.json`](.claude/settings.json) to your repos with secrets so Claude Code sessions handle secrets safely, or install the [claude-plugin-cottage](https://github.com/sayanarijit/claude-plugin-cottage) plugin.
 
 ### Codex Integration
 
-If you are using Codex, add [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/hooks/deny-ctg.py`](.codex/hooks/deny-ctg.py) to your repos with secrets so Codex sessions handle secrets safely.
+If you are using Codex, add [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/hooks/deny-ctg.py`](.codex/hooks/deny-ctg.py) to your repos with secrets so Codex sessions handle secrets safely, or install the [codex-plugin-cottage](https://github.com/sayanarijit/codex-plugin-cottage) plugin.
 
 Codex requires local hooks to be reviewed before they run. After adding the files, start Codex in the repo and use `/hooks` to review and trust the project hooks.
 
 ### Antigravity (agy) Integration
 
-If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) to your repos with secrets so Antigravity sessions handle secrets safely.
+If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) to your repos with secrets so Antigravity sessions handle secrets safely, or install the [agy-plugin-cottage](https://github.com/sayanarijit/agy-plugin-cottage) plugin.
 
 ## Access Control
 
