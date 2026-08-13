@@ -285,10 +285,10 @@ Claude Code sessions can safely work alongside cottage-managed secrets using [`.
   },
   "hooks": {
     "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "ctg clean -qqq || true" }] }
+      { "hooks": [{ "type": "command", "command": "ctg clean -qqq" }] }
     ],
     "SessionEnd": [
-      { "hooks": [{ "type": "command", "command": "ctg decrypt -qqq || true" }] }
+      { "hooks": [{ "type": "command", "command": "ctg decrypt -qqq" }] }
     ]
   }
 }
@@ -386,6 +386,7 @@ Instead of writing scripts directly in `cottage.toml`, you can use external bina
 See the [Python-based Kubernetes/Vault plugin example](./plugins/cottage-plugin-vault-in-kubernetes.py).
 
 This plugin script:
+
 - Forwards ports to connect to a Vault service inside a Kubernetes cluster.
 - Pulls/pushes secrets via Vault's REST API.
 
