@@ -274,32 +274,6 @@ ctg clean .
 
 ---
 
-# Claude Code Integration
-
-Claude Code sessions can safely work alongside cottage-managed secrets using [`.claude/settings.json`](./.claude/settings.json).
-
-```json
-{
-  "permissions": {
-    "deny": ["Bash(ctg*)"]
-  },
-  "hooks": {
-    "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "ctg clean -qqq" }] }
-    ],
-    "SessionEnd": [
-      { "hooks": [{ "type": "command", "command": "ctg decrypt -qqq" }] }
-    ]
-  }
-}
-```
-
-- `SessionStart` runs `ctg clean` to remove any decrypted secrets left on disk before Claude starts working.
-- `SessionEnd` runs `ctg decrypt` to restore decrypted secrets for local use once the session ends.
-- The `Bash(ctg*)` deny permission stops Claude itself from invoking `ctg` directly, so only the harness-controlled hooks above ever touch secrets.
-
----
-
 # `ctg run` / `ctgx`
 
 Decrypt secrets, run a specified command, and automatically delete the decrypted secrets after the command finishes.

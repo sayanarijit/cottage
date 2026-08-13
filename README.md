@@ -27,7 +27,9 @@ in plaintext.
 3. [Quick Start](#quick-start)
 4. [GitOps](#gitops)
 5. [Git Hooks](#git-hooks)
-6. [Claude Code Integration](#claude-code-integration)
+6. [AI Agent Integrations](#ai-agent-integrations)
+   1. [Claude Code](#claude-code-integration)
+   2. [Antigravity (agy)](#antigravity-agy-integration)
 7. [Access Control](#access-control)
    1. [Rules](#rules)
    2. [Verification](#verification)
@@ -202,13 +204,15 @@ prek install --hook-type post-merge
 prek install --hook-type post-rewrite
 ```
 
-## Claude Code Integration
+## AI Agent Integrations
 
-This repo ships a [`.claude/settings.json`](.claude/settings.json) so Claude Code sessions handle secrets safely:
+### Claude Code Integration
 
-- `SessionStart` hook runs `ctg clean` to remove any decrypted secrets left on disk before Claude starts working.
-- `SessionEnd` hook runs `ctg decrypt` to restore decrypted secrets for local use once the session ends.
-- A `Bash(ctg*)` deny permission stops Claude itself from invoking `ctg` directly, so only the harness-controlled hooks above ever touch secrets.
+If you are using claude code, add [`.claude/settings.json`](.claude/settings.json) to your repos with secrets so Claude Code sessions handle secrets safely:
+
+### Antigravity (agy) Integration
+
+If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) to your repos with secrets so Antigravity sessions handle secrets safely:
 
 ## Access Control
 

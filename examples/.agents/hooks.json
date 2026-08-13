@@ -1,0 +1,43 @@
+{
+  "session-start": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "ctg clean -qqq"
+      }
+    ],
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "ctg clean -qqq"
+      }
+    ]
+  },
+  "session-end": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "ctg decrypt -qqq"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "type": "command",
+        "command": "ctg decrypt -qqq"
+      }
+    ]
+  },
+  "deny-ctg": {
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 scripts/deny-ctg.py"
+          }
+        ]
+      }
+    ]
+  }
+}
