@@ -21,14 +21,6 @@
       }
     ]
   },
-  "session-end": {
-    "SessionEnd": [
-      {
-        "type": "command",
-        "command": "ctg decrypt -qqq"
-      }
-    ]
-  },
   "deny-ctg": {
     "PreToolUse": [
       {
