@@ -24,29 +24,30 @@ in plaintext.
 
 1. [Features](#features)
 2. [Installation](#installation)
-3. [Quick Start](#quick-start)
-4. [GitOps](#gitops)
-5. [Git Hooks](#git-hooks)
-6. [AI Agent Integrations](#ai-agent-integrations)
-   1. [Claude Code](#claude-code-integration)
-    2. [GitHub Copilot](#github-copilot-integration)
-    3. [Codex](#codex-integration)
-    4. [Antigravity (agy)](#antigravity-agy-integration)
-    5. [Cursor](#cursor-integration)
-7. [Access Control](#access-control)
+3. [Editor Integrations](#editor-integrations)
+   1. [VS Code Extension](#vs-code-extension)
+4. [AI Agent Integrations](#ai-agent-integrations)
+   1. [Claude Code Integration](#claude-code-integration)
+   2. [GitHub Copilot Integration](#github-copilot-integration)
+   3. [Codex Integration](#codex-integration)
+   4. [Antigravity (agy) Integration](<#antigravity-(agy)-integration>)
+   5. [Cursor Integration](#cursor-integration)
+5. [Quick Start](#quick-start)
+6. [GitOps](#gitops)
+7. [Git Hooks](#git-hooks)
+8. [Access Control](#access-control)
    1. [Rules](#rules)
    2. [Verification](#verification)
-8. [Any Provider as Upstream](#any-provider-as-upstream)
+9. [Any Provider as Upstream](#any-provider-as-upstream)
    1. [Example plugins](#example-plugins)
-9. [Sync with any device](#sync-with-any-device)
-10. [Learn More](#learn-more)
-11. [Troubleshooting](#troubleshooting)
-12. [Comparison](#comparison)
+10. [Sync with any device](#sync-with-any-device)
+11. [Learn More](#learn-more)
+12. [Troubleshooting](#troubleshooting)
+13. [Comparison](#comparison)
     1. [age vs Other Encryption](#age-vs-other-encryption)
     2. [cottage vs SOPS](#cottage-vs-sops)
     3. [cottage vs dotenvx](#cottage-vs-dotenvx)
     4. [cottage vs agebox](#cottage-vs-agebox)
-13. [License](#license)
 
 ## Features
 
@@ -95,6 +96,44 @@ podman run --rm -v $PWD:/app quay.io/sayanarijit/cottage --version
 ```
 
 Or download the latest release from [GitHub](https://github.com/sayanarijit/cottage/releases).
+
+## Editor Integrations
+
+### VS Code Extension
+
+Use the [Cottage VS Code extension](https://github.com/sayanarijit/vscode-plugin-cottage) to install `ctg`, add Copilot safety hooks, encrypt files from the Explorer, and open `.cott.age` files through the editor workflow.
+
+[![Cottage VS Code Extension Demo](https://s13.gifyu.com/images/bn9p8.gif)](https://marketplace.visualstudio.com/items?itemName=sayanarijit.vscode-plugin-cottage)
+
+Install it from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sayanarijit.vscode-plugin-cottage), or build and install it locally from [`../vscode-plugin-cottage`](https://github.com/sayanarijit/vscode-plugin-cottage).
+
+## AI Agent Integrations
+
+### Claude Code Integration
+
+If you are using Claude Code, add [`.claude/settings.json`](.claude/settings.json) to your repos with secrets so Claude Code sessions handle secrets safely, or install the [claude-plugin-cottage](https://github.com/sayanarijit/claude-plugin-cottage) plugin.
+
+### GitHub Copilot Integration
+
+If you are using GitHub Copilot in VS Code, add [`.github/hooks/ctg-policy.json`](.github/hooks/ctg-policy.json) and [`.github/hooks/scripts/deny_ctg_command.py`](.github/hooks/scripts/deny_ctg_command.py) to your repos with secrets so Copilot sessions clean decrypted files and block direct `ctg` shell commands, or install the [vscode-plugin-cottage](https://github.com/sayanarijit/vscode-plugin-cottage) extension to set that up from VS Code.
+
+VS Code loads [`.claude/settings.json`](.claude/settings.json) hook definitions too. If you keep both Claude and Copilot hook files in the same repo, make sure you do not accidentally run the same cleanup hook twice.
+
+### Codex Integration
+
+If you are using Codex, add [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/hooks/deny-ctg.py`](.codex/hooks/deny-ctg.py) to your repos with secrets so Codex sessions handle secrets safely, or install the [codex-plugin-cottage](https://github.com/sayanarijit/codex-plugin-cottage) plugin.
+
+Codex requires local hooks to be reviewed before they run. After adding the files, start Codex in the repo and use `/hooks` to review and trust the project hooks.
+
+### Antigravity (agy) Integration
+
+If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) to your repos with secrets so Antigravity sessions handle secrets safely, or install the [agy-plugin-cottage](https://github.com/sayanarijit/agy-plugin-cottage) plugin.
+
+### Cursor Integration
+
+If you are using Cursor, add [`.cursor/hooks.json`](.cursor/hooks.json), [`.cursor/hooks/deny-ctg.py`](.cursor/hooks/deny-ctg.py), and [`.cursor/rules/deny-ctg.mdc`](.cursor/rules/deny-ctg.mdc) to your repos with secrets so Cursor sessions handle secrets safely.
+
+Cursor requires hooks to be enabled first. Open Cursor Settings > Hooks and enable hooks, then restart the agent session so the project hooks take effect.
 
 ## Quick Start
 
@@ -206,34 +245,6 @@ prek install --hook-type post-checkout
 prek install --hook-type post-merge
 prek install --hook-type post-rewrite
 ```
-
-## AI Agent Integrations
-
-### Claude Code Integration
-
-If you are using Claude Code, add [`.claude/settings.json`](.claude/settings.json) to your repos with secrets so Claude Code sessions handle secrets safely, or install the [claude-plugin-cottage](https://github.com/sayanarijit/claude-plugin-cottage) plugin.
-
-### GitHub Copilot Integration
-
-If you are using GitHub Copilot in VS Code, add [`.github/hooks/ctg-policy.json`](.github/hooks/ctg-policy.json) and [`.github/hooks/scripts/deny_ctg_command.py`](.github/hooks/scripts/deny_ctg_command.py) to your repos with secrets so Copilot sessions clean decrypted files and block direct `ctg` shell commands.
-
-VS Code loads [`.claude/settings.json`](.claude/settings.json) hook definitions too. If you keep both Claude and Copilot hook files in the same repo, make sure you do not accidentally run the same cleanup hook twice.
-
-### Codex Integration
-
-If you are using Codex, add [`.codex/hooks.json`](.codex/hooks.json) and [`.codex/hooks/deny-ctg.py`](.codex/hooks/deny-ctg.py) to your repos with secrets so Codex sessions handle secrets safely, or install the [codex-plugin-cottage](https://github.com/sayanarijit/codex-plugin-cottage) plugin.
-
-Codex requires local hooks to be reviewed before they run. After adding the files, start Codex in the repo and use `/hooks` to review and trust the project hooks.
-
-### Antigravity (agy) Integration
-
-If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) to your repos with secrets so Antigravity sessions handle secrets safely, or install the [agy-plugin-cottage](https://github.com/sayanarijit/agy-plugin-cottage) plugin.
-
-### Cursor Integration
-
-If you are using Cursor, add [`.cursor/hooks.json`](.cursor/hooks.json), [`.cursor/hooks/deny-ctg.py`](.cursor/hooks/deny-ctg.py), and [`.cursor/rules/deny-ctg.mdc`](.cursor/rules/deny-ctg.mdc) to your repos with secrets so Cursor sessions handle secrets safely.
-
-Cursor requires hooks to be enabled first. Open Cursor Settings > Hooks and enable hooks, then restart the agent session so the project hooks take effect.
 
 ## Access Control
 
@@ -378,7 +389,3 @@ cottage borrows the `ctg env` API from [dotenvx](https://dotenvx.com).
 ### cottage vs agebox
 
 [agebox](https://github.com/slok/agebox) is very similar to cottage in core philosophy but lacks many [features](#features).
-
-## License
-
-MIT OR Apache-2.0
