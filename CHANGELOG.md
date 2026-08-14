@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.6](https://github.com/sayanarijit/cottage/compare/v0.6.5...v0.6.6) - 2026-08-14
+
+### Added
+
+- *(ai)* add cursor and copilot integration
+- *(ai)* ai session end shouldn't auto decrypt secrets
+- *(agy)* add antigravity integration
+- *(claude)* adds claude code hooks and permission examples
+
+### Fixed
+
+- *(agy)* fix agy hook script
+- *(ai)* cleanup secrets at turn start
+- *(claude)* allow ctg hooks to fail
+
+### Other
+
+- *(deps)* update dependencies
+- add vscode plugin docs
+- fix outdated demo
+- *(deps)* bump clap_complete from 4.6.5 to 4.6.7
+- *(deps)* bump clap from 4.6.1 to 4.6.2
+- *(deps)* bump anyhow from 1.0.103 to 1.0.104
+- *(deps)* bump toml from 1.1.2+spec-1.1.0 to 1.1.3+spec-1.1.0
+- *(deps)* bump serde from 1.0.228 to 1.0.229
+- add npm version in readme
+
 ## [0.6.5](https://github.com/sayanarijit/cottage/compare/v0.6.4...v0.6.5) - 2026-06-27
 
 ### Other
