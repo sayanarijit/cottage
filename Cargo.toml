@@ -9,6 +9,7 @@ repository = "https://github.com/sayanarijit/cottage"
 authors = ["Arijit Basu <cottage@arijitbasu.in>"]
 keywords = ["age", "git", "secrets", "cli", "command-line"]
 categories = ["command-line-utilities", "filesystem", "development-tools"]
+include = ["src/**/*", "LICENSE", "README.md"]
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"
