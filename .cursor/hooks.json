@@ -19,6 +19,13 @@
         "timeout": 5,
         "failClosed": true
       }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "python3 \"$(git rev-parse --show-toplevel)/.cursor/hooks/deny-read-secrets.py\"",
+        "timeout": 5,
+        "failClosed": true
+      }
     ]
   }
 }

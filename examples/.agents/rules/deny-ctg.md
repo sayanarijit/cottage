@@ -1,6 +1,0 @@
-# AGY Rule: Deny `ctg` Command Execution
-
-The `ctg` and `ctgx` CLI commands are strictly forbidden from being executed by AGY (the agent) in this workspace.
-
-- Never propose or run any `ctg` or `ctgx` commands (e.g., `ctg clean`, `ctg decrypt`, `ctg run`, `ctg env`, etc.).
-- Never invoke lifecycle hooks or background tasks that execute `ctg` or `ctgx`.

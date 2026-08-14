@@ -4,17 +4,16 @@ import os
 import re
 import sys
 
-COMMAND_KEYS = {"cmd", "command", "Command", "CommandLine", "commandLine"}
-CTG_COMMAND = re.compile(
-    r"(?:^|[;&|()\n\r])\s*(?:builtin\s+|command\s+|exec\s+|sudo\s+)?(?:[./\w-]*/)?ctgx?\b"
-)
 COTT_SUFFIX = re.compile(r"\.cott\.[^./\\]+$")
 TOKEN_RE = re.compile(r"""[^\s"'`|;&<>()]+""")
 PATH_KEY_HINT = re.compile(r"path|file|dir|target|absolute", re.IGNORECASE)
 
 
 def repo_root(hint=None):
-    d = os.path.abspath(hint) if hint and os.path.isdir(hint) else os.getcwd()
+    if hint and os.path.isdir(hint):
+        d = os.path.abspath(hint)
+    else:
+        d = os.getcwd()
     while True:
         if os.path.isdir(os.path.join(d, ".git")) or os.path.isdir(os.path.join(d, ".cottage")):
             return d
@@ -42,43 +41,15 @@ def is_sensitive(path, root):
         return False
 
 
-def find_command(value):
-    if isinstance(value, dict):
-        for key, nested in value.items():
-            if key in COMMAND_KEYS and isinstance(nested, str):
-                return nested
-        for nested in value.values():
-            command = find_command(nested)
-            if command:
-                return command
-    elif isinstance(value, list):
-        for nested in value:
-            command = find_command(nested)
-            if command:
-                return command
-    return ""
-
-
-def find_sensitive_in_command(command, root):
-    if not command:
-        return None
-    for token in TOKEN_RE.findall(command):
-        if is_sensitive(token, root):
-            return token
-    return None
-
-
 def find_sensitive(value, root, path_context=False):
     """Only treat strings as path candidates when reached through a
-    path/file/dir-hinted key (e.g. apply_patch's file paths), so patch
-    content that merely mentions .cottage or *.cott.* in prose is never
-    mistaken for a path to protect."""
+    path/file/dir-hinted key, so file *content* being written or edited
+    (which may legitimately mention .cottage or *.cott.* in prose) is
+    never mistaken for a path to protect."""
     if isinstance(value, str):
         return value if path_context and is_sensitive(value, root) else None
     if isinstance(value, dict):
         for key, nested in value.items():
-            if key in COMMAND_KEYS:
-                continue
             hit = find_sensitive(nested, root, bool(PATH_KEY_HINT.search(str(key))))
             if hit:
                 return hit
@@ -87,6 +58,15 @@ def find_sensitive(value, root, path_context=False):
             hit = find_sensitive(nested, root, path_context)
             if hit:
                 return hit
+    return None
+
+
+def find_sensitive_in_command(command, root):
+    if not command:
+        return None
+    for token in TOKEN_RE.findall(command):
+        if is_sensitive(token, root):
+            return token
     return None
 
 
@@ -117,22 +97,16 @@ def main():
     except json.JSONDecodeError:
         return 0
 
-    command = find_command(data)
-    if command and CTG_COMMAND.search(command):
-        deny(
-            "AI agents are forbidden from executing ctg or ctgx commands in this workspace."
-        )
-        return 0
-
     root = repo_root(data.get("cwd"))
+    tool_name = data.get("tool_name", "")
+    tool_input = data.get("tool_input", {})
 
-    if command:
-        hit = find_sensitive_in_command(command, root)
-        if hit:
-            deny(REASON.format(hit))
-            return 0
+    hit = None
+    if tool_name == "Bash":
+        hit = find_sensitive_in_command(tool_input.get("command", ""), root)
+    else:
+        hit = find_sensitive(tool_input, root)
 
-    hit = find_sensitive(data, root)
     if hit:
         deny(REASON.format(hit))
 

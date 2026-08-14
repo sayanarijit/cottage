@@ -105,17 +105,19 @@ Use the [Cottage VS Code extension](https://github.com/sayanarijit/vscode-plugin
 
 [![Cottage VS Code Extension Demo](https://s13.gifyu.com/images/bn9p8.gif)](https://marketplace.visualstudio.com/items?itemName=sayanarijit.vscode-plugin-cottage)
 
-Install it from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sayanarijit.vscode-plugin-cottage), or build and install it locally from [`../vscode-plugin-cottage`](https://github.com/sayanarijit/vscode-plugin-cottage).
+Install it from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sayanarijit.vscode-plugin-cottage), or build and install it locally from [`vscode-plugin-cottage`](https://github.com/sayanarijit/vscode-plugin-cottage).
 
 ## AI Agent Integrations
 
+All of the integrations below keep AI agents from running `ctg`/`ctgx` directly and from viewing or editing secret files: anything inside `.cottage/`, any `*.cott.*` file (encrypted `*.cott.age` blobs and redacted `*.cott.toml` previews), and any decrypted file that still has a `*.cott.age` counterpart on disk.
+
 ### Claude Code Integration
 
-If you are using Claude Code, add [`.claude/settings.json`](.claude/settings.json) to your repos with secrets so Claude Code sessions handle secrets safely, or install the [claude-plugin-cottage](https://github.com/sayanarijit/claude-plugin-cottage) plugin.
+If you are using Claude Code, add [`.claude/settings.json`](.claude/settings.json) and [`.claude/hooks/deny-secrets.py`](.claude/hooks/deny-secrets.py) to your repos with secrets so Claude Code sessions handle secrets safely, or install the [claude-plugin-cottage](https://github.com/sayanarijit/claude-plugin-cottage) plugin.
 
 ### GitHub Copilot Integration
 
-If you are using GitHub Copilot in VS Code, add [`.github/hooks/ctg-policy.json`](.github/hooks/ctg-policy.json) and [`.github/hooks/scripts/deny_ctg_command.py`](.github/hooks/scripts/deny_ctg_command.py) to your repos with secrets so Copilot sessions clean decrypted files and block direct `ctg` shell commands, or install the [vscode-plugin-cottage](https://github.com/sayanarijit/vscode-plugin-cottage) extension to set that up from VS Code.
+If you are using GitHub Copilot in VS Code, add [`.github/hooks/ctg-policy.json`](.github/hooks/ctg-policy.json) and [`.github/hooks/scripts/deny_ctg_command.py`](.github/hooks/scripts/deny_ctg_command.py) to your repos with secrets so Copilot sessions clean decrypted files, block direct `ctg` shell commands, and block access to secret files, or install the [vscode-plugin-cottage](https://github.com/sayanarijit/vscode-plugin-cottage) extension to set that up from VS Code.
 
 VS Code loads [`.claude/settings.json`](.claude/settings.json) hook definitions too. If you keep both Claude and Copilot hook files in the same repo, make sure you do not accidentally run the same cleanup hook twice.
 
@@ -127,13 +129,13 @@ Codex requires local hooks to be reviewed before they run. After adding the file
 
 ### Antigravity (agy) Integration
 
-If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) to your repos with secrets so Antigravity sessions handle secrets safely, or install the [agy-plugin-cottage](https://github.com/sayanarijit/agy-plugin-cottage) plugin.
+If you are using Antigravity (`agy`), add [`.agents/hooks.json`](.agents/hooks.json) and [`.agents/scripts/deny-ctg.py`](.agents/scripts/deny-ctg.py) to your repos with secrets so Antigravity sessions handle secrets safely, or install the [agy-plugin-cottage](https://github.com/sayanarijit/agy-plugin-cottage) plugin.
 
 ### Cursor Integration
 
-If you are using Cursor, add [`.cursor/hooks.json`](.cursor/hooks.json), [`.cursor/hooks/deny-ctg.py`](.cursor/hooks/deny-ctg.py), and [`.cursor/rules/deny-ctg.mdc`](.cursor/rules/deny-ctg.mdc) to your repos with secrets so Cursor sessions handle secrets safely.
+If you are using Cursor, add [`.cursor/hooks.json`](.cursor/hooks.json), [`.cursor/hooks/deny-ctg.py`](.cursor/hooks/deny-ctg.py), [`.cursor/hooks/deny-read-secrets.py`](.cursor/hooks/deny-read-secrets.py), [`.cursor/rules/deny-ctg.mdc`](.cursor/rules/deny-ctg.mdc), and [`.cursorignore`](.cursorignore) to your repos with secrets so Cursor sessions handle secrets safely.
 
-Cursor requires hooks to be enabled first. Open Cursor Settings > Hooks and enable hooks, then restart the agent session so the project hooks take effect.
+Cursor requires hooks to be enabled first. Open Cursor Settings > Hooks and enable hooks, then restart the agent session so the project hooks take effect. `.cursorignore` additionally keeps secret files out of Cursor's indexing and the Agent's context.
 
 ## Quick Start
 

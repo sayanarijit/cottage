@@ -1,0 +1,3 @@
+# Keep cottage secrets out of Cursor's indexing and Agent context.
+.cottage/
+*.cott.*

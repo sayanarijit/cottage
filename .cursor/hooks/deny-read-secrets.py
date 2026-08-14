@@ -4,11 +4,7 @@ import os
 import re
 import sys
 
-CTG_COMMAND = re.compile(
-    r"(?:^|[;&|()\n\r])\s*(?:builtin\s+|command\s+|exec\s+|sudo\s+)?(?:[./\w-]*/)?ctgx?\b"
-)
 COTT_SUFFIX = re.compile(r"\.cott\.[^./\\]+$")
-TOKEN_RE = re.compile(r"""[^\s"'`|;&<>()]+""")
 
 
 def repo_root(hint=None):
@@ -40,21 +36,13 @@ def is_sensitive(path, root):
         return False
 
 
-def find_sensitive_in_command(command, root):
-    if not command:
-        return None
-    for token in TOKEN_RE.findall(command):
-        if is_sensitive(token, root):
-            return token
-    return None
-
-
 def deny(reason):
     print(
         json.dumps(
             {
                 "permission": "deny",
                 "userMessage": reason,
+                "user_message": reason,
                 "agentMessage": reason,
             }
         )
@@ -67,20 +55,13 @@ def main():
     except json.JSONDecodeError:
         return 0
 
-    command = data.get("command", "")
-    if command and CTG_COMMAND.search(command):
-        deny(
-            "AI agents are forbidden from executing ctg or ctgx commands in this workspace."
-        )
-        return 0
-
+    file_path = data.get("file_path", "")
     root = repo_root(data.get("cwd"))
-    hit = find_sensitive_in_command(command, root)
-    if hit:
+    if file_path and is_sensitive(file_path, root):
         deny(
             "Blocked by cottage workspace policy: '{}' is a protected secret "
             "(inside .cottage/, matches *.cott.*, or is a decrypted file with a "
-            ".cott.age counterpart). AI agents must not view or edit it.".format(hit)
+            ".cott.age counterpart). AI agents must not view or edit it.".format(file_path)
         )
 
     return 0

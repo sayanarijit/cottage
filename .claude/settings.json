@@ -1,6 +1,17 @@
 {
   "permissions": {
-    "deny": ["Bash(ctg*)"]
+    "deny": [
+      "Bash(ctg*)",
+      "Read(.cottage/**)",
+      "Read(**/.cottage/**)",
+      "Edit(.cottage/**)",
+      "Edit(**/.cottage/**)",
+      "Write(.cottage/**)",
+      "Write(**/.cottage/**)",
+      "Read(**/*.cott.*)",
+      "Edit(**/*.cott.*)",
+      "Write(**/*.cott.*)"
+    ]
   },
   "hooks": {
     "SessionStart": [
@@ -19,6 +30,17 @@
           {
             "type": "command",
             "command": "ctg clean -qqq"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.claude/hooks/deny-secrets.py\""
           }
         ]
       }
