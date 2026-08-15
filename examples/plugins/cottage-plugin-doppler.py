@@ -73,7 +73,7 @@ def pull():
     with doppler_client(cfg) as client:
         urlpath = f"/v3/configs/config/secrets/download?project={cfg.doppler_project}&config={cfg.doppler_config}&format=json"
         print(  # Use --debug to see this message
-            f"Pulling secrets from Doppler project '{cfg.doppler_project}', config '{cfg.doppler_config}'...",
+            "Pulling secrets from Doppler...",
             file=sys.stderr,
         )
         resp = client.get(urlpath).build().send()
@@ -91,7 +91,7 @@ def push():
     }
     with doppler_client(cfg) as client:
         print(  # Use --debug to see this message
-            f"Pushing secrets to Doppler project '{cfg.doppler_project}', config '{cfg.doppler_config}'...",
+            "Pushing secrets to Doppler...",
             file=sys.stderr,
         )
         client.post("/v3/configs/config/secrets").body_json(payload).build().send()

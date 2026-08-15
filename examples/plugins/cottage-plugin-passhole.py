@@ -45,11 +45,6 @@ class PassholeSecretConfig(BaseModel):
         self.passhole_bin_path = self.passhole_bin_path.expanduser()
         return self
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 app = App()
 
@@ -58,7 +53,7 @@ app = App()
 def pull():
     cfg = PassholeSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
-        f"Pulling secret '{cfg.passhole_secret_path}' from Passhole...",
+        "Pulling secret from Passhole...",
         file=sys.stderr,
     )
     try:

@@ -47,11 +47,6 @@ class LastPassSecretConfig(BaseModel):
         self.lpass_bin_path = self.lpass_bin_path.expanduser()
         return self
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 app = App()
 
@@ -60,7 +55,7 @@ app = App()
 def pull():
     cfg = LastPassSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
-        f"Pulling notes for secret '{cfg.lpass_secret_name}' from LastPass...",
+        "Pulling secret from LastPass...",
         file=sys.stderr,
     )
     try:
@@ -131,7 +126,7 @@ def push():
         content = json.dumps(payload)
 
     print(  # Use --debug to see this message
-        f"Pushing secret to LastPass at '{cfg.lpass_secret_name}'...",
+        "Pushing secret to LastPass...",
         file=sys.stderr,
     )
 
@@ -155,7 +150,7 @@ def push():
         sys.exit(1)
 
     print(
-        f"Successfully updated LastPass secret '{cfg.lpass_secret_name}'",
+        "Successfully updated LastPass secret",
         file=sys.stderr,
     )
 

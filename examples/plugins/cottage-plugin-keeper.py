@@ -49,11 +49,6 @@ class KeeperSecretConfig(BaseModel):
             self.keeper_config_path = self.keeper_config_path.expanduser()
         return self
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 def get_keeper_client(config: KeeperSecretConfig) -> SecretsManager:
     if config.keeper_config_path:
@@ -72,7 +67,7 @@ def pull():
     cfg = KeeperSecretConfig.model_validate(os.environ)
     client = get_keeper_client(cfg)
     print(  # Use --debug to see this message
-        f"Retrieving record '{cfg.keeper_record_uid}' from Keeper Vault...",
+        "Retrieving record from Keeper Vault...",
         file=sys.stderr,
     )
     try:
@@ -130,7 +125,7 @@ def push():
     payload_str = json.dumps(payload)
 
     print(  # Use --debug to see this message
-        f"Updating record '{cfg.keeper_record_uid}' in Keeper Vault...",
+        "Updating record in Keeper Vault...",
         file=sys.stderr,
     )
     try:
@@ -139,7 +134,7 @@ def push():
         # Storing in notes is generally better for JSON payloads
         record.notes = payload_str
         client.save(record)
-        print(f"Successfully saved record '{cfg.keeper_record_uid}'", file=sys.stderr)
+        print("Successfully saved record in Keeper Vault", file=sys.stderr)
     except Exception as e:
         print(f"Error updating record in Keeper: {e}", file=sys.stderr)
         sys.exit(1)

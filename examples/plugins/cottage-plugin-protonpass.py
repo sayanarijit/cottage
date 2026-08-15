@@ -48,11 +48,6 @@ class ProtonPassSecretConfig(BaseModel):
         self.proton_bin_path = self.proton_bin_path.expanduser()
         return self
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 app = App()
 
@@ -61,7 +56,7 @@ app = App()
 def pull():
     cfg = ProtonPassSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
-        f"Pulling item '{cfg.proton_item_title}' from Proton Pass...",
+        "Pulling secret from Proton Pass...",
         file=sys.stderr,
     )
 
@@ -129,7 +124,7 @@ def push():
     content = json.dumps(payload)
 
     print(  # Use --debug to see this message
-        f"Pushing item '{cfg.proton_item_title}' to Proton Pass...",
+        "Pushing secret to Proton Pass...",
         file=sys.stderr,
     )
 
@@ -173,7 +168,7 @@ def push():
 
     try:
         subprocess.run(cmd, check=True, capture_output=True)
-        print(f"Successfully saved item '{cfg.proton_item_title}'", file=sys.stderr)
+        print("Successfully saved item to Proton Pass", file=sys.stderr)
     except subprocess.CalledProcessError as e:
         print(f"Error updating Proton Pass item: {e.stderr}", file=sys.stderr)
         sys.exit(1)

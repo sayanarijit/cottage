@@ -44,11 +44,6 @@ class AzureKeyVaultConfig(BaseModel):
     azure_keyvault_url: str = Field(..., alias="AZURE_KEYVAULT_URL")
     azure_secret_name: str = Field(..., alias="AZURE_SECRET_NAME")
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 app = App()
 
@@ -59,7 +54,7 @@ def pull():
     credential = DefaultAzureCredential()
     client = SecretClient(vault_url=cfg.azure_keyvault_url, credential=credential)
     print(  # Use --debug to see this message
-        f"Pulling secret '{cfg.azure_secret_name}' from Azure Key Vault '{cfg.azure_keyvault_url}'...",
+        f"Pulling secret from Azure Key Vault '{cfg.azure_keyvault_url}'...",
         file=sys.stderr,
     )
     try:
@@ -84,7 +79,7 @@ def push():
     client = SecretClient(vault_url=cfg.azure_keyvault_url, credential=credential)
     payload_str = json.dumps(json.loads(input()))
     print(  # Use --debug to see this message
-        f"Pushing secret '{cfg.azure_secret_name}' to Azure Key Vault '{cfg.azure_keyvault_url}'...",
+        f"Pushing secret to Azure Key Vault '{cfg.azure_keyvault_url}'...",
         file=sys.stderr,
     )
     try:

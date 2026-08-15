@@ -41,11 +41,6 @@ class KeyringSecretConfig(BaseModel):
     keyring_service: str = Field(..., alias="KEYRING_SERVICE")
     keyring_username: str = Field(..., alias="KEYRING_USERNAME")
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 app = App()
 
@@ -54,7 +49,7 @@ app = App()
 def pull():
     cfg = KeyringSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
-        f"Retrieving password for service '{cfg.keyring_service}', username '{cfg.keyring_username}' from OS Keyring...",
+        "Retrieving secret from OS Keyring...",
         file=sys.stderr,
     )
     try:
@@ -65,7 +60,7 @@ def pull():
 
     if val is None:
         print(
-            f"No secret found in OS Keyring for service '{cfg.keyring_service}' and username '{cfg.keyring_username}'",
+            "No secret found in OS Keyring",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -82,7 +77,7 @@ def push():
     cfg = KeyringSecretConfig.model_validate(os.environ)
     payload_str = json.dumps(json.loads(input()))
     print(  # Use --debug to see this message
-        f"Saving password for service '{cfg.keyring_service}', username '{cfg.keyring_username}' to OS Keyring...",
+        "Saving secret to OS Keyring...",
         file=sys.stderr,
     )
     try:

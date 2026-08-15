@@ -47,11 +47,6 @@ class EjsonSecretConfig(BaseModel):
         self.ejson_bin_path = self.ejson_bin_path.expanduser()
         return self
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 app = App()
 

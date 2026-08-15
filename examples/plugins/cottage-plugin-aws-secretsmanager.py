@@ -46,11 +46,6 @@ class AWSSecretConfig(BaseModel):
     aws_session_token: str | None = Field(None, alias="AWS_SESSION_TOKEN")
     aws_profile: str | None = Field(None, alias="AWS_PROFILE")
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 def get_aws_client(config: AWSSecretConfig):
     session = boto3.session.Session(
@@ -71,7 +66,7 @@ def pull():
     cfg = AWSSecretConfig.model_validate(os.environ)
     client = get_aws_client(cfg)
     print(  # Use --debug to see this message
-        f"Pulling secret '{cfg.aws_secret_id}' from AWS Secrets Manager...",
+        "Pulling secret from AWS Secrets Manager...",
         file=sys.stderr,
     )
     try:
@@ -103,14 +98,14 @@ def push():
     client = get_aws_client(cfg)
     payload_str = json.dumps(json.loads(input()))
     print(  # Use --debug to see this message
-        f"Pushing secret '{cfg.aws_secret_id}' to AWS Secrets Manager...",
+        "Pushing secret to AWS Secrets Manager...",
         file=sys.stderr,
     )
     try:
         client.put_secret_value(SecretId=cfg.aws_secret_id, SecretString=payload_str)
     except client.exceptions.ResourceNotFoundException:
         print(
-            f"Secret '{cfg.aws_secret_id}' not found. Creating it...",
+            "Secret not found. Creating it...",
             file=sys.stderr,
         )
         try:

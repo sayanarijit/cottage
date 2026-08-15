@@ -43,11 +43,6 @@ class GCPSecretConfig(BaseModel):
     gcp_secret_id: str = Field(..., alias="GCP_SECRET_ID")
     gcp_secret_version: str = Field("latest", alias="GCP_SECRET_VERSION")
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 app = App()
 
@@ -58,7 +53,7 @@ def pull():
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{cfg.gcp_project}/secrets/{cfg.gcp_secret_id}/versions/{cfg.gcp_secret_version}"
     print(  # Use --debug to see this message
-        f"Pulling secret version '{name}' from GCP Secret Manager...",
+        "Pulling secret from GCP Secret Manager...",
         file=sys.stderr,
     )
     try:
@@ -84,7 +79,7 @@ def push():
     payload = json.dumps(json.loads(input())).encode("UTF-8")
     parent = f"projects/{cfg.gcp_project}/secrets/{cfg.gcp_secret_id}"
     print(  # Use --debug to see this message
-        f"Pushing secret to GCP Secret Manager at '{parent}'...",
+        "Pushing secret to GCP Secret Manager...",
         file=sys.stderr,
     )
 
@@ -96,7 +91,7 @@ def push():
         # If the secret does not exist, attempt to create it first
         if "not found" in str(e).lower() or "notfound" in str(e).lower():
             print(
-                f"Secret '{cfg.gcp_secret_id}' not found. Creating it...",
+                "Secret not found. Creating it...",
                 file=sys.stderr,
             )
             project_path = f"projects/{cfg.gcp_project}"

@@ -45,11 +45,6 @@ class DashlaneSecretConfig(BaseModel):
         self.dashlane_bin_path = self.dashlane_bin_path.expanduser()
         return self
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 app = App()
 
@@ -58,7 +53,7 @@ app = App()
 def pull():
     cfg = DashlaneSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
-        f"Pulling secret '{cfg.dashlane_secret_id}' via Dashlane CLI (dcli)...",
+        "Pulling secret via Dashlane CLI (dcli)...",
         file=sys.stderr,
     )
     uri = f"dl://{cfg.dashlane_secret_id}"

@@ -50,11 +50,6 @@ class PassSecretConfig(BaseModel):
             self.password_store_dir = self.password_store_dir.expanduser()
         return self
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 app = App()
 
@@ -63,7 +58,7 @@ app = App()
 def pull():
     cfg = PassSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
-        f"Pulling secret '{cfg.pass_secret_path}' from GNU pass...",
+        "Pulling secret from GNU pass...",
         file=sys.stderr,
     )
     env = os.environ.copy()
@@ -125,7 +120,7 @@ def push():
         content = json.dumps(payload)
 
     print(  # Use --debug to see this message
-        f"Pushing secret to GNU pass at '{cfg.pass_secret_path}'...",
+        "Pushing secret to GNU pass...",
         file=sys.stderr,
     )
 

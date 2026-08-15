@@ -46,11 +46,6 @@ class ZohoVaultConfig(BaseModel):
     zoho_vault_url: str = Field("https://vault.zoho.com", alias="ZOHO_VAULT_URL")
     zoho_passphrase: str | None = Field(None, alias="ZOHO_PASSPHRASE")
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 def get_access_token(cfg: ZohoVaultConfig) -> str:
     # Resolve regional accounts URL
@@ -152,8 +147,8 @@ def pull():
     token = get_access_token(cfg)
 
     urlpath = f"/api/rest/json/v1/secrets/{cfg.zoho_secret_id}"
-    print(
-        f"Pulling secret '{cfg.zoho_secret_id}' from Zoho Vault...",
+    print(  # Use --debug to see this message
+        "Pulling secret from Zoho Vault...",
         file=sys.stderr,
     )
     with (
@@ -187,8 +182,8 @@ def push():
     encrypted_payload_str = encrypt_data(payload, cfg.zoho_passphrase)
 
     urlpath = f"/api/rest/json/v1/secrets/{cfg.zoho_secret_id}"
-    print(
-        f"Pushing secret '{cfg.zoho_secret_id}' to Zoho Vault...",
+    print(  # Use --debug to see this message
+        "Pushing secret to Zoho Vault...",
         file=sys.stderr,
     )
 

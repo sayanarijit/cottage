@@ -78,11 +78,6 @@ class VaultSecretConfig(BaseModel):
             headers["X-Vault-Namespace"] = self.vault_namespace
         return headers
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 @contextmanager
 def vault_client(config: VaultSecretConfig):
@@ -104,7 +99,8 @@ def pull():
     cfg = VaultSecretConfig.model_validate(os.environ)
     with vault_client(cfg) as client:
         print(  # Use --debug to see this message
-            "Pulling from", cfg.vault_secret_urlpath, file=sys.stderr
+            "Pulling secret from Vault...",
+            file=sys.stderr,
         )
         resp = client.get(cfg.vault_secret_urlpath).build().send()
     print(json.dumps(resp.json()["data"]["data"]))
@@ -116,7 +112,8 @@ def push():
     payload = {"data": json.loads(input())}
     with vault_client(cfg) as client:
         print(  # Use --debug to see this message
-            "Pushing to", cfg.vault_secret_urlpath, file=sys.stderr
+            "Pushing secret to Vault...",
+            file=sys.stderr,
         )
         client.post(cfg.vault_secret_urlpath).body_json(payload).build().send()
 

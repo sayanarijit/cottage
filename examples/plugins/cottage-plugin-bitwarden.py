@@ -44,11 +44,6 @@ class BWSecretConfig(BaseModel):
     bw_organization_id: str | None = Field(None, alias="BW_ORGANIZATION_ID")
     bw_project_id: str | None = Field(None, alias="BW_PROJECT_ID")
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 def get_bw_client(config: BWSecretConfig) -> BitwardenClient:
     client = BitwardenClient()
@@ -64,7 +59,7 @@ def pull():
     cfg = BWSecretConfig.model_validate(os.environ)
     client = get_bw_client(cfg)
     print(  # Use --debug to see this message
-        f"Pulling secret '{cfg.bw_secret_id}' from Bitwarden Secrets Manager...",
+        "Pulling secret from Bitwarden Secrets Manager...",
         file=sys.stderr,
     )
     try:
@@ -86,7 +81,7 @@ def push():
     client = get_bw_client(cfg)
     payload_str = json.dumps(json.loads(input()))
     print(  # Use --debug to see this message
-        f"Pushing secret to Bitwarden Secrets Manager for ID '{cfg.bw_secret_id}'...",
+        "Pushing secret to Bitwarden Secrets Manager...",
         file=sys.stderr,
     )
 
@@ -100,7 +95,7 @@ def push():
             project_id=cfg.bw_project_id or getattr(secret, "project_id", None),
         )
         client.secrets().update(cfg.bw_secret_id, update_request)
-        print(f"Updated Bitwarden secret '{secret.key}'", file=sys.stderr)
+        print("Updated Bitwarden secret", file=sys.stderr)
     except Exception as e:
         # If it doesn't exist, we attempt to create it.
         # Note: Create requires Organization ID and Project ID
@@ -112,7 +107,7 @@ def push():
             sys.exit(1)
 
         print(
-            f"Secret '{cfg.bw_secret_id}' not found or error occurred. Creating a new secret...",
+            "Secret not found or error occurred. Creating a new secret...",
             file=sys.stderr,
         )
         try:
@@ -125,7 +120,7 @@ def push():
                 project_ids,
             )
             print(
-                f"Created new Bitwarden secret '{new_secret.key}' (ID: {new_secret.id})",
+                "Created new Bitwarden secret",
                 file=sys.stderr,
             )
         except Exception as create_err:

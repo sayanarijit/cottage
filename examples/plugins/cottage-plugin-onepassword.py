@@ -51,11 +51,6 @@ class OPSecretConfig(BaseModel):
             raise ValueError("Either OP_ITEM_ID or OP_ITEM_TITLE must be provided")
         return self
 
-    def model_post_init(self, __context):
-        print(  # Use --debug to see this message
-            "Parsed configuration:", self, file=sys.stderr
-        )
-
 
 async def find_item_by_title(client: Client, vault_id: str, title: str):
     overviews = await client.items.list(vault_id)
@@ -71,13 +66,17 @@ async def pull_async(cfg: OPSecretConfig):
         integration_name="Cottage Integration",
         integration_version="1.0.0",
     )
+    print(  # Use --debug to see this message
+        "Pulling secret from 1Password...",
+        file=sys.stderr,
+    )
     if cfg.op_item_id:
         item = await client.items.get(cfg.op_vault_id, cfg.op_item_id)
     else:
         item = await find_item_by_title(client, cfg.op_vault_id, cfg.op_item_title)
         if not item:
             print(
-                f"Item with title '{cfg.op_item_title}' not found in vault '{cfg.op_vault_id}'",
+                "Item not found in 1Password vault",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -94,6 +93,10 @@ async def push_async(cfg: OPSecretConfig, payload: dict):
         auth=cfg.op_service_account_token,
         integration_name="Cottage Integration",
         integration_version="1.0.0",
+    )
+    print(  # Use --debug to see this message
+        "Pushing secret to 1Password...",
+        file=sys.stderr,
     )
 
     fields = []
@@ -119,7 +122,7 @@ async def push_async(cfg: OPSecretConfig, payload: dict):
     if item:
         item.fields = fields
         await client.items.put(item)
-        print(f"Updated 1Password item '{item.title}'", file=sys.stderr)
+        print("Updated 1Password item", file=sys.stderr)
     else:
         title = cfg.op_item_title or "Cottage Secrets"
         params = ItemCreateParams(
@@ -130,7 +133,7 @@ async def push_async(cfg: OPSecretConfig, payload: dict):
         )
         new_item = await client.items.create(params)
         print(
-            f"Created new 1Password item '{new_item.title}' (ID: {new_item.id})",
+            "Created new 1Password item",
             file=sys.stderr,
         )
 
