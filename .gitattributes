@@ -1,1 +1,2 @@
 *.cott.age binary export-ignore filter=cottage-encrypted -diff
+*.cott.age binary linguist-generated filter=cottage-encrypted -diff
