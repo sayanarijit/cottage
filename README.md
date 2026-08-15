@@ -217,7 +217,8 @@ changes. Then you can pull and re-encrypt the secrets for them.
 ```bash
 git pull origin main
 
-ctg sync  # or `ctg decrypt && ctg encrypt`
+ctg decrypt --skip-verify-recipients  # Decrypt missing secrets for re-encryption
+ctg encrypt                           # Re-encrypt all secrets
 # encrypt secret.yml
 #    into secret.yml.cott.age
 #    edit secret.yml.cott.toml
