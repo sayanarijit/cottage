@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 const COTTAGE_GITATTRIBUTES_LINE: &str =
-    "*.cott.age binary export-ignore filter=cottage-encrypted -diff";
+    "*.cott.age binary linguist-generated filter=cottage-encrypted -diff";
 
 fn merge_non_existing_pairs(
     target: Option<IndexMap<String, String>>,
