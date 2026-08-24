@@ -11,6 +11,7 @@ pub struct RunOptions {
     pub args: Vec<String>,
     pub decrypt_options: DecryptOptions,
     pub dry_run: bool,
+    pub clean: bool,
 }
 
 pub struct RunResult {
@@ -74,12 +75,12 @@ pub fn run(
     for path in &input {
         if path.is_file() && is_encrypted_path(path) {
             if let Some(dec) = to_decrypted_path(path) {
-                temp_files.push(TempDecryptedFile::new(dec, false));
+                temp_files.push(TempDecryptedFile::new(dec, opts.clean));
             }
         } else if path.is_dir() {
             for entry in crate::iter_encrypted(path) {
                 if let Some(dec) = to_decrypted_path(entry.path()) {
-                    temp_files.push(TempDecryptedFile::new(dec, false));
+                    temp_files.push(TempDecryptedFile::new(dec, opts.clean));
                 }
             }
         }

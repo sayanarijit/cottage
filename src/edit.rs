@@ -64,14 +64,10 @@ pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<Operatio
         }
     };
 
-    if opts.clean {
-        match temp_file.cleanup(false) {
-            Ok(Some(res)) => results.push(Ok(res)),
-            Ok(None) => {}
-            Err(e) => results.push(Err(e)),
-        }
-    } else {
-        temp_file.disarm();
+    match temp_file.cleanup(false) {
+        Ok(Some(res)) => results.push(Ok(res)),
+        Ok(None) => {}
+        Err(e) => results.push(Err(e)),
     }
 
     // Now fail if status1 or status2 failed, but collect results first

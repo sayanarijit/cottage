@@ -330,6 +330,10 @@ struct RunArgs {
     /// Dry run, don't actually decrypt or run the command.
     #[arg(short = 'n', long)]
     dry_run: bool,
+
+    /// Delete decrypted files after running the command.
+    #[arg(long, env = "COTTAGE_CLEAN")]
+    clean: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -811,6 +815,7 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
             dry_run: args.dry_run,
         },
         dry_run: args.dry_run,
+        clean: args.clean,
     };
 
     let res = run_task(proj.root(), |p| proj.relative_to_cwd(p), options)?;
