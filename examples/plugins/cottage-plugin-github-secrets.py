@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "pydantic>=2.13.4",
 # ]
 # ///
@@ -57,7 +56,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from cyclopts import App
 from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
 
@@ -137,10 +135,6 @@ class GitHubSecretConfig(BaseModel):
         return self
 
 
-app = App()
-
-
-@app.command()
 def pull() -> None:
     print(
         "Error: GitHub Secrets are write-only and cannot be retrieved via the GitHub CLI or API.",
@@ -149,7 +143,6 @@ def pull() -> None:
     sys.exit(1)
 
 
-@app.command()
 def push() -> None:
     cfg = GitHubSecretConfig.model_validate(os.environ)
     raw_input = sys.stdin.read()
@@ -216,4 +209,15 @@ def push() -> None:
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)

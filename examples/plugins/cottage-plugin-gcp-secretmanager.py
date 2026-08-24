@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "pydantic>=2.13.4",
 #     "google-cloud-secret-manager>=2.20.0",
 # ]
@@ -32,7 +31,6 @@ import json
 import os
 import sys
 
-from cyclopts import App
 from google.cloud import secretmanager
 from pydantic import BaseModel, Field
 
@@ -44,10 +42,6 @@ class GCPSecretConfig(BaseModel):
     gcp_secret_version: str = Field("latest", alias="GCP_SECRET_VERSION")
 
 
-app = App()
-
-
-@app.command()
 def pull():
     cfg = GCPSecretConfig.model_validate(os.environ)
     client = secretmanager.SecretManagerServiceClient()
@@ -72,7 +66,6 @@ def pull():
         print(json.dumps({"value": payload}))
 
 
-@app.command()
 def push():
     cfg = GCPSecretConfig.model_validate(os.environ)
     client = secretmanager.SecretManagerServiceClient()
@@ -118,4 +111,15 @@ def push():
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)

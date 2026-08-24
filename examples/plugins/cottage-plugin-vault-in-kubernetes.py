@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "portforward>=0.7.6",
 #     "pydantic>=2.13.4",
 #     "pyreqwest>=0.10.1",
@@ -40,7 +39,6 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import portforward
-from cyclopts import App
 from pydantic import BaseModel, Field, model_validator
 from pyreqwest.client import SyncClientBuilder
 
@@ -106,10 +104,6 @@ def kube_proxy_vault_client(config: VaultSecretConfig):
             yield client
 
 
-app = App()
-
-
-@app.command()
 def pull():
     cfg = VaultSecretConfig.model_validate(os.environ)
     with kube_proxy_vault_client(cfg) as client:
@@ -121,7 +115,6 @@ def pull():
     print(json.dumps(resp.json()["data"]["data"]))
 
 
-@app.command()
 def push():
     cfg = VaultSecretConfig.model_validate(os.environ)
     payload = {"data": json.loads(input())}
@@ -134,4 +127,15 @@ def push():
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)

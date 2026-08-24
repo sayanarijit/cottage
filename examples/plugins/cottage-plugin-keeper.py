@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "pydantic>=2.13.4",
 #     "keeper-secrets-manager-core>=16.6.2",
 # ]
@@ -32,7 +31,6 @@ import os
 import sys
 from pathlib import Path
 
-from cyclopts import App
 from keeper_secrets_manager_core import SecretsManager
 from keeper_secrets_manager_core.storage import FileStorage
 from pydantic import BaseModel, Field, model_validator
@@ -59,10 +57,6 @@ def get_keeper_client(config: KeeperSecretConfig) -> SecretsManager:
         return SecretsManager()
 
 
-app = App()
-
-
-@app.command()
 def pull():
     cfg = KeeperSecretConfig.model_validate(os.environ)
     client = get_keeper_client(cfg)
@@ -117,7 +111,6 @@ def pull():
     print(json.dumps(secrets))
 
 
-@app.command()
 def push():
     cfg = KeeperSecretConfig.model_validate(os.environ)
     client = get_keeper_client(cfg)
@@ -141,4 +134,15 @@ def push():
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)

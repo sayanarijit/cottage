@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "pydantic>=2.13.4",
 #     "onepassword-sdk>=0.1.1",
 # ]
@@ -33,7 +32,6 @@ import json
 import os
 import sys
 
-from cyclopts import App
 from onepassword import Client, ItemCategory, ItemField, ItemFieldType, ItemCreateParams
 from pydantic import BaseModel, Field, model_validator
 
@@ -138,16 +136,11 @@ async def push_async(cfg: OPSecretConfig, payload: dict):
         )
 
 
-app = App()
-
-
-@app.command()
 def pull():
     cfg = OPSecretConfig.model_validate(os.environ)
     asyncio.run(pull_async(cfg))
 
 
-@app.command()
 def push():
     cfg = OPSecretConfig.model_validate(os.environ)
     payload = json.loads(input())
@@ -155,4 +148,15 @@ def push():
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)

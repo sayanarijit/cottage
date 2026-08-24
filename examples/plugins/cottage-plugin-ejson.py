@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "pydantic>=2.13.4",
 # ]
 # ///
@@ -31,7 +30,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from cyclopts import App
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -48,10 +46,6 @@ class EjsonSecretConfig(BaseModel):
         return self
 
 
-app = App()
-
-
-@app.command()
 def pull():
     cfg = EjsonSecretConfig.model_validate(os.environ)
     print(  # Use --debug to see this message
@@ -79,7 +73,6 @@ def pull():
     print(res.stdout)
 
 
-@app.command()
 def push():
     cfg = EjsonSecretConfig.model_validate(os.environ)
     payload = json.loads(input())
@@ -142,4 +135,15 @@ def push():
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)

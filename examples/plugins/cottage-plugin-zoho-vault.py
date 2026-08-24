@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "pydantic>=2.13.4",
 #     "pyreqwest>=0.10.1",
 # ]
@@ -32,7 +31,6 @@ import json
 import os
 import sys
 
-from cyclopts import App
 from pydantic import BaseModel, Field
 from pyreqwest.client import SyncClientBuilder
 
@@ -138,10 +136,6 @@ def encrypt_data(plain_payload: dict, passphrase: str | None) -> str:
     return json.dumps(plain_payload)
 
 
-app = App()
-
-
-@app.command()
 def pull():
     cfg = ZohoVaultConfig.model_validate(os.environ)
     token = get_access_token(cfg)
@@ -173,7 +167,6 @@ def pull():
     print(json.dumps(decrypted))
 
 
-@app.command()
 def push():
     cfg = ZohoVaultConfig.model_validate(os.environ)
     token = get_access_token(cfg)
@@ -213,4 +206,15 @@ def push():
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)
