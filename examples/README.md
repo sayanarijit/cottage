@@ -54,6 +54,8 @@ ctg init
 
 Encrypt files or directories. By default, it processes all the tracked secrets in the entire project root.
 
+Pass `--clean` to automatically delete the decrypted files after encryption.
+
 ```bash +exec
 git checkout . -q && ctg clean -qq
 
@@ -217,7 +219,9 @@ ctg sync ./secrets/secret.yaml
 
 Edit and encrypt a file directly. Opens it in your default `$EDITOR`, and re-encrypts it upon saving and exiting.
 
-Run it with `--clean` to automatically delete the decrypted file after editing.
+`ctg edit` decrypts the secret before opening the editor. After editing and saving, it re-encrypts the secret. If the decrypted file was already present on disk before running `ctg edit`, it is retained. If it was not present beforehand, it is cleaned up automatically.
+
+Run it with `--clean` to ensure the decrypted file is cleaned up even if it was present before.
 
 ```bash +exec
 git checkout . -q && ctg clean -qq
@@ -235,8 +239,8 @@ echo foo | ctg edit ./secrets/secret.yaml.cott.age --clean
 
 ### Target Behavior
 
-- **Plain Text**: Directly opens the decrypted file for editing, then encrypts it after saving.
-- **`.cott.age`**: Decrypts for editing, then re-encrypts after saving.
+- **Plain Text**: Directly opens the decrypted file for editing, then encrypts it after saving. Retains the plain text file on disk unless `--clean` is specified.
+- **`.cott.age`**: Decrypts for editing, re-encrypts after saving, and automatically cleans up the decrypted file unless it was already present on disk beforehand.
 - **Directory**: Not supported (must target a specific secret).
 - **`.cott.toml`**: Not supported (cannot edit metadata directly).
 
@@ -276,12 +280,16 @@ ctg clean .
 
 # `ctg run` / `ctgx`
 
-Decrypt secrets, run a specified command, and automatically delete the decrypted secrets after the command finishes.
+Decrypt secrets, run a specified command, and manage the decrypted secret lifecycle.
+
+`ctg run` (shortcut `ctgx`) decrypts secrets before running the command. After the command finishes (whether it succeeds or fails), secrets that were not present before running are automatically cleaned up, while secrets that were already present on disk beforehand are kept.
+
+Pass `--clean` (`ctg run --clean` or `ctgx --clean`) to ensure all decrypted files are cleaned up even if they were present beforehand.
 
 ```bash +exec
 git checkout . -q && ctg clean -qq
 
-# Run 'ls' while secrets are temporarily decrypted
+# Run 'ls' while secrets are temporarily decrypted (auto-cleaned after command finishes)
 ctg run -- ls ./secrets/secret.yaml
 ctg run -- ls ./secrets/secret.yaml.cott.age
 # Output:
@@ -291,6 +299,10 @@ ctg run -- ls ./secrets/secret.yaml.cott.age
 # decrypt ./secrets/secret.yaml.cott.age
 #    into ./secrets/secret.yaml
 # ./secrets/secret.yaml
+
+# Pass --clean to ensure decrypted secrets are cleaned up even if already present
+ctg run --clean -- ./deploy.sh
+ctgx --clean ./deploy.sh
 ```
 
 ---
