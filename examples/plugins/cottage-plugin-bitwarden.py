@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "pydantic>=2.13.4",
 #     "bitwarden-sdk>=0.3.1",
 # ]
@@ -33,7 +32,6 @@ import sys
 
 from bitwarden_sdk import BitwardenClient
 from bitwarden_sdk.schemas import SecretUpdateRequest
-from cyclopts import App
 from pydantic import BaseModel, Field
 
 
@@ -51,10 +49,6 @@ def get_bw_client(config: BWSecretConfig) -> BitwardenClient:
     return client
 
 
-app = App()
-
-
-@app.command()
 def pull():
     cfg = BWSecretConfig.model_validate(os.environ)
     client = get_bw_client(cfg)
@@ -75,7 +69,6 @@ def pull():
         print(json.dumps({"value": secret.value}))
 
 
-@app.command()
 def push():
     cfg = BWSecretConfig.model_validate(os.environ)
     client = get_bw_client(cfg)
@@ -129,4 +122,15 @@ def push():
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)

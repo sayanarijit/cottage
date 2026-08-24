@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "pydantic>=2.13.4",
 #     "boto3>=1.34.0",
 # ]
@@ -33,7 +32,6 @@ import os
 import sys
 
 import boto3
-from cyclopts import App
 from pydantic import BaseModel, Field
 
 
@@ -58,10 +56,6 @@ def get_aws_client(config: AWSSecretConfig):
     return session.client("secretsmanager")
 
 
-app = App()
-
-
-@app.command()
 def pull():
     cfg = AWSSecretConfig.model_validate(os.environ)
     client = get_aws_client(cfg)
@@ -92,7 +86,6 @@ def pull():
         sys.exit(1)
 
 
-@app.command()
 def push():
     cfg = AWSSecretConfig.model_validate(os.environ)
     client = get_aws_client(cfg)
@@ -119,4 +112,15 @@ def push():
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)

@@ -180,3 +180,10 @@ vars = {
   PROTON_ITEM_TITLE = "myapp-dev-secrets",
 }
 plugin = "./examples/plugins/cottage-plugin-protonpass.py"
+
+[upstream.github-actions]
+vars = {
+  GITHUB_REPO = "sayanarijit/cottage",
+  GITHUB_APP = "actions",
+}
+plugin = "./examples/plugins/cottage-plugin-github-secrets.py"

@@ -171,6 +171,7 @@ Cottage provides ready-to-use plugin scripts for various secret managers in the 
 - [Dashlane](examples/plugins/cottage-plugin-dashlane.py)
 - [Doppler](examples/plugins/cottage-plugin-doppler.py)
 - [ejson](examples/plugins/cottage-plugin-ejson.py)
+- [GitHub Secrets](examples/plugins/cottage-plugin-github-secrets.py)
 - [Google Cloud Secret Manager](examples/plugins/cottage-plugin-gcp-secretmanager.py)
 - [HashiCorp Vault](examples/plugins/cottage-plugin-vault.py) (also see [Vault in Kubernetes](examples/plugins/cottage-plugin-vault-in-kubernetes.py))
 - [Keeper Security](examples/plugins/cottage-plugin-keeper.py)

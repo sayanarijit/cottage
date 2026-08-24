@@ -3,7 +3,6 @@
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
-#     "cyclopts>=4.5.1",
 #     "pydantic>=2.13.4",
 #     "azure-keyvault-secrets>=4.9.0",
 #     "azure-identity>=1.16.1",
@@ -35,7 +34,6 @@ import sys
 
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from cyclopts import App
 from pydantic import BaseModel, Field
 
 
@@ -45,10 +43,6 @@ class AzureKeyVaultConfig(BaseModel):
     azure_secret_name: str = Field(..., alias="AZURE_SECRET_NAME")
 
 
-app = App()
-
-
-@app.command()
 def pull():
     cfg = AzureKeyVaultConfig.model_validate(os.environ)
     credential = DefaultAzureCredential()
@@ -72,7 +66,6 @@ def pull():
         print(json.dumps({"value": secret.value}))
 
 
-@app.command()
 def push():
     cfg = AzureKeyVaultConfig.model_validate(os.environ)
     credential = DefaultAzureCredential()
@@ -90,4 +83,15 @@ def push():
 
 
 if __name__ == "__main__":
-    app()
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} [pull|push]", file=sys.stderr)
+        sys.exit(1)
+
+    match sys.argv[1]:
+        case "pull":
+            pull()
+        case "push":
+            push()
+        case cmd:
+            print(f"Unknown command: {cmd}", file=sys.stderr)
+            sys.exit(1)
