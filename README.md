@@ -190,7 +190,7 @@ cat secret.yml
 Or use the shortcut:
 
 ```bash
-ctgx ./deploy.sh  # same as ctg run -- ./deploy.sh
+ctgx ./deploy.sh  # same as ctg run ./deploy.sh
 ```
 
 Run a command with secrets injected as environment variables, without writing to disk at all:
