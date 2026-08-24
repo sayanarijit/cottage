@@ -74,4 +74,44 @@ fn test_clean() {
         .collect::<Vec<_>>();
     assert!(cleaned.iter().any(|r| r.input == secret_path));
     assert!(!encrypted_path.exists());
+
+    // Test cleaning when passing encrypted_path directly
+    fs::write(&secret_path, "top secret").unwrap();
+    fs::write(&encrypted_path, "encrypted content").unwrap();
+    let opts = CleanOptions {
+        dry_run: false,
+        encrypted: false,
+        gitignore: false,
+    };
+    let cleaned = clean_path(&encrypted_path, &opts)
+        .filter_map(|res| res.ok())
+        .collect::<Vec<_>>();
+    assert!(cleaned.iter().any(|r| r.input == secret_path));
+    assert!(!secret_path.exists());
+    assert!(encrypted_path.exists());
+}
+
+#[test]
+fn test_temp_decrypted_file_force_cleanup() {
+    let dir = assert_fs::TempDir::new().unwrap();
+    let secret_path = dir.join("secret.txt");
+    fs::write(&secret_path, "top secret").unwrap();
+
+    let encrypted_path = to_encrypted_path(&secret_path);
+    fs::write(&encrypted_path, "encrypted content").unwrap();
+
+    // When already present and force_cleanup is true, cleanup() deletes the file
+    let mut temp_file = TempDecryptedFile::new(secret_path.clone(), true);
+    assert!(temp_file.was_present());
+    let res = temp_file.cleanup(false).unwrap();
+    assert!(res.is_some());
+    assert!(!secret_path.exists());
+
+    // When already present and force_cleanup is false, cleanup() does NOT delete the file
+    fs::write(&secret_path, "top secret").unwrap();
+    let mut temp_file = TempDecryptedFile::new(secret_path.clone(), false);
+    assert!(temp_file.was_present());
+    let res = temp_file.cleanup(false).unwrap();
+    assert!(res.is_none());
+    assert!(secret_path.exists());
 }

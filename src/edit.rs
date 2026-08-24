@@ -30,11 +30,7 @@ pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<Operatio
         (path.clone(), to_encrypted_path(path))
     };
 
-    let temp_file = if is_target_encrypted {
-        Some(TempDecryptedFile::new(decrypted_path.clone(), opts.clean))
-    } else {
-        None
-    };
+    let mut temp_file = TempDecryptedFile::new(decrypted_path.clone(), opts.clean);
 
     let mut results: Vec<Result<OperationResult>> = vec![];
 
@@ -47,7 +43,7 @@ pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<Operatio
         writer.flush()?;
         Ok(())
     } else {
-        if is_target_encrypted
+        if (is_target_encrypted || (!decrypted_path.exists() && encrypted_path.exists()))
             && let Some(res) = decrypt_file(&encrypted_path, &opts.decrypt_options)?
         {
             results.push(Ok(res));
@@ -68,16 +64,14 @@ pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<Operatio
         }
     };
 
-    if let Some(mut tf) = temp_file {
-        if opts.clean {
-            match tf.cleanup(false) {
-                Ok(Some(res)) => results.push(Ok(res)),
-                Ok(None) => {}
-                Err(e) => results.push(Err(e)),
-            }
-        } else {
-            tf.disarm();
+    if opts.clean {
+        match temp_file.cleanup(false) {
+            Ok(Some(res)) => results.push(Ok(res)),
+            Ok(None) => {}
+            Err(e) => results.push(Err(e)),
         }
+    } else {
+        temp_file.disarm();
     }
 
     // Now fail if status1 or status2 failed, but collect results first
