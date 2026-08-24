@@ -11,10 +11,6 @@ options:
 
 # cottage
 
-```bash +image
-cat ../logo/cottage-dark.png
-```
-
 **cott*age*** is a modern git-based age-encrypted secrets manager for teams.
 
 This guide covers all subcommands and their options with real examples.
@@ -301,8 +297,8 @@ ctg run -- ls ./secrets/secret.yaml.cott.age
 # ./secrets/secret.yaml
 
 # Pass --clean to ensure decrypted secrets are cleaned up even if already present
-ctg run --clean -- ./deploy.sh
-ctgx --clean ./deploy.sh
+ctg run --clean -- ls ./secrets/secret.yaml
+ctgx --clean -- ls ./secrets/secret.yaml
 ```
 
 ---
