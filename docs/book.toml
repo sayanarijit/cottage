@@ -13,3 +13,6 @@ theme = "theme"
 
 # [output.linkcheck]
 # optional = true
+
+# [preprocessor.frontmatter-strip] # Not supported by cf pages
+# renderers = ["html"]
