@@ -1,6 +1,7 @@
 use crate::{
-    OperationKind, OperationResult, iter_encrypted, remove_from_gitignore_if_present,
-    secure_remove_file, to_decrypted_path, to_encrypted_path, to_metadata_path,
+    OperationKind, OperationResult, is_encrypted_path, is_metadata_path, iter_encrypted,
+    remove_from_gitignore_if_present, secure_remove_file, to_decrypted_path, to_encrypted_path,
+    to_metadata_path,
 };
 use anyhow::Result;
 use std::fs;
@@ -97,8 +98,13 @@ pub fn clean_path<'a>(
     path: &'a Path,
     opts: &'a CleanOptions,
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
-    if path.is_file() || to_encrypted_path(path).is_file() {
-        Box::new(clean_file(path.to_path_buf(), opts).transpose().into_iter())
+    let decrypted_path = if is_encrypted_path(path) || is_metadata_path(path) {
+        to_decrypted_path(path).unwrap_or_else(|| path.to_path_buf())
+    } else {
+        path.to_path_buf()
+    };
+    if decrypted_path.is_file() || to_encrypted_path(&decrypted_path).is_file() {
+        Box::new(clean_file(decrypted_path, opts).transpose().into_iter())
     } else if path.is_dir() {
         Box::new(clean_dir(path, opts))
     } else {

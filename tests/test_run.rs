@@ -213,3 +213,99 @@ fn test_keygen_command_nested() {
     assert!(user2_recipient_path.exists());
 }
 
+#[test]
+fn test_encrypt_clean_already_present() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Init
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Create secret
+    temp.child("secret.txt").write_str("my secret").unwrap();
+
+    // Encrypt with --clean
+    let output = Command::new(bin_path)
+        .arg("encrypt")
+        .arg("secret.txt")
+        .arg("--clean")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert!(!temp.path().join("secret.txt").exists());
+    assert!(temp.path().join("secret.txt.cott.age").exists());
+}
+
+#[test]
+fn test_edit_clean_already_present() {
+    use std::io::Write;
+    use std::process::Stdio;
+
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Init
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Create secret file
+    temp.child("secret.txt").write_str("initial secret").unwrap();
+
+    // Edit with --clean passing decrypted path and piping new content
+    let mut child = Command::new(bin_path)
+        .arg("edit")
+        .arg("secret.txt")
+        .arg("--clean")
+        .current_dir(temp.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"updated secret")
+        .unwrap();
+
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert!(!temp.path().join("secret.txt").exists());
+    assert!(temp.path().join("secret.txt.cott.age").exists());
+
+    // Recreate secret.txt, then edit with --clean passing encrypted path
+    temp.child("secret.txt").write_str("another secret").unwrap();
+
+    let mut child = Command::new(bin_path)
+        .arg("edit")
+        .arg("secret.txt.cott.age")
+        .arg("--clean")
+        .current_dir(temp.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"final secret")
+        .unwrap();
+
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert!(!temp.path().join("secret.txt").exists());
+    assert!(temp.path().join("secret.txt.cott.age").exists());
+}
+
