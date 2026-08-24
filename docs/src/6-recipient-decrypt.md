@@ -4,6 +4,8 @@ Scenarios for adding recipient and decrypting secrets:
 
 1.  [I want to decrypt secrets in the cloned repository](#i-want-to-decrypt-secrets-in-the-cloned-repository)
 2.  [I got a checksum mismatch error when decrypting secrets](#i-got-a-checksum-mismatch-error-when-decrypting-secrets)
+3.  [I want to run a command with decrypted secrets (ctg run / ctgx)](#i-want-to-run-a-command-with-decrypted-secrets-ctg-run--ctgx)
+4.  [I want to ensure decrypted secrets are cleaned up after running a command (ctg run --clean)](#i-want-to-ensure-decrypted-secrets-are-cleaned-up-after-running-a-command-ctg-run---clean)
 
 ## I want to decrypt secrets in the cloned repository
 
@@ -194,3 +196,33 @@ If you are sure that the encrypted secret file and recipient are correct, you ca
 > ```bash
 > ctg decrypt --force
 > ```
+
+## I want to run a command with decrypted secrets (ctg run / ctgx)
+
+To run a command (such as scripts, deployment tools, or applications) that needs access to secrets on disk, use `ctg run` or its shortcut `ctgx`.
+
+`ctg run` decrypts the target encrypted files before executing the command, and automatically manages the lifecycle of the decrypted files:
+
+- **If the decrypted secret was not present on disk beforehand**: `ctg run` decrypts it temporarily for the command, and automatically deletes (cleans up) the decrypted file after the command completes (regardless of success or failure).
+- **If the decrypted secret was already present on disk beforehand**: `ctg run` leaves it on disk after the command completes.
+
+> ```bash
+> # Decrypts secret1.env.cott.age temporarily, runs the command, and deletes secret1.env afterwards
+> ctg run cat secret1.env.cott.age
+>
+> # Shortcut syntax with ctgx
+> ctgx ./deploy.sh
+> ```
+
+## I want to ensure decrypted secrets are cleaned up after running a command (ctg run --clean)
+
+If you want to guarantee that all decrypted secrets are deleted after running a command—even if they were already present on disk before running the command—pass the `--clean` flag:
+
+> ```bash
+> ctg run --clean ./deploy.sh
+>
+> # Or using ctgx
+> ctgx --clean ./deploy.sh
+> ```
+
+This decrypts missing secrets before running the command, executes the command, and ensures all target decrypted secrets are deleted upon completion.

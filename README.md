@@ -59,8 +59,9 @@ in plaintext.
 - **Rich diffs**: Keeps git diff clean & reviewable, while `ctg diff` shows diff of locally modified secrets with tracked encrypted counterparts.
 - **Checksum verification**: Prevents tampering by verifying that encrypted secrets and recipient lists match the metadata.
 - **Git hooks**: Easily set up git hooks to automatically check/encrypt secrets before commit and decrypt them after checkout.
-- **Persistent secrets workflow**: `ctg decrypt/edit/sync` keeps decrypted secrets on disk.
-- **Temporary secrets workflow**: `ctg run` (shortcut `ctgx`) decrypts secrets temporarily to run a command, then deletes them regardless of the command's success or failure.
+- **Persistent secrets workflow**: `ctg decrypt/sync` keeps decrypted secrets on disk.
+- **Smart cleanup lifecycle**: `ctg run` (shortcut `ctgx`) and `ctg edit` decrypt secrets before the operation, keeping them on disk if already present beforehand or automatically cleaning them up afterwards if they were not.
+- **Clean on completion**: `ctg encrypt --clean`, `ctg run --clean`, and `ctg edit --clean` ensure that decrypted files are cleaned up from disk even if they were present before.
 - **Environment injection workflow**: `ctg env` injects decrypted secrets as environment variables to run a command, without writing them to disk at all.
 - **Clean up**: `ctg clean` deletes all decrypted secrets from local repo to let you run your AI agents with a tiny bit less worry.
 - **Supports jj and non-git directories**: `ctg init` turns any directory into a secret store.
@@ -160,11 +161,17 @@ tree -a
 # You can run `ctg clean --all` anytime to clean up everything cottage ever did.
 ```
 
-Create or edit a secret.
+Create or edit a secret:
 
 ```bash
-ctg edit secret.yml --clean    # Opens secret.yml in $EDITOR
-ctg encrypt secret.yml --clean # Another way to encrypt secrets
+# `ctg edit` decrypts the file before opening in $EDITOR and re-encrypts upon save.
+# If the decrypted file was not present on disk before running `ctg edit`, it is cleaned up afterwards.
+# If it was already present, it is kept on disk.
+ctg edit secret.yml
+
+# Use `--clean` with `ctg edit` or `ctg encrypt` to ensure decrypted files are deleted even if present before
+ctg edit secret.yml --clean    # Opens in $EDITOR, encrypts on save, and cleans up
+ctg encrypt secret.yml --clean # Encrypts secret.yml and cleans up
 # encrypt secret.yml
 #    into secret.yml.cott.age
 #    edit secret.yml.cott.toml
@@ -172,12 +179,15 @@ ctg encrypt secret.yml --clean # Another way to encrypt secrets
 # delete secret.yml
 ```
 
-Run a command with temporary decrypted secrets:
+Run a command with decrypted secrets:
 
 ```bash
 cat secret.yml
 # cat: secret.yml: No such file or directory
 
+# `ctg run` (or shortcut `ctgx`) decrypts secrets before running the command.
+# If the decrypted files were not present on disk beforehand, they are automatically cleaned up after the command finishes.
+# If they were already present beforehand, they are kept on disk.
 ctg run kubectl apply -f secret.yml          # decrypts secret.yml.cott.age to secret.yml and runs the command
 ctg run kubectl apply -f secret.yml.cott.age # also replaces the path argument with the decrypted file path
 ctg run kubectl apply -f .                   # decrypts all .cott.age files in . and runs the command
@@ -185,6 +195,10 @@ ctg run ./deploy.sh                          # decrypts all .cott.age files in r
 
 cat secret.yml
 # cat: secret.yml: No such file or directory
+
+# Use `--clean` to ensure decrypted files are cleaned up even if they were present before
+ctg run --clean ./deploy.sh
+ctgx --clean ./deploy.sh
 ```
 
 Or use the shortcut:

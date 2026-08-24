@@ -1,10 +1,12 @@
 # Encrypting Secrets
 
-Scenarios for encrypting new or existing secrets:
+Scenarios for encrypting and editing new or existing secrets:
 
 1.  [I want to create a new encrypted file](#i-want-to-create-a-new-encrypted-file)
 2.  [I want to encrypt an existing cleartext file](#i-want-to-encrypt-an-existing-cleartext-file)
-3.  [I want the cleartext secret deleted after encryption](#i-want-the-cleartext-secret-deleted-after-encryption)
+3.  [I want to re-encrypt all secrets in the current directory](#i-want-to-re-encrypt-all-secrets-in-the-current-directory)
+4.  [I want to edit an existing secret with automatic cleanup or retention](#i-want-to-edit-an-existing-secret-with-automatic-cleanup-or-retention)
+5.  [I want the cleartext secret deleted after encryption or editing](#i-want-the-cleartext-secret-deleted-after-encryption-or-editing)
 
 ## I want to create a new encrypted file
 
@@ -122,9 +124,16 @@ To force re-encryption, add `--force` flag:
 >    edit secret2.env.cott.toml
 > ```
 
-## I want the cleartext secret deleted after encryption
+## I want to edit an existing secret with automatic cleanup or retention
 
-Just add `--clean` flag to the `ctg encrypt` or `ctg edit` command:
+`ctg edit` decrypts the secret before opening it in `$EDITOR` (or reading stdin) and re-encrypts upon save:
+
+- **If the cleartext file was already present on disk**: `ctg edit` keeps the cleartext file after saving and re-encrypting.
+- **If the cleartext file was not present on disk** (only `.cott.age` was tracked): `ctg edit` decrypts it temporarily for editing, re-encrypts, and then automatically cleans up (deletes) the cleartext file.
+
+## I want the cleartext secret deleted after encryption or editing
+
+Just add `--clean` flag to the `ctg encrypt` or `ctg edit` command. The `--clean` flag ensures that the decrypted cleartext file is deleted even if it was present on disk before running the command:
 
 > ```bash,test,session=myproject:13
 > ctg edit --clean secret1.env <<EOF
