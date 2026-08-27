@@ -1923,4 +1923,3 @@ script = "cat > /dev/null"
         stdout
     );
 }
-

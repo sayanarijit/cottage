@@ -227,11 +227,12 @@ pub(crate) fn run_upstream_script(
     let (mut cmd, _tmppath) = match (cfg.plugin.as_ref(), cfg.script.as_ref()) {
         (Some(plugin), None) => {
             let plugin_path = Path::new(plugin);
-            let resolved_plugin = if plugin_path.is_relative() && plugin_path.components().count() > 1 {
-                proj.root().join(plugin_path)
-            } else {
-                plugin_path.to_path_buf()
-            };
+            let resolved_plugin =
+                if plugin_path.is_relative() && plugin_path.components().count() > 1 {
+                    proj.root().join(plugin_path)
+                } else {
+                    plugin_path.to_path_buf()
+                };
             let mut cmd = Command::new(resolved_plugin);
             cmd.arg(op);
             (cmd, None)

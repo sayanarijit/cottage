@@ -431,3 +431,45 @@ e = "upstream_pull"
 
     Ok(())
 }
+
+#[test]
+fn test_iter_encrypted_respects_gitignore() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let root = temp.path();
+
+    // Create a .git dir to mark it as a git project
+    std::fs::create_dir_all(root.join(".git")).unwrap();
+
+    // Create .gitignore
+    std::fs::write(
+        root.join(".gitignore"),
+        "ignored/\nignored_secret.txt.cott.age\n",
+    )
+    .unwrap();
+
+    // Create regular encrypted file
+    std::fs::write(root.join("secret.txt.cott.age"), "enc").unwrap();
+
+    // Create hidden encrypted file (e.g. .env.cott.age)
+    std::fs::write(root.join(".env.cott.age"), "enc").unwrap();
+
+    // Create ignored encrypted file
+    std::fs::write(root.join("ignored_secret.txt.cott.age"), "enc").unwrap();
+
+    // Create ignored folder with encrypted file
+    std::fs::create_dir_all(root.join("ignored")).unwrap();
+    std::fs::write(root.join("ignored/nested.txt.cott.age"), "enc").unwrap();
+
+    // Create non-ignored subfolder with encrypted file
+    std::fs::create_dir_all(root.join("subfolder")).unwrap();
+    std::fs::write(root.join("subfolder/nested.txt.cott.age"), "enc").unwrap();
+
+    let entries: Vec<PathBuf> = iter_encrypted(root).map(|e| e.into_path()).collect();
+
+    assert!(entries.contains(&root.join("secret.txt.cott.age")));
+    assert!(entries.contains(&root.join(".env.cott.age")));
+    assert!(entries.contains(&root.join("subfolder/nested.txt.cott.age")));
+    assert!(!entries.contains(&root.join("ignored_secret.txt.cott.age")));
+    assert!(!entries.contains(&root.join("ignored/nested.txt.cott.age")));
+    assert_eq!(entries.len(), 3);
+}

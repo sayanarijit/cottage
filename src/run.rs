@@ -100,8 +100,8 @@ pub fn run(
     } else {
         log::info!(
             "running command: {:?} with args: {:?}",
-            &opts.command,
-            &modified_args
+            opts.command,
+            modified_args
         );
         std::process::Command::new(&opts.command)
             .args(&modified_args)
