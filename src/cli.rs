@@ -158,10 +158,10 @@ struct EditArgs {
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
-    /// Use the identity file at PATH. Can be repeated.
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
     /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
-    identity: Vec<PathBuf>,
+    identity: Vec<String>,
 
     /// Encrypt to a PEM encoded format.
     #[arg(short, long, env = "COTTAGE_ARMOR")]
@@ -210,10 +210,10 @@ struct EncryptArgs {
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
-    /// Use the identity file at PATH. Can be repeated.
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
     /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
-    identity: Vec<PathBuf>,
+    identity: Vec<String>,
 
     /// Encrypt to a PEM encoded format.
     #[arg(short, long, env = "COTTAGE_ARMOR")]
@@ -258,10 +258,10 @@ struct DecryptArgs {
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
-    /// Use the identity file at PATH. Can be repeated.
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
     /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
-    identity: Vec<PathBuf>,
+    identity: Vec<String>,
 
     /// Skip updating timestamps on decrypted files.
     #[arg(long, env = "COTTAGE_SKIP_TIMESTAMPS")]
@@ -306,10 +306,10 @@ struct RunArgs {
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
-    /// Use the identity file at PATH. Can be repeated.
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
     /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
-    identity: Vec<PathBuf>,
+    identity: Vec<String>,
 
     /// Skip checksum verification and decrypt all files.
     #[arg(long, short, env = "COTTAGE_FORCE")]
@@ -350,10 +350,10 @@ struct EnvArgs {
     #[arg(short = 'F', long)]
     file: Option<PathBuf>,
 
-    /// Use the identity file at PATH. Can be repeated.
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
     /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
-    identity: Vec<PathBuf>,
+    identity: Vec<String>,
 
     /// Verify against recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients.
@@ -391,10 +391,10 @@ struct SyncArgs {
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
-    /// Use the identity file at PATH. Can be repeated.
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
     /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
-    identity: Vec<PathBuf>,
+    identity: Vec<String>,
 
     /// Encrypt to a PEM encoded format.
     #[arg(short, long, env = "COTTAGE_ARMOR")]
@@ -451,10 +451,10 @@ struct DiffArgs {
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
-    /// Use the identity file at PATH. Can be repeated.
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
     /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
-    identity: Vec<PathBuf>,
+    identity: Vec<String>,
 
     /// Skip checksum verification of encrypted files.
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
@@ -535,10 +535,10 @@ struct PullArgs {
     #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
     recipients_file: Vec<PathBuf>,
 
-    /// Use the identity file at PATH. Can be repeated.
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
     /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
-    identity: Vec<PathBuf>,
+    identity: Vec<String>,
 
     /// Encrypt to a PEM encoded format.
     #[arg(short, long, env = "COTTAGE_ARMOR")]
@@ -581,10 +581,10 @@ struct PushArgs {
     /// The file or dir to push, defaults to project root.
     path: Vec<PathBuf>,
 
-    /// Use the identity file at PATH. Can be repeated.
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
     /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
-    identity: Vec<PathBuf>,
+    identity: Vec<String>,
 
     /// Verify against recipients listed at PATH. Can be repeated.
     /// Defaults to recipients in .cottage/recipients.

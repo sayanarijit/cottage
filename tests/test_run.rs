@@ -682,3 +682,111 @@ fn test_run_auto_clean_only_when_not_present_or_clean_flag() {
         "secret2.txt should be cleaned after project-wide clean"
     );
 }
+
+#[test]
+fn test_identity_as_string_flag() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Init
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Read identity string and remove identity file
+    let identity_file = temp.path().join(".cottage/identity");
+    let id_str = std::fs::read_to_string(&identity_file).unwrap();
+    std::fs::remove_file(&identity_file).unwrap();
+
+    // Create secret
+    temp.child("secret.txt")
+        .write_str("my secret string key")
+        .unwrap();
+
+    // Encrypt
+    let enc_output = Command::new(bin_path)
+        .arg("encrypt")
+        .arg("secret.txt")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+    assert!(enc_output.status.success());
+
+    // Delete decrypted secret
+    std::fs::remove_file(temp.path().join("secret.txt")).unwrap();
+
+    // Decrypt without identity should fail
+    let dec_fail = Command::new(bin_path)
+        .arg("decrypt")
+        .arg("secret.txt.cott.age")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+    assert!(!dec_fail.status.success());
+
+    // Decrypt with -i <id_str> should succeed
+    let dec_success = Command::new(bin_path)
+        .arg("decrypt")
+        .arg("secret.txt.cott.age")
+        .arg("-i")
+        .arg(&id_str)
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+    assert!(dec_success.status.success());
+    assert_eq!(
+        std::fs::read_to_string(temp.path().join("secret.txt")).unwrap(),
+        "my secret string key"
+    );
+}
+
+#[test]
+fn test_identity_as_string_env() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Init
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    // Read identity string and remove identity file
+    let identity_file = temp.path().join(".cottage/identity");
+    let id_str = std::fs::read_to_string(&identity_file).unwrap();
+    std::fs::remove_file(&identity_file).unwrap();
+
+    // Create secret
+    temp.child("secret.txt")
+        .write_str("my secret env key")
+        .unwrap();
+
+    // Encrypt
+    let enc_output = Command::new(bin_path)
+        .arg("encrypt")
+        .arg("secret.txt")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+    assert!(enc_output.status.success());
+
+    // Delete decrypted secret
+    std::fs::remove_file(temp.path().join("secret.txt")).unwrap();
+
+    // Decrypt with COTTAGE_IDENTITY=<id_str> should succeed
+    let dec_success = Command::new(bin_path)
+        .arg("decrypt")
+        .arg("secret.txt.cott.age")
+        .env("COTTAGE_IDENTITY", &id_str)
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+    assert!(dec_success.status.success());
+    assert_eq!(
+        std::fs::read_to_string(temp.path().join("secret.txt")).unwrap(),
+        "my secret env key"
+    );
+}

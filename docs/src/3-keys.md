@@ -57,7 +57,7 @@ If the project-level identity is absent, it will try to load all keys from `~/.c
 
 If that is also absent, it will try to load all keys from `~/.ssh`.
 
-You can also always mention the path to the private key using the `-i / --identity` flag or the `COTTAGE_IDENTITY` environment variable.
+You can also always pass the path to the private key, or the identity string itself, using the `-i / --identity` flag or the `COTTAGE_IDENTITY` environment variable.
 
 > ```bash
 > rm -v .cottage/identity

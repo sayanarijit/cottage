@@ -1,6 +1,7 @@
 use crate::Project;
 use crate::identity::{
     Identity, load_identities, parse_identities_dir, parse_identities_path, parse_identity_file,
+    parse_identity_str,
 };
 use age::secrecy::ExposeSecret;
 use assert_fs::prelude::*;
@@ -76,6 +77,43 @@ fn test_parse_identity_file_ssh() {
     file.write_str(TEST_SSH_KEY).unwrap();
 
     let mut identities = parse_identity_file(file.path()).unwrap();
+    let first = identities.next().unwrap();
+    assert!(matches!(first, Identity::Ssh(_)));
+    assert!(identities.next().is_none());
+}
+
+#[test]
+fn test_parse_identity_str_single_age() {
+    let sk = age::x25519::Identity::generate();
+    let key_str = sk.to_string().expose_secret().to_string();
+
+    let mut identities = parse_identity_str(&key_str).unwrap();
+    let first = identities.next().unwrap();
+    assert!(matches!(first, Identity::X25519(_)));
+    assert!(identities.next().is_none());
+}
+
+#[test]
+fn test_parse_identity_str_multiple_age() {
+    let sk1 = age::x25519::Identity::generate();
+    let sk2 = age::x25519::Identity::generate();
+    let content = format!(
+        "# First key\n{}\n\n# Second key\n  {}  \n",
+        sk1.to_string().expose_secret(),
+        sk2.to_string().expose_secret()
+    );
+
+    let mut identities = parse_identity_str(&content).unwrap();
+    let first = identities.next().unwrap();
+    assert!(matches!(first, Identity::X25519(_)));
+    let second = identities.next().unwrap();
+    assert!(matches!(second, Identity::X25519(_)));
+    assert!(identities.next().is_none());
+}
+
+#[test]
+fn test_parse_identity_str_ssh() {
+    let mut identities = parse_identity_str(TEST_SSH_KEY).unwrap();
     let first = identities.next().unwrap();
     assert!(matches!(first, Identity::Ssh(_)));
     assert!(identities.next().is_none());
@@ -161,9 +199,68 @@ fn test_load_identities_explicit() {
     file1.write_str(sk1.to_string().expose_secret()).unwrap();
     file2.write_str(sk2.to_string().expose_secret()).unwrap();
 
-    let paths = vec![file1.path().to_path_buf(), file2.path().to_path_buf()];
+    let paths = vec![
+        file1.path().to_str().unwrap().to_string(),
+        file2.path().to_str().unwrap().to_string(),
+    ];
     let identities: Vec<Identity> = load_identities(&proj, paths).collect();
     assert_eq!(identities.len(), 2);
+}
+
+#[test]
+fn test_load_identities_string_age() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let proj = Project::generate_test_project(temp.path());
+
+    let sk = age::x25519::Identity::generate();
+    let key_str = sk.to_string().expose_secret().to_string();
+
+    let identities: Vec<Identity> = load_identities(&proj, vec![key_str]).collect();
+    assert_eq!(identities.len(), 1);
+    assert!(matches!(identities[0], Identity::X25519(_)));
+}
+
+#[test]
+fn test_load_identities_string_ssh() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let proj = Project::generate_test_project(temp.path());
+
+    let identities: Vec<Identity> =
+        load_identities(&proj, vec![TEST_SSH_KEY.to_string()]).collect();
+    assert_eq!(identities.len(), 1);
+    assert!(matches!(identities[0], Identity::Ssh(_)));
+}
+
+#[test]
+fn test_load_identities_mixed() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let proj = Project::generate_test_project(temp.path());
+
+    let sk1 = age::x25519::Identity::generate();
+    let file1 = temp.child("key1");
+    file1.write_str(sk1.to_string().expose_secret()).unwrap();
+
+    let sk2 = age::x25519::Identity::generate();
+    let key_str2 = sk2.to_string().expose_secret().to_string();
+
+    let items = vec![
+        file1.path().to_str().unwrap().to_string(),
+        key_str2,
+        TEST_SSH_KEY.to_string(),
+    ];
+
+    let identities: Vec<Identity> = load_identities(&proj, items).collect();
+    assert_eq!(identities.len(), 3);
+}
+
+#[test]
+fn test_load_identities_invalid_string() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let proj = Project::generate_test_project(temp.path());
+
+    let items = vec!["invalid-key-or-path".to_string()];
+    let identities: Vec<Identity> = load_identities(&proj, items).collect();
+    assert_eq!(identities.len(), 0);
 }
 
 #[test]
