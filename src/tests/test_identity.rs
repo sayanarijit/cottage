@@ -1,5 +1,7 @@
-use crate::identity::{load_identities, parse_identities_dir, parse_identities_path, parse_identity_file, Identity};
 use crate::Project;
+use crate::identity::{
+    Identity, load_identities, parse_identities_dir, parse_identities_path, parse_identity_file,
+};
 use age::secrecy::ExposeSecret;
 use assert_fs::prelude::*;
 
@@ -87,7 +89,9 @@ fn test_parse_identities_dir() {
     let sk3 = age::x25519::Identity::generate();
 
     // File 1: one age key
-    temp.child("key1").write_str(sk1.to_string().expose_secret()).unwrap();
+    temp.child("key1")
+        .write_str(sk1.to_string().expose_secret())
+        .unwrap();
 
     // File 2: two age keys
     let content_2 = format!(
@@ -98,13 +102,17 @@ fn test_parse_identities_dir() {
     temp.child("key2").write_str(&content_2).unwrap();
 
     // File 3: pub file (should be ignored)
-    temp.child("key1.pub").write_str("ssh-ed25519 AAAAC3Nza...").unwrap();
+    temp.child("key1.pub")
+        .write_str("ssh-ed25519 AAAAC3Nza...")
+        .unwrap();
 
     // Nested directory with a key
     let sub = temp.child("subdir");
     std::fs::create_dir_all(sub.path()).unwrap();
     let sk4 = age::x25519::Identity::generate();
-    sub.child("key3").write_str(sk4.to_string().expose_secret()).unwrap();
+    sub.child("key3")
+        .write_str(sk4.to_string().expose_secret())
+        .unwrap();
 
     let identities: Vec<Identity> = parse_identities_dir(temp.path()).collect();
     assert_eq!(identities.len(), 4);
@@ -122,12 +130,18 @@ fn test_parse_identities_path() {
 
     // Test with existing file path
     let mut identities_file = parse_identities_path(file.path()).unwrap();
-    assert!(matches!(identities_file.next().unwrap(), Identity::X25519(_)));
+    assert!(matches!(
+        identities_file.next().unwrap(),
+        Identity::X25519(_)
+    ));
     assert!(identities_file.next().is_none());
 
     // Test with existing directory path
     let mut identities_dir = parse_identities_path(temp.path()).unwrap();
-    assert!(matches!(identities_dir.next().unwrap(), Identity::X25519(_)));
+    assert!(matches!(
+        identities_dir.next().unwrap(),
+        Identity::X25519(_)
+    ));
     assert!(identities_dir.next().is_none());
 
     // Test with non-existent path

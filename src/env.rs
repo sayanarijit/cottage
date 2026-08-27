@@ -92,8 +92,8 @@ pub fn env(proj: &Project, opts: EnvOptions) -> Result<()> {
     } else {
         log::info!(
             "running command: {:?} with args: {:?}",
-            &opts.command,
-            &opts.args
+            opts.command,
+            opts.args
         );
         let mut cmd = std::process::Command::new(&opts.command);
         decrypt_into_cmd(proj, &mut cmd, &envfile, &opts.decrypt_options)?;

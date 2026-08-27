@@ -258,7 +258,9 @@ fn test_edit_clean_already_present() {
         .unwrap();
 
     // Create secret file
-    temp.child("secret.txt").write_str("initial secret").unwrap();
+    temp.child("secret.txt")
+        .write_str("initial secret")
+        .unwrap();
 
     // Edit with --clean passing decrypted path and piping new content
     let mut child = Command::new(bin_path)
@@ -284,7 +286,9 @@ fn test_edit_clean_already_present() {
     assert!(temp.path().join("secret.txt.cott.age").exists());
 
     // Recreate secret.txt, then edit with --clean passing encrypted path
-    temp.child("secret.txt").write_str("another secret").unwrap();
+    temp.child("secret.txt")
+        .write_str("another secret")
+        .unwrap();
 
     let mut child = Command::new(bin_path)
         .arg("edit")
@@ -325,7 +329,9 @@ fn test_edit_auto_clean_when_not_present() {
         .unwrap();
 
     // Create and encrypt secret
-    temp.child("secret.txt").write_str("initial secret").unwrap();
+    temp.child("secret.txt")
+        .write_str("initial secret")
+        .unwrap();
     Command::new(bin_path)
         .arg("encrypt")
         .arg("secret.txt")
@@ -393,7 +399,9 @@ fn test_edit_retains_when_already_present_without_clean() {
         .unwrap();
 
     // Create and encrypt secret
-    temp.child("secret.txt").write_str("initial secret").unwrap();
+    temp.child("secret.txt")
+        .write_str("initial secret")
+        .unwrap();
     Command::new(bin_path)
         .arg("encrypt")
         .arg("secret.txt")
@@ -492,7 +500,9 @@ fn test_run_clean_already_present() {
     assert!(temp.path().join("secret.txt.cott.age").exists());
 
     // Recreate secret.txt and test with encrypted path passed to args
-    temp.child("secret.txt").write_str("another secret").unwrap();
+    temp.child("secret.txt")
+        .write_str("another secret")
+        .unwrap();
     Command::new(bin_path)
         .arg("encrypt")
         .arg("secret.txt")
@@ -672,5 +682,3 @@ fn test_run_auto_clean_only_when_not_present_or_clean_flag() {
         "secret2.txt should be cleaned after project-wide clean"
     );
 }
-
-

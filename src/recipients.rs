@@ -118,9 +118,14 @@ pub fn parse_recipients_dir<'a>(
     root: &'a Path,
     globmatcher: Option<&'a GlobMatcher>,
 ) -> Box<dyn Iterator<Item = RecipientData> + 'a> {
-    let iter = walkdir::WalkDir::new(path)
-        .sort_by_file_name()
-        .into_iter()
+    let mut builder = ignore::WalkBuilder::new(path);
+    builder
+        .sort_by_file_name(|a, b| a.cmp(b))
+        .standard_filters(true)
+        .hidden(false);
+
+    let iter = builder
+        .build()
         .filter_map(|e| e.ok())
         .filter(move |e| {
             let path = e.path();

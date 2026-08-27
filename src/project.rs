@@ -438,10 +438,14 @@ pub fn keygen(identity_path: &Path, recipients_path: &Path, name: Option<String>
     Ok(())
 }
 
-pub fn iter_encrypted(path: &Path) -> impl Iterator<Item = walkdir::DirEntry> {
-    walkdir::WalkDir::new(path)
-        .sort_by_file_name()
-        .into_iter()
+pub fn iter_encrypted(path: &Path) -> impl Iterator<Item = ignore::DirEntry> {
+    let mut builder = ignore::WalkBuilder::new(path);
+    builder
+        .sort_by_file_name(|a, b| a.cmp(b))
+        .standard_filters(true)
+        .hidden(false);
+    builder
+        .build()
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())
         .filter(|e| is_encrypted_path(e.path()))
