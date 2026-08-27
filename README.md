@@ -26,6 +26,8 @@ in plaintext.
 2. [Installation](#installation)
 3. [Editor Integrations](#editor-integrations)
    1. [VS Code Extension](#vs-code-extension)
+   2. [Cursor and Eclipse Extension](#cursor-and-eclipse-extension)
+   3. [Vim Plugin](#vim-plugin)
 4. [AI Agent Integrations](#ai-agent-integrations)
    1. [Claude Code Integration](#claude-code-integration)
    2. [GitHub Copilot Integration](#github-copilot-integration)
@@ -107,6 +109,14 @@ Use the [Cottage VS Code extension](https://github.com/sayanarijit/vscode-plugin
 [![Cottage VS Code Extension Demo](https://s13.gifyu.com/images/bn9p8.gif)](https://marketplace.visualstudio.com/items?itemName=sayanarijit.vscode-plugin-cottage)
 
 Install it from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=sayanarijit.vscode-plugin-cottage), or build and install it locally from [`vscode-plugin-cottage`](https://github.com/sayanarijit/vscode-plugin-cottage).
+
+### Cursor and Eclipse Extension
+
+Download the [VSX file](https://open-vsx.org/extension/sayanarijit/vscode-plugin-cottage) and install it in your Cursor or Eclipse IDE. It works similar to the VS Code extension.
+
+### Vim Plugin
+
+Use the [cottage.vim](https://github.com/sayanarijit/cottage.vim) plugin to encrypt/decrypt secrets from Vim or Neovim.
 
 ## AI Agent Integrations
 
