@@ -118,6 +118,8 @@ Download the [VSX file](https://open-vsx.org/extension/sayanarijit/vscode-plugin
 
 Use the [cottage.vim](https://github.com/sayanarijit/cottage.vim) plugin to encrypt/decrypt secrets from Vim or Neovim.
 
+[![Cottage Neovim Demo](https://asciinema.org/a/1264076.svg)](https://asciinema.org/a/1264076)
+
 ## AI Agent Integrations
 
 All of the integrations below keep AI agents from running `ctg`/`ctgx` directly and from viewing or editing secret files: anything inside `.cottage/`, any `*.cott.*` file (encrypted `*.cott.age` blobs and redacted `*.cott.toml` previews), and any decrypted file that still has a `*.cott.age` counterpart on disk.
