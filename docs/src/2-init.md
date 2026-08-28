@@ -65,7 +65,7 @@ Check the contents of `.gitignore` and `.gitattributes`:
 > ```
 >
 > ```stdout
-> *.cott.age binary export-ignore filter=cottage-encrypted -diff
+> *.cott.age binary linguist-generated filter=cottage-encrypted -diff
 > ```
 
 ## I want to add cottage to an existing git repo
@@ -117,7 +117,7 @@ To confirm that `.gitignore` and `.gitattributes` are properly updated, run:
 > ```
 >
 > ```stdout
-> *.cott.age binary export-ignore filter=cottage-encrypted -diff
+> *.cott.age binary linguist-generated filter=cottage-encrypted -diff
 > ```
 
 ## I want to undo ctg init

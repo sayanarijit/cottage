@@ -167,7 +167,7 @@ tree -a
 # │ └ recipients/     <- This is where your team keeps the public keys of all the recipients.
 # │     └ sayanarijit <- Your public key. Commit it. To use an existing public key, just copy (don't softlink) that key here.
 # ├ .git/...
-# ├ .gitattributes      <- Added `*.cott.age binary export-ignore filter=cottage-encrypted -diff` to avoid polluting git diff
+# ├ .gitattributes      <- Added `*.cott.age binary linguist-generated filter=cottage-encrypted -diff` to avoid polluting git diff
 # └ .gitignore          <- Added `/.cottage/identity` for obvious reasons
 
 # You can run `ctg clean --all` anytime to clean up everything cottage ever did.
