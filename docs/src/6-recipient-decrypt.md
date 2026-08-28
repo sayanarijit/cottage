@@ -208,10 +208,10 @@ To run a command (such as scripts, deployment tools, or applications) that needs
 
 > ```bash
 > # Decrypts secret1.env.cott.age temporarily, runs the command, and deletes secret1.env afterwards
-> ctg run cat secret1.env.cott.age
+> ctg run -- cat secret1.env.cott.age
 >
 > # Shortcut syntax with ctgx
-> ctgx ./deploy.sh
+> ctgx -- ./deploy.sh
 > ```
 
 ## I want to ensure decrypted secrets are cleaned up after running a command (ctg run --clean)
@@ -219,10 +219,10 @@ To run a command (such as scripts, deployment tools, or applications) that needs
 If you want to guarantee that all decrypted secrets are deleted after running a command—even if they were already present on disk before running the command—pass the `--clean` flag:
 
 > ```bash
-> ctg run --clean ./deploy.sh
+> ctg run --clean -- ./deploy.sh
 >
 > # Or using ctgx
-> ctgx --clean ./deploy.sh
+> ctgx --clean -- ./deploy.sh
 > ```
 
 This decrypts missing secrets before running the command, executes the command, and ensures all target decrypted secrets are deleted upon completion.

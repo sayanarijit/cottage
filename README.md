@@ -200,23 +200,23 @@ cat secret.yml
 # `ctg run` (or shortcut `ctgx`) decrypts secrets before running the command.
 # If the decrypted files were not present on disk beforehand, they are automatically cleaned up after the command finishes.
 # If they were already present beforehand, they are kept on disk.
-ctg run kubectl apply -f secret.yml          # decrypts secret.yml.cott.age to secret.yml and runs the command
-ctg run kubectl apply -f secret.yml.cott.age # also replaces the path argument with the decrypted file path
-ctg run kubectl apply -f .                   # decrypts all .cott.age files in . and runs the command
-ctg run ./deploy.sh                          # decrypts all .cott.age files in repo and runs the command
+ctg run -- kubectl apply -f secret.yml          # decrypts secret.yml.cott.age to secret.yml and runs the command
+ctg run -- kubectl apply -f secret.yml.cott.age # also replaces the path argument with the decrypted file path
+ctg run -- kubectl apply -f .                   # decrypts all .cott.age files in . and runs the command
+ctg run -- ./deploy.sh                          # decrypts all .cott.age files in repo and runs the command
 
 cat secret.yml
 # cat: secret.yml: No such file or directory
 
 # Use `--clean` to ensure decrypted files are cleaned up even if they were present before
 ctg run --clean ./deploy.sh
-ctgx --clean ./deploy.sh
 ```
 
 Or use the shortcut:
 
 ```bash
-ctgx ./deploy.sh  # same as ctg run ./deploy.sh
+ctgx -- ./deploy.sh
+ctgx --clean -- ./deploy.sh
 ```
 
 Run a command with secrets injected as environment variables, without writing to disk at all:
