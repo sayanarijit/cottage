@@ -65,6 +65,7 @@ in plaintext.
 - **Smart cleanup lifecycle**: `ctg run` (shortcut `ctgx`) and `ctg edit` decrypt secrets before the operation, keeping them on disk if already present beforehand or automatically cleaning them up afterwards if they were not.
 - **Clean on completion**: `ctg encrypt --clean`, `ctg run --clean`, and `ctg edit --clean` ensure that decrypted files are cleaned up from disk even if they were present before.
 - **Environment injection workflow**: `ctg env` injects decrypted secrets as environment variables to run a command, without writing them to disk at all.
+- **Secure secret piping**: `ctg cat PATH` decrypts in memory and prints to stdout for direct stdin piping to other tools.
 - **Clean up**: `ctg clean` deletes all decrypted secrets from local repo to let you run your AI agents with a tiny bit less worry.
 - **Supports jj and non-git directories**: `ctg init` turns any directory into a secret store.
 - **Sync with any provider**: Lets you configure any provider with an API as the upstream, and start using `ctg pull/diff/push` like `git pull/diff/push`.
@@ -217,6 +218,14 @@ Or use the shortcut:
 ```bash
 ctgx -- ./deploy.sh
 ctgx --clean -- ./deploy.sh
+```
+
+Read and pipe a decrypted secret without writing it to disk:
+
+```bash
+ctg cat secret.yml.cott.age
+ctg cat secret.yml | kubectl apply -f -
+ctg cat .env.prod | docker run --rm --env-file /dev/stdin my-image:latest
 ```
 
 Run a command with secrets injected as environment variables, without writing to disk at all:
