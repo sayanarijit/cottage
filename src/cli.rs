@@ -1,18 +1,20 @@
 use crate::{
     CleanOptions, DecryptOptions, DiffOptions, EditOptions, EncryptOptions, EnvOptions, Project,
     PullOptions, PushOptions, RunOptions, StatusOptions, SyncOptions, VerifyOptions, clean_path,
-    decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task, load_identities,
-    load_recipients, print_result, pull_path, push_path, run as run_task, status_path, sync_path,
+    decrypt_into_memory, decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task,
+    is_encrypted_path, load_identities, load_recipients, print_result, pull_path, push_path,
+    run as run_task, status_path, sync_path, to_decrypted_path, to_encrypted_path, verify_file,
     verify_path,
 };
-use anyhow::Result;
+use age::secrecy::ExposeSecret;
+use anyhow::{Context, Result};
 use clap::CommandFactory;
 use clap::Parser;
 use clap::builder::styling::*;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use colored::Colorize;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Green.on_default().bold())
@@ -61,6 +63,10 @@ enum Command {
     /// Decrypt files.
     #[command(name = "decrypt", aliases = ["de", "dec"])]
     Decrypt(DecryptArgs),
+
+    /// Decrypt a secret in-memory and print it to stdout.
+    #[command(name = "cat")]
+    Cat(CatArgs),
 
     /// Sync encrypted and decrypted files.
     #[command(name = "sync", aliases = ["sy", "syn"])]
@@ -290,6 +296,34 @@ struct DecryptArgs {
     /// Compact output.
     #[arg(long, env = "COTTAGE_COMPACT")]
     compact: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct CatArgs {
+    /// The secret path to decrypt and print. Accepts plain, .cott.age, or .cott.toml path.
+    path: PathBuf,
+
+    /// Verify against recipients listed at PATH. Can be repeated.
+    /// Defaults to recipients in .cottage/recipients.
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
+    recipients_file: Vec<PathBuf>,
+
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
+    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
+    identity: Vec<String>,
+
+    /// Skip checksum verification and force output.
+    #[arg(long, short, env = "COTTAGE_FORCE")]
+    force: bool,
+
+    /// Skip checksum verification of encrypted files.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_ENCRYPTED")]
+    skip_verify_encrypted: bool,
+
+    /// Skip checksum verification of recipients.
+    #[arg(long, env = "COTTAGE_SKIP_VERIFY_RECIPIENTS")]
+    skip_verify_recipients: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -693,6 +727,59 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
     Ok(())
 }
 
+fn resolve_encrypted_secret_path(path: &Path) -> Result<PathBuf> {
+    if is_encrypted_path(path) {
+        if path.is_file() {
+            return Ok(path.to_path_buf());
+        }
+        anyhow::bail!("{}: path does not exist", path.display());
+    }
+
+    let decrypted_path = to_decrypted_path(path).unwrap_or_else(|| path.to_path_buf());
+    let encrypted_path = to_encrypted_path(&decrypted_path);
+    if encrypted_path.is_file() {
+        Ok(encrypted_path)
+    } else {
+        anyhow::bail!(
+            "{}: encrypted secret does not exist",
+            encrypted_path.display()
+        );
+    }
+}
+
+fn run_cat_cmd(proj: &Project, args: CatArgs) -> Result<()> {
+    let identities = load_identities(proj, args.identity).collect();
+    let recipients: Vec<_> = load_recipients(proj, args.recipients_file, None).collect();
+    let encrypted_path = resolve_encrypted_secret_path(&args.path)?;
+
+    let verify_options = VerifyOptions {
+        recipients: recipients.clone(),
+        skip_verify_encrypted: args.force || args.skip_verify_encrypted,
+        skip_verify_recipients: args.force || args.skip_verify_recipients,
+    };
+
+    let verified = verify_file(&encrypted_path, &verify_options)?
+        .with_context(|| format!("{}: invalid encrypted secret", encrypted_path.display()))?;
+
+    let decrypted = decrypt_into_memory(
+        verified.content.as_slice(),
+        &DecryptOptions {
+            identities,
+            recipients,
+            dry_run: false,
+            skip_gitignore: true,
+            skip_timestamps: true,
+            skip_verify_encrypted: true,
+            skip_verify_recipients: true,
+        },
+    )?;
+
+    let mut stdout = std::io::stdout().lock();
+    stdout.write_all(decrypted.expose_secret())?;
+    stdout.flush()?;
+    Ok(())
+}
+
 fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
     let mut stdout = std::io::stdout();
@@ -1036,6 +1123,7 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
         Command::Keygen(args) => run_keygen_cmd(&proj, args),
         Command::Encrypt(args) => run_encrypt_cmd(&proj, args, is_silent),
         Command::Decrypt(args) => run_decrypt_cmd(&proj, args, is_silent),
+        Command::Cat(args) => run_cat_cmd(&proj, args),
         Command::Sync(args) => run_sync_cmd(&proj, args, is_silent),
         Command::Status(args) => run_status_cmd(&proj, args, is_silent),
         Command::Diff(args) => run_diff_cmd(&proj, args),

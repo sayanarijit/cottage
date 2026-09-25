@@ -303,6 +303,33 @@ ctgx --clean -- ls ./secrets/secret.yaml
 
 ---
 
+# `ctg cat`
+
+Decrypt a single secret in memory and print it to stdout.
+
+Useful when another command expects input from stdin and you do not want to write decrypted content to disk.
+
+```bash +exec
+git checkout . -q && ctg clean -qq
+
+ctg cat ./secrets/secret.yaml.cott.age
+# Output:
+# SECRET: foobar
+
+ctg cat ./secrets/secret.yaml | grep SECRET
+# Output:
+# SECRET: foobar
+```
+
+### Target Behavior
+
+- **Plain Text Path**: Resolves to the matching `.cott.age` file and prints its decrypted content.
+- **`.cott.age` File**: Decrypts and prints content directly.
+- **`.cott.toml` File**: Resolves to the matching `.cott.age` file and prints decrypted content.
+- **Directory**: Not supported.
+
+---
+
 # `ctg env`
 
 Decrypt an environment file in memory and export its content as environment variables for the specified command.

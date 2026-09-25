@@ -154,6 +154,78 @@ fn test_run_command_nested() {
 }
 
 #[test]
+fn test_cat_command() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    temp.child("secret.txt").write_str("my secret").unwrap();
+
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("secret.txt")
+        .arg("-qq")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    std::fs::remove_file(temp.path().join("secret.txt")).unwrap();
+
+    let output = Command::new(bin_path)
+        .arg("cat")
+        .arg("secret.txt")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"my secret");
+    assert!(!temp.path().join("secret.txt").exists());
+}
+
+#[test]
+fn test_cat_command_nested() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    Command::new(bin_path)
+        .arg("init")
+        .current_dir(temp.path())
+        .status()
+        .unwrap();
+
+    let nested_dir = temp.path().join("nested/dir");
+    std::fs::create_dir_all(&nested_dir).unwrap();
+    std::fs::write(nested_dir.join("secret.txt"), "my secret").unwrap();
+
+    Command::new(bin_path)
+        .arg("encrypt")
+        .arg("secret.txt")
+        .arg("-qq")
+        .current_dir(&nested_dir)
+        .status()
+        .unwrap();
+
+    std::fs::remove_file(nested_dir.join("secret.txt")).unwrap();
+
+    let output = Command::new(bin_path)
+        .arg("cat")
+        .arg("secret.txt")
+        .current_dir(&nested_dir)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"my secret");
+    assert!(!nested_dir.join("secret.txt").exists());
+}
+
+#[test]
 fn test_keygen_command_nested() {
     let temp = assert_fs::TempDir::new().unwrap();
     let bin_path = env!("CARGO_BIN_EXE_ctg");
