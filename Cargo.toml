@@ -26,7 +26,7 @@ age = { version = "0.12", features = ["armor", "ssh"] }
 clap = { version = "4.6", features = ["derive", "env", "color"] }
 anyhow = "1.0"
 ignore = "0.4"
-dirs = "6.0"
+dirs = "7.0"
 filetime = "0.2"
 pathdiff = "0.2"
 whoami = { version = "2.1", default-features = false, features = ["std"] }
