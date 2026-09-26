@@ -1,0 +1,9 @@
+[spec]
+envfile.default = "./examples/.env.cott.age"
+export.stdout = true
+
+decryption.key.env = "COTTAGE_IDENTITY"
+decryption.key.path = "~/.config/cottage/identity"
+
+[settings]
+key.default.env = "SECRET"
