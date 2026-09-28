@@ -32,7 +32,6 @@ To confirm that the repository is properly initialized, run:
 > ```stdout
 > ?? .cottage/
 > ?? .gitattributes
-> ?? .gitignore
 > ```
 
 Check the contents in the `.cottage` directory:
@@ -43,22 +42,15 @@ Check the contents in the `.cottage` directory:
 >
 > ```stdout
 > .cottage
-> ├── identity
 > └── recipients
 >     └── ...XXX...
 >
-> 2 directories, 2 files
+> 1 directory, 1 file
 > ```
 
-Check the contents of `.gitignore` and `.gitattributes`:
+The private key is stored safely in `~/.config/cottage/identity/myproject/<timestamp>.key`.
 
-> ```bash,test,session=myproject:3
-> cat .gitignore
-> ```
->
-> ```stdout
-> /.cottage/identity
-> ```
+Check the contents of `.gitattributes`:
 
 > ```bash,test
 > cat .gitattributes
@@ -86,7 +78,6 @@ To confirm that the repository is properly initialized, run:
 > ```
 >
 > ```stdout
-> M .gitignore
 > ?? .cottage/
 > ?? .gitattributes
 > ```
@@ -97,20 +88,13 @@ To confirm that the repository is properly initialized, run:
 >
 > ```stdout
 > .cottage
-> ├── identity
 > └── recipients
 >     └── ...XXX...
 > ```
 
-To confirm that `.gitignore` and `.gitattributes` are properly updated, run:
+The private key is stored safely in `~/.config/cottage/identity/jf/<timestamp>.key`.
 
-> ```bash,test,session=jf:3
-> grep .cottage/identity .gitignore
-> ```
->
-> ```stdout
-> /.cottage/identity
-> ```
+To confirm that `.gitattributes` is properly updated, run:
 
 > ```bash,test
 > grep .cott.age .gitattributes

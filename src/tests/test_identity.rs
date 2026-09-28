@@ -264,17 +264,73 @@ fn test_load_identities_invalid_string() {
 }
 
 #[test]
-fn test_load_identities_default_local() {
+fn test_load_identities_default_project_dir() {
     let temp = assert_fs::TempDir::new().unwrap();
     let proj = Project::generate_test_project(temp.path());
 
-    // Write identity file at local_identity_path
-    let local_id_path = proj.identity_path();
-    std::fs::create_dir_all(local_id_path.parent().unwrap()).unwrap();
+    // Write identity file in project_identity_dir
+    let proj_id_dir = proj.project_identity_dir();
+    std::fs::create_dir_all(proj_id_dir).unwrap();
     let sk = age::x25519::Identity::generate();
-    std::fs::write(local_id_path, sk.to_string().expose_secret()).unwrap();
+    std::fs::write(
+        proj_id_dir.join("1234567890.key"),
+        sk.to_string().expose_secret(),
+    )
+    .unwrap();
 
     let identities: Vec<Identity> = load_identities(&proj, vec![]).collect();
     assert_eq!(identities.len(), 1);
     assert!(matches!(identities[0], Identity::X25519(_)));
+}
+
+#[test]
+fn test_load_identities_fallback_parent_dir() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let proj = Project::generate_test_project(temp.path());
+
+    // project_identity_dir is NOT created.
+    // Instead, create parent dir (global_identity_path) with a key and a key in another subdir
+    let global_id_dir = proj.global_identity_path();
+    let other_dir = global_id_dir.join("other_project");
+    std::fs::create_dir_all(&other_dir).unwrap();
+
+    let sk1 = age::x25519::Identity::generate();
+    let sk2 = age::x25519::Identity::generate();
+    std::fs::write(
+        global_id_dir.join("root.key"),
+        sk1.to_string().expose_secret(),
+    )
+    .unwrap();
+    std::fs::write(other_dir.join("other.key"), sk2.to_string().expose_secret()).unwrap();
+
+    let identities: Vec<Identity> = load_identities(&proj, vec![]).collect();
+    assert_eq!(identities.len(), 2);
+    for id in identities {
+        assert!(matches!(id, Identity::X25519(_)));
+    }
+}
+
+#[test]
+fn test_load_identities_fallback_ssh_dir() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let proj = Project::generate_test_project(temp.path());
+
+    // Neither project_identity_dir nor global_identity_path is created.
+    // Create ssh_dir with a key
+    let ssh_dir = proj.ssh_dir();
+    std::fs::create_dir_all(ssh_dir).unwrap();
+    std::fs::write(ssh_dir.join("id_ed25519"), TEST_SSH_KEY).unwrap();
+
+    let identities: Vec<Identity> = load_identities(&proj, vec![]).collect();
+    assert_eq!(identities.len(), 1);
+    assert!(matches!(identities[0], Identity::Ssh(_)));
+}
+
+#[test]
+fn test_load_identities_none() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let proj = Project::generate_test_project(temp.path());
+
+    let identities: Vec<Identity> = load_identities(&proj, vec![]).collect();
+    assert_eq!(identities.len(), 0);
 }

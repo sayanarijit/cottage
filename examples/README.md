@@ -35,7 +35,7 @@ Most `ctg` commands can take a file or a directory as an argument.
 
 # `ctg init`
 
-Initialize cottage in the current directory. This creates a `.cottage` directory for recipients and identities.
+Initialize cottage in the current directory. This creates a `.cottage` directory for recipients and generates a private key in `~/.config/cottage/identity/<dirname>/`.
 
 ```bash +exec
 git checkout . -q && ctg clean -qq

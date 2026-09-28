@@ -10,24 +10,26 @@ Set TypingSpeed 50ms
 # Output
 Output intro.gif
 
-# Step 1: Initialize cottage
-Type "# 1. Initialize cottage in a git repo" Enter
+# Initialize cottage
+Type "# Initialize cottage in a git repo" Enter
 Sleep 500ms
 Type "mkdir demo && cd demo" Enter
 Sleep 1s
 Type "git init" Enter
 Sleep 500ms
-Type "ctg init" Enter
+Type "ctg init" Enter Enter
 Sleep 2s
 
-# Show generated files
+# Show generated files and keys
 Type "ls -aF" Enter
+Sleep 500ms
+Type "cat .cottage/recipients/$USER" Enter Enter Enter
 Sleep 1s
-Type "ls -F .cottage/" Enter
+Type "cat ~/.config/cottage/identity/demo/*.key" Enter Enter
 Sleep 2s
 
-# Step 2: Create and edit a secret
-Type "# 2. Create and edit a secret (supports stdin or $EDITOR)" Enter
+# Create and edit a secret
+Type "# Create and edit a secret (supports stdin or $EDITOR)" Enter
 Sleep 500ms
 Type "ctg edit secret.env <<EOF" Enter
 Sleep 500ms
@@ -42,20 +44,20 @@ Sleep 2s
 Type "# The secret is now encrypted and git-ignored" Enter
 Sleep 500ms
 Type "ls -F" Enter
-Sleep 1s
+Sleep 2s
 Type "# Redacted preview is stored in metadata for visibility" Enter
 Sleep 500ms
 Type "cat secret.env.cott.toml" Enter
 Sleep 3s
 
-# Step 3: Verify secrets
-Type "# 3. Verify encrypted secrets match metadata" Enter
+# Verify secrets
+Type "# Verify encrypted secrets match metadata" Enter
 Sleep 500ms
 Type "ctg verify" Enter
 Sleep 2s
 
-# Step 4: Temporary run (the killer feature)
-Type "# 4. Clean repo first so secrets are absent before running ctgx" Enter
+# Temporary run (the killer feature)
+Type "# Clean repo first so secrets are absent before running ctgx" Enter
 Sleep 500ms
 Type "ctg clean" Enter
 Sleep 1s
@@ -71,24 +73,22 @@ Sleep 500ms
 Type "ls secret.env" Enter
 Sleep 2s
 
-# Step 5: Environment injection workflow
-Type "# 5. Inject secrets directly as environment variables" Enter
+# Environment injection workflow
+Type "# Inject secrets directly as environment variables" Enter
 Sleep 500ms
 Type "ctg env -F secret.env.cott.age -- printenv API_KEY" Enter
 Sleep 3s
 
-# Step 6: Persistent decryption & Dry Run
-Type "# 6. Preview & decrypt secrets for persistent local development" Enter
+# Persistent decryption
+Type "# Decrypt secrets for persistent local development" Enter
 Sleep 500ms
-Type "ctg decrypt --dry-run" Enter
-Sleep 1s
 Type "ctg decrypt" Enter
 Sleep 1s
 Type "ls -F" Enter
 Sleep 2s
 
-# Step 7: Status, Diff and Sync
-Type "# 7. Modify secret and see status, flags & diff" Enter
+# Status, Diff and Sync
+Type "# Modify secret and see status, flags & diff" Enter
 Sleep 500ms
 Type "echo 'NEW_VAR=value' >> secret.env" Enter
 Sleep 500ms
@@ -104,17 +104,9 @@ Sleep 500ms
 Type "ctg sync" Enter
 Sleep 2s
 
-# Step 8: Shell Completions
-Type "# 8. Generate shell completions for your shell" Enter
+# Clean up
+Type "# Clean up decrypted secrets" Enter
 Sleep 500ms
-Type "ctg autocomplete bash | head -n 10" Enter
-Sleep 2s
-
-# Step 9: Clean up (Dry-run & actual)
-Type "# 9. Preview clean with --dry-run and clean up decrypted secrets" Enter
-Sleep 500ms
-Type "ctg clean --dry-run" Enter
-Sleep 1s
 Type "ctg clean" Enter
 Sleep 1s
 Type "ls -F" Enter

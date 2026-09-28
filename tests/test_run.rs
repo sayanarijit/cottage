@@ -56,19 +56,31 @@ fn test_keygen_command() {
     // Init project
     Command::new(bin_path)
         .arg("init")
+        .env("HOME", temp.path())
+        .env("USER", "user1")
         .current_dir(temp.path())
         .status()
         .unwrap();
 
-    let identity_path = temp.path().join(".cottage/identity");
+    let dirname = temp.path().file_name().unwrap().to_string_lossy();
+    let identity_dir = temp.path().join(".config/cottage/identity").join(&*dirname);
     let user1_recipient_path = temp.path().join(".cottage/recipients/user1");
     let user2_recipient_path = temp.path().join(".cottage/recipients/user2");
+
+    assert!(identity_dir.is_dir());
+    let keys: Vec<_> = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .collect();
+    assert_eq!(keys.len(), 1);
 
     // Running keygen without --force should fail if identity already exists
     let output = Command::new(bin_path)
         .arg("keygen")
         .arg("-n")
         .arg("user1")
+        .env("HOME", temp.path())
+        .env("USER", "user1")
         .current_dir(temp.path())
         .output()
         .unwrap();
@@ -80,15 +92,22 @@ fn test_keygen_command() {
         .arg("-n")
         .arg("user1")
         .arg("--force")
+        .env("HOME", temp.path())
+        .env("USER", "user1")
         .current_dir(temp.path())
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert!(identity_path.exists());
+    assert!(identity_dir.is_dir());
+    let keys: Vec<_> = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .collect();
+    assert_eq!(keys.len(), 1);
     assert!(user1_recipient_path.exists());
 
     // Delete keys
-    std::fs::remove_file(&identity_path).unwrap();
+    std::fs::remove_dir_all(&identity_dir).unwrap();
     std::fs::remove_dir_all(temp.path().join(".cottage/recipients")).unwrap();
 
     // Running keygen when keys are missing should succeed without --force
@@ -96,11 +115,18 @@ fn test_keygen_command() {
         .arg("keygen")
         .arg("-n")
         .arg("user2")
+        .env("HOME", temp.path())
+        .env("USER", "user1")
         .current_dir(temp.path())
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert!(identity_path.exists());
+    assert!(identity_dir.is_dir());
+    let keys: Vec<_> = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .collect();
+    assert_eq!(keys.len(), 1);
     assert!(user2_recipient_path.exists());
 }
 
@@ -233,6 +259,8 @@ fn test_keygen_command_nested() {
     // Init project
     Command::new(bin_path)
         .arg("init")
+        .env("HOME", temp.path())
+        .env("USER", "user1")
         .current_dir(temp.path())
         .status()
         .unwrap();
@@ -241,15 +269,25 @@ fn test_keygen_command_nested() {
     let nested_dir = temp.path().join("nested/dir");
     std::fs::create_dir_all(&nested_dir).unwrap();
 
-    let identity_path = temp.path().join(".cottage/identity");
+    let dirname = temp.path().file_name().unwrap().to_string_lossy();
+    let identity_dir = temp.path().join(".config/cottage/identity").join(&*dirname);
     let user1_recipient_path = temp.path().join(".cottage/recipients/user1");
     let user2_recipient_path = temp.path().join(".cottage/recipients/user2");
+
+    assert!(identity_dir.is_dir());
+    let keys: Vec<_> = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .collect();
+    assert_eq!(keys.len(), 1);
 
     // Running keygen without --force should fail if identity already exists
     let output = Command::new(bin_path)
         .arg("keygen")
         .arg("-n")
         .arg("user1")
+        .env("HOME", temp.path())
+        .env("USER", "user1")
         .current_dir(&nested_dir)
         .output()
         .unwrap();
@@ -261,15 +299,22 @@ fn test_keygen_command_nested() {
         .arg("-n")
         .arg("user1")
         .arg("--force")
+        .env("HOME", temp.path())
+        .env("USER", "user1")
         .current_dir(&nested_dir)
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert!(identity_path.exists());
+    assert!(identity_dir.is_dir());
+    let keys: Vec<_> = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .collect();
+    assert_eq!(keys.len(), 1);
     assert!(user1_recipient_path.exists());
 
     // Delete keys
-    std::fs::remove_file(&identity_path).unwrap();
+    std::fs::remove_dir_all(&identity_dir).unwrap();
     std::fs::remove_dir_all(temp.path().join(".cottage/recipients")).unwrap();
 
     // Running keygen when keys are missing should succeed without --force
@@ -277,11 +322,18 @@ fn test_keygen_command_nested() {
         .arg("keygen")
         .arg("-n")
         .arg("user2")
+        .env("HOME", temp.path())
+        .env("USER", "user1")
         .current_dir(&nested_dir)
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert!(identity_path.exists());
+    assert!(identity_dir.is_dir());
+    let keys: Vec<_> = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .collect();
+    assert_eq!(keys.len(), 1);
     assert!(user2_recipient_path.exists());
 }
 
@@ -763,14 +815,22 @@ fn test_identity_as_string_flag() {
     // Init
     Command::new(bin_path)
         .arg("init")
+        .env("HOME", temp.path())
         .current_dir(temp.path())
         .status()
         .unwrap();
 
     // Read identity string and remove identity file
-    let identity_file = temp.path().join(".cottage/identity");
-    let id_str = std::fs::read_to_string(&identity_file).unwrap();
-    std::fs::remove_file(&identity_file).unwrap();
+    let dirname = temp.path().file_name().unwrap().to_string_lossy();
+    let identity_dir = temp.path().join(".config/cottage/identity").join(&*dirname);
+    let key_file = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .next()
+        .unwrap()
+        .path();
+    let id_str = std::fs::read_to_string(&key_file).unwrap();
+    std::fs::remove_dir_all(&identity_dir).unwrap();
 
     // Create secret
     temp.child("secret.txt")
@@ -781,6 +841,7 @@ fn test_identity_as_string_flag() {
     let enc_output = Command::new(bin_path)
         .arg("encrypt")
         .arg("secret.txt")
+        .env("HOME", temp.path())
         .current_dir(temp.path())
         .output()
         .unwrap();
@@ -793,6 +854,7 @@ fn test_identity_as_string_flag() {
     let dec_fail = Command::new(bin_path)
         .arg("decrypt")
         .arg("secret.txt.cott.age")
+        .env("HOME", temp.path())
         .current_dir(temp.path())
         .output()
         .unwrap();
@@ -804,6 +866,7 @@ fn test_identity_as_string_flag() {
         .arg("secret.txt.cott.age")
         .arg("-i")
         .arg(&id_str)
+        .env("HOME", temp.path())
         .current_dir(temp.path())
         .output()
         .unwrap();
@@ -822,14 +885,22 @@ fn test_identity_as_string_env() {
     // Init
     Command::new(bin_path)
         .arg("init")
+        .env("HOME", temp.path())
         .current_dir(temp.path())
         .status()
         .unwrap();
 
     // Read identity string and remove identity file
-    let identity_file = temp.path().join(".cottage/identity");
-    let id_str = std::fs::read_to_string(&identity_file).unwrap();
-    std::fs::remove_file(&identity_file).unwrap();
+    let dirname = temp.path().file_name().unwrap().to_string_lossy();
+    let identity_dir = temp.path().join(".config/cottage/identity").join(&*dirname);
+    let key_file = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .next()
+        .unwrap()
+        .path();
+    let id_str = std::fs::read_to_string(&key_file).unwrap();
+    std::fs::remove_dir_all(&identity_dir).unwrap();
 
     // Create secret
     temp.child("secret.txt")
@@ -840,6 +911,7 @@ fn test_identity_as_string_env() {
     let enc_output = Command::new(bin_path)
         .arg("encrypt")
         .arg("secret.txt")
+        .env("HOME", temp.path())
         .current_dir(temp.path())
         .output()
         .unwrap();
@@ -852,6 +924,7 @@ fn test_identity_as_string_env() {
     let dec_success = Command::new(bin_path)
         .arg("decrypt")
         .arg("secret.txt.cott.age")
+        .env("HOME", temp.path())
         .env("COTTAGE_IDENTITY", &id_str)
         .current_dir(temp.path())
         .output()
@@ -861,4 +934,105 @@ fn test_identity_as_string_env() {
         std::fs::read_to_string(temp.path().join("secret.txt")).unwrap(),
         "my secret env key"
     );
+}
+
+#[test]
+fn test_init_recipient_check_and_keygen() {
+    let home = assert_fs::TempDir::new().unwrap();
+    let bin_path = env!("CARGO_BIN_EXE_ctg");
+
+    // Project 1 named "myproj"
+    let proj1 = home.child("myproj");
+    std::fs::create_dir_all(proj1.path()).unwrap();
+
+    // 1. Run init in proj1 with USER="alice"
+    let status = Command::new(bin_path)
+        .arg("init")
+        .env("HOME", home.path())
+        .env("USER", "alice")
+        .current_dir(proj1.path())
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let recipient_alice_proj1 = proj1.path().join(".cottage/recipients/alice");
+    assert!(recipient_alice_proj1.is_file());
+
+    let identity_dir = home.path().join(".config/cottage/identity/myproj");
+    assert!(identity_dir.is_dir());
+    let keys: Vec<_> = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .collect();
+    assert_eq!(keys.len(), 1);
+
+    let recipient_content = std::fs::read_to_string(&recipient_alice_proj1).unwrap();
+    let id_content = std::fs::read_to_string(keys[0].path()).unwrap();
+    assert!(id_content.starts_with("# created: "));
+    assert!(id_content.contains(&format!("# public key: {}", recipient_content.trim())));
+
+    // 2. Run init again in proj1. Since .cottage/recipients/alice exists, it should skip.
+    let status = Command::new(bin_path)
+        .arg("init")
+        .env("HOME", home.path())
+        .env("USER", "alice")
+        .current_dir(proj1.path())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let keys_after: Vec<_> = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .collect();
+    assert_eq!(keys_after.len(), 1); // No new identity created
+
+    // 3. Project 2 also named "myproj" (in a different parent folder) sharing the same dirname "myproj"
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let proj2 = home.child("other_dir/myproj");
+    std::fs::create_dir_all(proj2.path()).unwrap();
+
+    // Even though global identity (~/.config/cottage/identity/myproj) exists with keys,
+    // running init in proj2 MUST generate the recipient key in proj2 ($PWD)
+    let status = Command::new(bin_path)
+        .arg("init")
+        .env("HOME", home.path())
+        .env("USER", "alice")
+        .current_dir(proj2.path())
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let recipient_alice_proj2 = proj2.path().join(".cottage/recipients/alice");
+    assert!(recipient_alice_proj2.is_file());
+
+    let keys_proj2: Vec<_> = std::fs::read_dir(&identity_dir)
+        .unwrap()
+        .flatten()
+        .collect();
+    assert_eq!(keys_proj2.len(), 2);
+
+    // 4. In proj2, running keygen for "alice" without --force should fail because recipient already exists
+    let output = Command::new(bin_path)
+        .arg("keygen")
+        .arg("-n")
+        .arg("alice")
+        .env("HOME", home.path())
+        .env("USER", "alice")
+        .current_dir(proj2.path())
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+
+    // 5. In proj2, running keygen for "bob" without --force should succeed because recipient "bob" does not exist
+    let output = Command::new(bin_path)
+        .arg("keygen")
+        .arg("-n")
+        .arg("bob")
+        .env("HOME", home.path())
+        .env("USER", "alice")
+        .current_dir(proj2.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(proj2.path().join(".cottage/recipients/bob").is_file());
 }

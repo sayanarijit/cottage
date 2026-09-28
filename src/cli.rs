@@ -165,7 +165,7 @@ struct EditArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 
@@ -217,7 +217,7 @@ struct EncryptArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 
@@ -265,7 +265,7 @@ struct DecryptArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 
@@ -309,7 +309,7 @@ struct CatArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 
@@ -341,7 +341,7 @@ struct RunArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 
@@ -385,7 +385,7 @@ struct EnvArgs {
     file: Option<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 
@@ -426,7 +426,7 @@ struct SyncArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 
@@ -486,7 +486,7 @@ struct DiffArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 
@@ -570,7 +570,7 @@ struct PullArgs {
     recipients_file: Vec<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 
@@ -616,7 +616,7 @@ struct PushArgs {
     path: Vec<PathBuf>,
 
     /// Use the identity file at PATH, or the identity string itself. Can be repeated.
-    /// Defaults to .cottage/identity or ~/.config/cottage/identity or ~/.ssh.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
     #[arg(short, long, env = "COTTAGE_IDENTITY")]
     identity: Vec<String>,
 

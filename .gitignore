@@ -1,5 +1,4 @@
 /target
-/.cottage/identity
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -76,4 +75,3 @@ docs/_build/
 /npm/bin/ctgx
 /npm/bin/ctg.exe
 /npm/bin/ctgx.exe
-

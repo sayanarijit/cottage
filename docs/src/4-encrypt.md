@@ -63,7 +63,6 @@ Let's verify what it did:
 > ```
 >
 > ```stdout
-> /.cottage/identity
 > /secret1.env
 > /secret2.env
 > ```
@@ -165,7 +164,6 @@ But the entries in `.gitignore` will still remain:
 > ```
 >
 > ```stdout
-> /.cottage/identity
 > /secret1.env
 > /secret2.env
 > ```

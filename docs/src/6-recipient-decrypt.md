@@ -30,7 +30,6 @@ Right... You need to set up your keys first. Let's add keys first.
 >
 > ```stdout
 > .cottage
-> ├── identity
 > └── recipients
 >     ├── newuser
 >     └── sayanarijit

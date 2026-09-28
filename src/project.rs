@@ -1,6 +1,7 @@
 use crate::{UpstreamMetadata, is_encrypted_path, secure_remove_file, to_decrypted_path};
 use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result, anyhow};
+use chrono::Utc;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
@@ -165,8 +166,8 @@ pub struct Project {
     cwd: PathBuf,
     root: PathBuf,
     global_identity_path: PathBuf,
+    project_identity_dir: PathBuf,
     recipients_path: PathBuf,
-    identity_path: PathBuf,
     ssh_dir: PathBuf,
     git: Option<Git>,
     config: Option<ProjectConfig>,
@@ -193,8 +194,10 @@ impl Project {
             Self::load().context("could not load project after initialization")
         })?;
 
-        if !proj.identity_path().exists() && !proj.recipients_path().exists() {
-            keygen(proj.identity_path(), proj.recipients_path(), None)?;
+        let recipient = resolve_recipient_name(None);
+        let recipient_path = proj.recipients_path().join(&recipient);
+        if !recipient_path.exists() {
+            proj.keygen(Some(recipient), false)?;
         }
 
         Ok(proj)
@@ -232,7 +235,6 @@ impl Project {
         };
 
         let recipients_path = cottage_dir.join("recipients");
-        let identity_path = cottage_dir.join("identity");
 
         let git = if root.join(".git").exists() {
             Some(Git {
@@ -243,7 +245,6 @@ impl Project {
         };
 
         if let Some(git) = &git {
-            append_to_gitignore_if_absent(&identity_path, false)?;
             append_line_if_absent(git.root_gitattributes(), COTTAGE_GITATTRIBUTES_LINE, false)?;
         }
 
@@ -253,6 +254,12 @@ impl Project {
 
         let global_identity_path = global_config_dir.join("identity");
 
+        let dirname = root
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "default".to_string());
+        let project_identity_dir = global_identity_path.join(&dirname);
+
         let ssh_dir = dirs::home_dir()
             .map(|h| h.join(".ssh"))
             .context("could not determine ssh directory")?;
@@ -261,7 +268,7 @@ impl Project {
             cwd,
             root,
             recipients_path,
-            identity_path,
+            project_identity_dir,
             git,
             ssh_dir,
             global_identity_path,
@@ -282,7 +289,11 @@ impl Project {
     }
 
     pub fn identity_path(&self) -> &Path {
-        &self.identity_path
+        &self.project_identity_dir
+    }
+
+    pub fn project_identity_dir(&self) -> &Path {
+        &self.project_identity_dir
     }
 
     pub fn ssh_dir(&self) -> &Path {
@@ -310,16 +321,31 @@ impl Project {
     }
 
     pub fn keygen(&self, name: Option<String>, force: bool) -> Result<()> {
-        match (self.identity_path().exists(), force) {
+        let recipient = resolve_recipient_name(name.clone());
+        let recipient_path = self.recipients_path.join(&recipient);
+
+        match (recipient_path.exists(), force) {
             (true, false) => Err(anyhow!(
-                "{}: identity file already exists, use --force to overwrite",
-                self.relative_to_root(self.identity_path()).display()
+                "{}: recipient already exists, use --force to overwrite",
+                self.relative_to_root(&recipient_path).display()
             )),
             (true, true) => {
-                secure_remove_file(self.identity_path())?;
-                keygen(self.identity_path(), self.recipients_path(), name)
+                if let Ok(entries) = std::fs::read_dir(&self.project_identity_dir) {
+                    for entry in entries.flatten() {
+                        if let Ok(ft) = entry.file_type()
+                            && ft.is_file()
+                        {
+                            secure_remove_file(&entry.path())?;
+                        }
+                    }
+                }
+                keygen(&self.project_identity_dir, self.recipients_path(), name)?;
+                Ok(())
             }
-            (false, _) => keygen(self.identity_path(), self.recipients_path(), name),
+            (false, _) => {
+                keygen(&self.project_identity_dir, self.recipients_path(), name)?;
+                Ok(())
+            }
         }
     }
 
@@ -365,7 +391,6 @@ impl Project {
                     self.root().join(".cottage").display()
                 );
             } else {
-                secure_remove_file(self.identity_path())?;
                 std::fs::remove_dir_all(self.root().join(".cottage")).with_context(|| {
                     format!(
                         "{}: could not remove .cottage directory",
@@ -385,20 +410,29 @@ impl Project {
                 COTTAGE_GITATTRIBUTES_LINE,
                 dry_run,
             )?;
-            remove_from_gitignore_if_present(self.identity_path(), dry_run)?;
         }
         Ok(())
     }
 }
 
-pub fn keygen(identity_path: &Path, recipients_path: &Path, name: Option<String>) -> Result<()> {
-    let recipient = name.or(whoami::username().ok()).unwrap_or_else(|| {
-        SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-            .to_string()
-    });
+pub fn resolve_recipient_name(name: Option<String>) -> String {
+    name.or_else(|| std::env::var("USER").ok().filter(|u| !u.is_empty()))
+        .or_else(|| whoami::username().ok().filter(|u| !u.is_empty()))
+        .unwrap_or_else(|| {
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                .to_string()
+        })
+}
+
+pub fn keygen(
+    identity_dir: &Path,
+    recipients_path: &Path,
+    name: Option<String>,
+) -> Result<PathBuf> {
+    let recipient = resolve_recipient_name(name);
 
     let recipient_path = recipients_path.join(&recipient);
     log::debug!(
@@ -424,18 +458,46 @@ pub fn keygen(identity_path: &Path, recipients_path: &Path, name: Option<String>
         )
     })?;
     log::debug!("{}: wrote file", recipient_path.display());
-    std::fs::write(identity_path, sk.to_string().expose_secret())
+
+    std::fs::create_dir_all(identity_dir).with_context(|| {
+        format!(
+            "{}: could not create identity directory",
+            identity_dir.display()
+        )
+    })?;
+    log::debug!("{}: created directory", identity_dir.display());
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(identity_dir, std::fs::Permissions::from_mode(0o700));
+    }
+
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let identity_path = identity_dir.join(format!("{}.key", timestamp));
+
+    let created = Utc::now().to_rfc3339();
+    let content = format!(
+        "# created: {}\n# public key: {}\n{}\n",
+        created,
+        pk,
+        sk.to_string().expose_secret()
+    );
+    std::fs::write(&identity_path, content)
         .with_context(|| format!("{}: could not write identity file", identity_path.display()))?;
     log::debug!("{}: wrote file", identity_path.display());
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(identity_path, std::fs::Permissions::from_mode(0o600))?;
+        std::fs::set_permissions(&identity_path, std::fs::Permissions::from_mode(0o600))?;
         log::debug!("{}: set permissions to 600", identity_path.display());
     }
 
-    Ok(())
+    Ok(identity_path)
 }
 
 pub fn iter_encrypted(path: &Path) -> impl Iterator<Item = ignore::DirEntry> {
@@ -645,16 +707,20 @@ impl Project {
         let cottage_dir = root.join(".cottage");
         std::fs::create_dir_all(&cottage_dir).unwrap();
         let recipients_path = cottage_dir.join("recipients");
-        let identity_path = cottage_dir.join("identity");
+        let dirname = root
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "default".to_string());
         let global_config_dir = root.join(".config/cottage");
         let global_identity_path = global_config_dir.join("identity");
+        let project_identity_dir = global_identity_path.join(&dirname);
         let ssh_dir = root.join(".ssh");
 
         Self {
             cwd: root.clone(),
             root,
             recipients_path,
-            identity_path,
+            project_identity_dir,
             git: None,
             ssh_dir,
             global_identity_path,
@@ -672,7 +738,23 @@ impl Project {
         let pk = sk.to_public();
         std::fs::create_dir_all(&self.recipients_path).unwrap();
         std::fs::write(self.recipients_path.join("test"), pk.to_string()).unwrap();
-        std::fs::write(&self.identity_path, sk.to_string().expose_secret()).unwrap();
+        std::fs::create_dir_all(&self.project_identity_dir).unwrap();
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let created = chrono::Utc::now().to_rfc3339();
+        let content = format!(
+            "# created: {}\n# public key: {}\n{}\n",
+            created,
+            pk,
+            sk.to_string().expose_secret()
+        );
+        std::fs::write(
+            self.project_identity_dir.join(format!("{}.key", timestamp)),
+            content,
+        )
+        .unwrap();
     }
 
     pub fn load_test_identities(&self) -> Box<dyn Iterator<Item = crate::Identity>> {
