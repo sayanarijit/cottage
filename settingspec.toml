@@ -6,4 +6,4 @@ decryption.key.env = "COTTAGE_IDENTITY"
 decryption.key.path = "~/.config/cottage/identity"
 
 [settings]
-key.default.env = "SECRET"
+key._.default.env = "SECRET"

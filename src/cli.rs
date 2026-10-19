@@ -1037,7 +1037,8 @@ fn run_push_cmd(proj: &Project, args: PushArgs, _quiet: bool) -> Result<()> {
 fn run_complete_cmd(shell: clap_complete::Shell) -> Result<()> {
     let mut cmd = CottageCli::command();
     let mut out = std::io::stdout();
-    clap_complete::generate(shell, &mut cmd, "ctg", &mut out);
+    let bin_name = cmd.get_name().to_string();
+    clap_complete::generate(shell, &mut cmd, bin_name, &mut out);
     Ok(())
 }
 
