@@ -3,5 +3,6 @@ mod test_clean;
 mod test_diff;
 mod test_env;
 mod test_identity;
+mod test_prefix;
 mod test_preview;
 mod test_project;

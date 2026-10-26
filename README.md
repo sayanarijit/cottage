@@ -37,15 +37,16 @@ in plaintext.
 5. [Quick Start](#quick-start)
 6. [GitOps](#gitops)
 7. [Git Hooks](#git-hooks)
-8. [Access Control](#access-control)
+8. [Path Prefixes](#path-prefixes)
+9. [Access Control](#access-control)
    1. [Rules](#rules)
    2. [Verification](#verification)
-9. [Any Provider as Upstream](#any-provider-as-upstream)
-   1. [Example plugins](#example-plugins)
-10. [Sync with any device](#sync-with-any-device)
-11. [Learn More](#learn-more)
-12. [Troubleshooting](#troubleshooting)
-13. [Comparison](#comparison)
+10. [Any Provider as Upstream](#any-provider-as-upstream)
+    1. [Example plugins](#example-plugins)
+11. [Sync with any device](#sync-with-any-device)
+12. [Learn More](#learn-more)
+13. [Troubleshooting](#troubleshooting)
+14. [Comparison](#comparison)
     1. [age vs Other Encryption](#age-vs-other-encryption)
     2. [cottage vs SOPS](#cottage-vs-sops)
     3. [cottage vs dotenvx](#cottage-vs-dotenvx)
@@ -61,6 +62,7 @@ in plaintext.
 - **Rich diffs**: Keeps git diff clean & reviewable, while `ctg diff` shows diff of locally modified secrets with tracked encrypted counterparts.
 - **Checksum verification**: Prevents tampering by verifying that encrypted secrets and recipient lists match the metadata.
 - **Git hooks**: Easily set up git hooks to automatically check/encrypt secrets before commit and decrypt them after checkout.
+- **Path prefixes**: Optionally store encrypted secrets and metadata under dedicated directories, instead of next to the decrypted files.
 - **Persistent secrets workflow**: `ctg decrypt/sync` keeps decrypted secrets on disk.
 - **Smart cleanup lifecycle**: `ctg run` (shortcut `ctgx`) and `ctg edit` decrypt secrets before the operation, keeping them on disk if already present beforehand or automatically cleaning them up afterwards if they were not.
 - **Clean on completion**: `ctg encrypt --clean`, `ctg run --clean`, and `ctg edit --clean` ensure that decrypted files are cleaned up from disk even if they were present before.
@@ -281,6 +283,28 @@ prek install
 prek install --hook-type post-checkout
 prek install --hook-type post-merge
 prek install --hook-type post-rewrite
+```
+
+## Path Prefixes
+
+By default, `secret.yml.cott.age` and `secret.yml.cott.toml` live next to `secret.yml`.
+To keep them in dedicated directories, declare `path.prefix` in `cottage.toml`:
+
+```toml
+[path.prefix]
+encrypted = "./.cottage/secrets"
+metadata = "./.cottage/secrets"
+```
+
+`ctg` then reads encrypted secrets and metadata from `{prefix}/{decrypted_path}.cott.age` and `{prefix}/{decrypted_path}.cott.toml`.
+These directories are auto-generated if declared.
+
+```bash
+# Find stray secrets and/or metadata and move them to the prefixed path
+ctg prefix sync [path]
+
+# Move them back to the unprefixed relative paths, before removing the declaration from cottage.toml
+ctg prefix revert
 ```
 
 ## Access Control

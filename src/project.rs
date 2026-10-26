@@ -1,4 +1,7 @@
-use crate::{UpstreamMetadata, is_encrypted_path, secure_remove_file, to_decrypted_path};
+use crate::{
+    PathConfig, PathPrefix, UpstreamMetadata, is_encrypted_path, secure_remove_file,
+    to_decrypted_path,
+};
 use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
@@ -148,6 +151,7 @@ impl UpstreamConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProjectConfig {
     pub upstream: Option<IndexMap<String, UpstreamConfig>>,
+    pub path: Option<PathConfig>,
 }
 
 #[derive(Debug)]
@@ -233,6 +237,10 @@ impl Project {
         } else {
             None
         };
+
+        let prefix = PathPrefix::new(&root, config.as_ref().and_then(|c| c.path.as_ref()));
+        prefix.create_dirs()?;
+        prefix.activate();
 
         let recipients_path = cottage_dir.join("recipients");
 
@@ -501,16 +509,29 @@ pub fn keygen(
 }
 
 pub fn iter_encrypted(path: &Path) -> impl Iterator<Item = ignore::DirEntry> {
-    let mut builder = ignore::WalkBuilder::new(path);
-    builder
-        .sort_by_file_name(|a, b| a.cmp(b))
-        .standard_filters(true)
-        .hidden(false);
-    builder
-        .build()
+    fn walk(path: &Path) -> ignore::Walk {
+        let mut builder = ignore::WalkBuilder::new(path);
+        builder
+            .sort_by_file_name(|a, b| a.cmp(b))
+            .standard_filters(true)
+            .hidden(false);
+        builder.build()
+    }
+
+    //Secrets of a directory live under the encrypted prefix, if declared.
+    let prefix = PathPrefix::current();
+    let prefixed = prefix
+        .encrypted_dir_of(path)
+        .filter(|p| path.is_dir() && p.is_dir());
+    let walks = std::iter::once(path.to_path_buf()).chain(prefixed);
+
+    let mut seen = std::collections::HashSet::new();
+    walks
+        .flat_map(|p| walk(&p))
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())
         .filter(|e| is_encrypted_path(e.path()))
+        .filter(move |e| seen.insert(e.path().to_path_buf()))
 }
 
 pub fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {
@@ -706,6 +727,7 @@ impl Project {
         let root = path.to_path_buf();
         let cottage_dir = root.join(".cottage");
         std::fs::create_dir_all(&cottage_dir).unwrap();
+        PathPrefix::new(&root, None).activate();
         let recipients_path = cottage_dir.join("recipients");
         let dirname = root
             .file_name()
@@ -729,7 +751,11 @@ impl Project {
     }
 
     pub fn with_toml_config(mut self, toml_str: &str) -> Result<Self> {
-        self.config = Some(toml::from_str::<ProjectConfig>(toml_str)?);
+        let config = toml::from_str::<ProjectConfig>(toml_str)?;
+        let prefix = PathPrefix::new(&self.root, config.path.as_ref());
+        prefix.create_dirs()?;
+        prefix.activate();
+        self.config = Some(config);
         Ok(self)
     }
 

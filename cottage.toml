@@ -1,3 +1,7 @@
+[path.prefix]
+encrypted = "./.cottage/secrets"  # The directory where cottage will store encrypted secrets.
+metadata = "./.cottage/secrets"  # The directory where cottage will store metadata about the secrets.
+
 # The default configuration for all upstreams.
 # You can override these settings for each specific upstream as needed.
 [upstream.defaults]
