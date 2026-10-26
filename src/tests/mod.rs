@@ -1,3 +1,4 @@
+mod test_cat;
 mod test_age_empty_recipients;
 mod test_clean;
 mod test_diff;

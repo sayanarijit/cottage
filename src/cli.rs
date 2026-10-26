@@ -1,20 +1,19 @@
 use crate::{
-    CleanOptions, DecryptOptions, DiffOptions, EditOptions, EncryptOptions, EnvOptions, Project,
-    PullOptions, PushOptions, RunOptions, StatusOptions, SyncOptions, VerifyOptions, clean_path,
-    decrypt_into_memory, decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task,
-    is_encrypted_path, load_identities, load_recipients, prefix_revert, prefix_sync, print_result,
-    pull_path, push_path, run as run_task, status_path, sync_path, to_decrypted_path,
-    to_encrypted_path, verify_file, verify_path,
+    CatOptions, CleanOptions, DecryptOptions, DiffOptions, EditOptions, EncryptOptions, EnvOptions, Project,
+    PullOptions, PushOptions, RunOptions, StatusOptions, SyncOptions, VerifyOptions, cat, clean_path,
+    decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task,
+    load_identities, load_recipients, prefix_revert, prefix_sync, print_result,
+    pull_path, push_path, run as run_task, status_path, sync_path,
+    verify_path,
 };
-use age::secrecy::ExposeSecret;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::CommandFactory;
 use clap::Parser;
 use clap::builder::styling::*;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use colored::Colorize;
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::io::{IsTerminal, Read, Write};
+use std::path::PathBuf;
 
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Green.on_default().bold())
@@ -341,6 +340,7 @@ struct DecryptArgs {
 #[derive(clap::Args, Debug)]
 struct CatArgs {
     /// The secret path to decrypt and print. Accepts plain, .cott.age, or .cott.toml path.
+    /// If stdin is not empty, its content is encrypted into PATH instead.
     path: PathBuf,
 
     /// Verify against recipients listed at PATH. Can be repeated.
@@ -364,6 +364,18 @@ struct CatArgs {
     /// Skip checksum verification of recipients.
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_RECIPIENTS")]
     skip_verify_recipients: bool,
+
+    /// Encrypt to a PEM encoded format (when encrypting from stdin).
+    #[arg(short, long, env = "COTTAGE_ARMOR")]
+    armor: bool,
+
+    /// Skip adding the secret to .gitignore (when encrypting from stdin).
+    #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
+    skip_gitignore: bool,
+
+    /// Skip preview generation (when encrypting from stdin).
+    #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
+    skip_preview: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -767,56 +779,36 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
     Ok(())
 }
 
-fn resolve_encrypted_secret_path(path: &Path) -> Result<PathBuf> {
-    if is_encrypted_path(path) {
-        if path.is_file() {
-            return Ok(path.to_path_buf());
-        }
-        anyhow::bail!("{}: path does not exist", path.display());
-    }
-
-    let decrypted_path = to_decrypted_path(path).unwrap_or_else(|| path.to_path_buf());
-    let encrypted_path = to_encrypted_path(&decrypted_path);
-    if encrypted_path.is_file() {
-        Ok(encrypted_path)
-    } else {
-        anyhow::bail!(
-            "{}: encrypted secret does not exist",
-            encrypted_path.display()
-        );
-    }
-}
-
 fn run_cat_cmd(proj: &Project, args: CatArgs) -> Result<()> {
-    let identities = load_identities(proj, args.identity).collect();
+    let identities: Vec<_> = load_identities(proj, args.identity).collect();
     let recipients: Vec<_> = load_recipients(proj, args.recipients_file, None).collect();
-    let encrypted_path = resolve_encrypted_secret_path(&args.path)?;
 
-    let verify_options = VerifyOptions {
-        recipients: recipients.clone(),
-        skip_verify_encrypted: args.force || args.skip_verify_encrypted,
-        skip_verify_recipients: args.force || args.skip_verify_recipients,
+    let mut input = None;
+    if !std::io::stdin().is_terminal() {
+        let mut buffer = vec![];
+        std::io::stdin().lock().read_to_end(&mut buffer)?;
+        input = Some(buffer);
+    }
+
+    let options = CatOptions {
+        encrypt_options: EncryptOptions {
+            recipients,
+            identities,
+            armor: args.armor,
+            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+            skip_timestamps: true,
+            skip_preview: args.skip_preview,
+            force: args.force,
+            identity_path: proj.identity_path().to_path_buf(),
+            dry_run: false,
+        },
+        skip_verify_encrypted: args.skip_verify_encrypted,
+        skip_verify_recipients: args.skip_verify_recipients,
     };
 
-    let verified = verify_file(&encrypted_path, &verify_options)?
-        .with_context(|| format!("{}: invalid encrypted secret", encrypted_path.display()))?;
-
-    let decrypted = decrypt_into_memory(
-        verified.content.as_slice(),
-        &DecryptOptions {
-            identities,
-            recipients,
-            dry_run: false,
-            skip_gitignore: true,
-            skip_timestamps: true,
-            skip_verify_encrypted: true,
-            skip_verify_recipients: true,
-        },
-    )?;
-
-    let mut stdout = std::io::stdout().lock();
-    stdout.write_all(decrypted.expose_secret())?;
-    stdout.flush()?;
+    if let Some(res) = cat(&args.path, input, &options, std::io::stdout().lock())? {
+        print_result(&mut std::io::stdout(), proj, &res, false)?;
+    }
     Ok(())
 }
 

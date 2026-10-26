@@ -1,3 +1,4 @@
+pub(crate) mod cat;
 pub(crate) mod clean;
 pub mod cli;
 pub(crate) mod dec;
@@ -19,6 +20,7 @@ pub(crate) mod status;
 pub(crate) mod sync;
 pub(crate) mod verify;
 
+pub(crate) use cat::{CatOptions, cat};
 pub(crate) use clean::{CleanOptions, clean_path};
 pub(crate) use dec::{DecryptOptions, decrypt_file, decrypt_into_memory, decrypt_path};
 pub(crate) use diff::{DiffOptions, diff};
