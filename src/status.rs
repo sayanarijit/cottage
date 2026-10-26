@@ -1,5 +1,4 @@
-use crate::{Operation, OperationKind, is_encrypted_path, to_decrypted_path, to_encrypted_path};
-use crate::{is_metadata_path, iter_encrypted};
+use crate::{Operation, OperationKind, PathPrefix, is_encrypted_path, is_metadata_path};
 use anyhow::{Result, anyhow};
 use std::fs;
 use std::path::Path;
@@ -10,17 +9,22 @@ pub struct StatusOptions {
     pub skip_decryption: bool,
 }
 
-pub fn status_file(path: &Path, opts: StatusOptions) -> Result<Option<Operation>> {
+pub fn status_file(
+    prefix: &PathPrefix,
+    path: &Path,
+    opts: StatusOptions,
+) -> Result<Option<Operation>> {
     if is_metadata_path(path) {
         return Ok(None);
     }
 
     let (encrypted_path, decrypted_path) = if is_encrypted_path(path) {
-        let decrypted_path = to_decrypted_path(path)
+        let decrypted_path = prefix
+            .to_decrypted_path(path)
             .ok_or_else(|| anyhow!("{}: could not determine decrypted path", path.display()))?;
         (path.to_path_buf(), decrypted_path)
     } else {
-        let encrypted_path = to_encrypted_path(path);
+        let encrypted_path = prefix.to_encrypted_path(path);
         (encrypted_path, path.to_path_buf())
     };
 
@@ -101,18 +105,25 @@ pub fn status_file(path: &Path, opts: StatusOptions) -> Result<Option<Operation>
     }
 }
 
-pub fn status_dir(path: &Path, opts: StatusOptions) -> impl Iterator<Item = Result<Operation>> {
-    iter_encrypted(path).filter_map(move |e| status_file(e.path(), opts).transpose())
+pub fn status_dir<'a>(
+    prefix: &'a PathPrefix,
+    path: &Path,
+    opts: StatusOptions,
+) -> impl Iterator<Item = Result<Operation>> + 'a {
+    prefix
+        .iter_encrypted(path)
+        .filter_map(move |e| status_file(prefix, e.path(), opts).transpose())
 }
 
 pub fn status_path<'a>(
+    prefix: &'a PathPrefix,
     path: &'a Path,
     opts: StatusOptions,
 ) -> Box<dyn Iterator<Item = Result<Operation>> + 'a> {
     if path.is_file() {
-        Box::new(status_file(path, opts).transpose().into_iter())
+        Box::new(status_file(prefix, path, opts).transpose().into_iter())
     } else if path.is_dir() {
-        Box::new(status_dir(path, opts))
+        Box::new(status_dir(prefix, path, opts))
     } else {
         Box::new(std::iter::once(Err(anyhow!(
             "{}: path does not exist",

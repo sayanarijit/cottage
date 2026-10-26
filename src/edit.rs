@@ -1,6 +1,6 @@
 use crate::{
-    DecryptOptions, EncryptOptions, OperationResult, TempDecryptedFile, decrypt_file, encrypt_file,
-    is_encrypted_path, is_metadata_path, to_decrypted_path, to_encrypted_path,
+    DecryptOptions, EncryptOptions, OperationResult, PathPrefix, TempDecryptedFile, decrypt_file,
+    encrypt_file, is_encrypted_path, is_metadata_path,
 };
 use anyhow::{Result, anyhow};
 use std::fs::File;
@@ -14,7 +14,10 @@ pub struct EditOptions {
     pub clean: bool,
 }
 
-pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<OperationResult>>>> {
+pub fn edit(
+    prefix: &PathPrefix,
+    opts: EditOptions,
+) -> Result<Box<dyn Iterator<Item = Result<OperationResult>>>> {
     let path = &opts.path;
     if is_metadata_path(path) {
         return Err(anyhow!("{}: could not edit metadata file", path.display()));
@@ -23,11 +26,12 @@ pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<Operatio
     let is_target_encrypted = is_encrypted_path(path);
 
     let (decrypted_path, encrypted_path) = if is_target_encrypted {
-        let dec = to_decrypted_path(path)
+        let dec = prefix
+            .to_decrypted_path(path)
             .ok_or_else(|| anyhow!("{}: invalid encrypted path", path.display()))?;
         (dec, path.clone())
     } else {
-        (path.clone(), to_encrypted_path(path))
+        (path.clone(), prefix.to_encrypted_path(path))
     };
 
     let mut temp_file = TempDecryptedFile::new(decrypted_path.clone(), opts.clean);
@@ -44,7 +48,7 @@ pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<Operatio
         Ok(())
     } else {
         if (is_target_encrypted || (!decrypted_path.exists() && encrypted_path.exists()))
-            && let Some(res) = decrypt_file(&encrypted_path, &opts.decrypt_options)?
+            && let Some(res) = decrypt_file(prefix, &encrypted_path, &opts.decrypt_options)?
         {
             results.push(Ok(res));
         }
@@ -53,7 +57,7 @@ pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<Operatio
     };
 
     let status2 = {
-        let enc_status = encrypt_file(&decrypted_path, &opts.encrypt_options, None);
+        let enc_status = encrypt_file(prefix, &decrypted_path, &opts.encrypt_options, None);
         match enc_status {
             Ok(Some(res)) => {
                 results.push(Ok(res));
@@ -64,7 +68,7 @@ pub fn edit(opts: EditOptions) -> Result<Box<dyn Iterator<Item = Result<Operatio
         }
     };
 
-    match temp_file.cleanup(false) {
+    match temp_file.cleanup(prefix, false) {
         Ok(Some(res)) => results.push(Ok(res)),
         Ok(None) => {}
         Err(e) => results.push(Err(e)),

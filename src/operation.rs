@@ -1,9 +1,9 @@
-use crate::PathPrefix;
+use crate::is_encrypted_path;
 use crate::project::ResolvedUpstream;
 use crate::status::status_file;
 use crate::{
-    CleanOptions, DecryptOptions, Identity, Project, RecipientData, StatusOptions, decrypt_file,
-    decrypt_into_cmd,
+    CleanOptions, DecryptOptions, Identity, PathPrefix, Project, RecipientData, StatusOptions,
+    decrypt_file, decrypt_into_cmd,
 };
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result};
@@ -126,33 +126,6 @@ fn print_cleanups(mut file: impl Write, proj: &Project, cleanups: &[PathBuf]) ->
         )?;
     }
     Ok(())
-}
-
-pub fn to_encrypted_path(path: &Path) -> PathBuf {
-    PathPrefix::current().encrypted_path(path)
-}
-
-pub fn to_metadata_path(path: &Path) -> PathBuf {
-    PathPrefix::current().metadata_path(path)
-}
-
-pub fn is_encrypted_path(path: &Path) -> bool {
-    path.to_string_lossy().ends_with(".cott.age")
-}
-
-pub fn is_metadata_path(path: &Path) -> bool {
-    path.to_string_lossy().ends_with(".cott.toml")
-}
-
-pub fn to_decrypted_path(path: &Path) -> Option<PathBuf> {
-    if !is_encrypted_path(path) && !is_metadata_path(path) {
-        return None;
-    }
-    let path = PathPrefix::current()
-        .unprefixed(path)
-        .unwrap_or_else(|| path.to_path_buf());
-    path.file_stem()
-        .and_then(|s| PathBuf::from(s).file_stem().map(|s| path.with_file_name(s)))
 }
 
 /// Securely removes a file by overwriting it with zeros and syncing to disk before unlinking.
@@ -369,7 +342,11 @@ impl TempDecryptedFile {
         self.disarmed = true;
     }
 
-    pub fn cleanup(&mut self, dry_run: bool) -> Result<Option<OperationResult>> {
+    pub fn cleanup(
+        &mut self,
+        prefix: &PathPrefix,
+        dry_run: bool,
+    ) -> Result<Option<OperationResult>> {
         self.disarm();
         if self.force_cleanup || !self.was_present {
             let clean_opts = CleanOptions {
@@ -377,7 +354,7 @@ impl TempDecryptedFile {
                 gitignore: false,
                 encrypted: false,
             };
-            crate::clean::clean_file(self.path.clone(), &clean_opts)
+            crate::clean::clean_file(prefix, self.path.clone(), &clean_opts)
         } else {
             Ok(None)
         }
@@ -421,7 +398,9 @@ pub(crate) fn decrypt_required_secrets(
                 p
             };
             if is_encrypted_path(&resolved) {
-                to_decrypted_path(&resolved).unwrap_or(resolved)
+                proj.prefix()
+                    .to_decrypted_path(&resolved)
+                    .unwrap_or(resolved)
             } else {
                 resolved
             }
@@ -436,7 +415,7 @@ pub(crate) fn decrypt_required_secrets(
             } else {
                 p
             };
-            if to_encrypted_path(&p).exists() {
+            if proj.prefix().to_encrypted_path(&p).exists() {
                 Some(p)
             } else {
                 None
@@ -455,7 +434,7 @@ pub(crate) fn decrypt_required_secrets(
 
     for req_dec_path in requires.iter() {
         if req_dec_path.exists()
-            && let Some(res) = status_file(req_dec_path, status_opts)?
+            && let Some(res) = status_file(proj.prefix(), req_dec_path, status_opts)?
         {
             anyhow::bail!(
                 "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
@@ -476,10 +455,12 @@ pub(crate) fn decrypt_required_secrets(
     };
 
     for req_dec_path in requires.iter() {
-        let req_enc_path = to_encrypted_path(req_dec_path);
+        let req_enc_path = proj.prefix().to_encrypted_path(req_dec_path);
         let temp_file = TempDecryptedFile::new(req_dec_path.clone(), false);
 
-        if !temp_file.was_present() && decrypt_file(&req_enc_path, &dec_opts)?.is_some() {
+        if !temp_file.was_present()
+            && decrypt_file(proj.prefix(), &req_enc_path, &dec_opts)?.is_some()
+        {
             req_decrypted.push(temp_file);
             log::info!(
                 "decrypted requirement {} into {} for upstream: {}",
@@ -493,6 +474,7 @@ pub(crate) fn decrypt_required_secrets(
 }
 
 pub(crate) fn clean_decrypted_secrets(
+    prefix: &PathPrefix,
     req_decrypted: Vec<TempDecryptedFile>,
     upstream_name: &str,
     kind: OperationKind,
@@ -504,7 +486,7 @@ pub(crate) fn clean_decrypted_secrets(
     };
 
     for mut temp_file in req_decrypted {
-        if let Some(res) = temp_file.cleanup(false)? {
+        if let Some(res) = temp_file.cleanup(prefix, false)? {
             log::info!(
                 "cleaned decrypted requirement {} after {} upstream '{}'",
                 res.input.display(),

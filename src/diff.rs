@@ -37,7 +37,7 @@ pub fn diff(proj: &Project, paths: &[PathBuf], options: DiffOptions) -> Result<b
     };
 
     for path in paths {
-        for res in status_path(path, status_opts) {
+        for res in status_path(proj.prefix(), path, status_opts) {
             let op = res?;
             let (decrypted_path, encrypted_path) = match op.kind {
                 OperationKind::Encrypt => (&op.input, &op.output),

@@ -13,14 +13,15 @@ fn test_clean() {
     let secret_path = dir.join("secret.txt");
     fs::write(&secret_path, "top secret").unwrap();
 
-    let encrypted_path = to_encrypted_path(&secret_path);
-    let metadata_path = to_metadata_path(&secret_path);
+    let prefix = PathPrefix::default();
+    let encrypted_path = prefix.to_encrypted_path(&secret_path);
+    let metadata_path = prefix.to_metadata_path(&secret_path);
 
     fs::write(&encrypted_path, "encrypted content").unwrap();
     fs::write(&metadata_path, "metadata content").unwrap();
 
     // Add to .gitignore
-    append_to_gitignore_if_absent(&secret_path, false).unwrap();
+    append_to_gitignore_if_absent(&prefix, &secret_path, false).unwrap();
 
     assert!(encrypted_path.exists());
     assert!(metadata_path.exists());
@@ -32,7 +33,7 @@ fn test_clean() {
         encrypted: true,
         gitignore: true,
     };
-    let cleaned = clean_path(&dir, &opts)
+    let cleaned = clean_path(&prefix, &dir, &opts)
         .filter_map(|res| res.ok())
         .collect::<Vec<_>>();
 
@@ -50,7 +51,7 @@ fn test_clean() {
         encrypted: true,
         gitignore: true,
     };
-    let cleaned = clean_path(&dir, &opts)
+    let cleaned = clean_path(&prefix, &dir, &opts)
         .filter_map(|res| res.ok())
         .collect::<Vec<_>>();
 
@@ -69,7 +70,7 @@ fn test_clean() {
         encrypted: true,
         gitignore: false,
     };
-    let cleaned = clean_path(&secret_path, &opts)
+    let cleaned = clean_path(&prefix, &secret_path, &opts)
         .filter_map(|res| res.ok())
         .collect::<Vec<_>>();
     assert!(cleaned.iter().any(|r| r.input == secret_path));
@@ -83,7 +84,7 @@ fn test_clean() {
         encrypted: false,
         gitignore: false,
     };
-    let cleaned = clean_path(&encrypted_path, &opts)
+    let cleaned = clean_path(&prefix, &encrypted_path, &opts)
         .filter_map(|res| res.ok())
         .collect::<Vec<_>>();
     assert!(cleaned.iter().any(|r| r.input == secret_path));
@@ -97,13 +98,14 @@ fn test_temp_decrypted_file_force_cleanup() {
     let secret_path = dir.join("secret.txt");
     fs::write(&secret_path, "top secret").unwrap();
 
-    let encrypted_path = to_encrypted_path(&secret_path);
+    let prefix = PathPrefix::default();
+    let encrypted_path = prefix.to_encrypted_path(&secret_path);
     fs::write(&encrypted_path, "encrypted content").unwrap();
 
     // When already present and force_cleanup is true, cleanup() deletes the file
     let mut temp_file = TempDecryptedFile::new(secret_path.clone(), true);
     assert!(temp_file.was_present());
-    let res = temp_file.cleanup(false).unwrap();
+    let res = temp_file.cleanup(&prefix, false).unwrap();
     assert!(res.is_some());
     assert!(!secret_path.exists());
 
@@ -111,7 +113,7 @@ fn test_temp_decrypted_file_force_cleanup() {
     fs::write(&secret_path, "top secret").unwrap();
     let mut temp_file = TempDecryptedFile::new(secret_path.clone(), false);
     assert!(temp_file.was_present());
-    let res = temp_file.cleanup(false).unwrap();
+    let res = temp_file.cleanup(&prefix, false).unwrap();
     assert!(res.is_none());
     assert!(secret_path.exists());
 }

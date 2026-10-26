@@ -1,7 +1,4 @@
-use crate::{
-    EncryptOptions, Project, encrypt_path, iter_encrypted, prefix_revert, prefix_sync,
-    to_decrypted_path, to_encrypted_path, to_metadata_path,
-};
+use crate::{EncryptOptions, Project, encrypt_path, prefix_revert, prefix_sync};
 use anyhow::Result;
 use std::fs;
 
@@ -32,16 +29,17 @@ fn encrypt_options(proj: &Project) -> EncryptOptions {
 fn test_prefixed_paths() -> Result<()> {
     let dir = assert_fs::TempDir::new()?;
     let root = dir.path();
-    let _proj = Project::generate_test_project(root).with_toml_config(PREFIX_CONFIG)?;
+    let proj = Project::generate_test_project(root).with_toml_config(PREFIX_CONFIG)?;
+    let prefix = proj.prefix();
 
     let secret = root.join("sub/a.txt");
     let encrypted = root.join("store/enc/sub/a.txt.cott.age");
     let metadata = root.join("store/meta/sub/a.txt.cott.toml");
 
-    assert_eq!(to_encrypted_path(&secret), encrypted);
-    assert_eq!(to_metadata_path(&secret), metadata);
-    assert_eq!(to_decrypted_path(&encrypted), Some(secret.clone()));
-    assert_eq!(to_decrypted_path(&metadata), Some(secret));
+    assert_eq!(prefix.to_encrypted_path(&secret), encrypted);
+    assert_eq!(prefix.to_metadata_path(&secret), metadata);
+    assert_eq!(prefix.to_decrypted_path(&encrypted), Some(secret.clone()));
+    assert_eq!(prefix.to_decrypted_path(&metadata), Some(secret));
 
     // Directories are auto generated
     assert!(root.join("store/enc").is_dir());
@@ -59,7 +57,7 @@ fn test_encrypt_writes_to_prefix() -> Result<()> {
     fs::create_dir_all(secret.parent().unwrap())?;
     fs::write(&secret, "hi\n")?;
 
-    for res in encrypt_path(&secret, &encrypt_options(&proj)) {
+    for res in encrypt_path(proj.prefix(), &secret, &encrypt_options(&proj)) {
         res?;
     }
 
@@ -68,7 +66,11 @@ fn test_encrypt_writes_to_prefix() -> Result<()> {
     assert!(!root.join("sub/a.txt.cott.age").exists());
     assert!(!root.join("sub/a.txt.cott.toml").exists());
 
-    let found: Vec<_> = iter_encrypted(root).map(|e| e.into_path()).collect();
+    let found: Vec<_> = proj
+        .prefix()
+        .iter_encrypted(root)
+        .map(|e| e.into_path())
+        .collect();
     assert_eq!(found, vec![root.join("store/enc/sub/a.txt.cott.age")]);
     Ok(())
 }
@@ -77,13 +79,14 @@ fn test_encrypt_writes_to_prefix() -> Result<()> {
 fn test_prefix_sync_and_revert() -> Result<()> {
     let dir = assert_fs::TempDir::new()?;
     let root = dir.path();
-    let _proj = Project::generate_test_project(root).with_toml_config(PREFIX_CONFIG)?;
+    let proj = Project::generate_test_project(root).with_toml_config(PREFIX_CONFIG)?;
+    let prefix = proj.prefix();
 
     fs::create_dir_all(root.join("sub"))?;
     fs::write(root.join("sub/a.txt.cott.age"), "enc")?;
     fs::write(root.join("sub/a.txt.cott.toml"), "meta")?;
 
-    let moves = prefix_sync(root, false)?;
+    let moves = prefix_sync(prefix, root, false)?;
     assert_eq!(moves.len(), 2);
     assert!(!root.join("sub/a.txt.cott.age").exists());
     assert!(!root.join("sub/a.txt.cott.toml").exists());
@@ -97,13 +100,13 @@ fn test_prefix_sync_and_revert() -> Result<()> {
     );
 
     // Already prefixed: nothing left to move
-    assert!(prefix_sync(root, false)?.is_empty());
+    assert!(prefix_sync(prefix, root, false)?.is_empty());
 
     // Dry run moves nothing
-    assert_eq!(prefix_revert(true)?.len(), 2);
+    assert_eq!(prefix_revert(prefix, true)?.len(), 2);
     assert!(root.join("store/enc/sub/a.txt.cott.age").exists());
 
-    assert_eq!(prefix_revert(false)?.len(), 2);
+    assert_eq!(prefix_revert(prefix, false)?.len(), 2);
     assert_eq!(fs::read_to_string(root.join("sub/a.txt.cott.age"))?, "enc");
     assert_eq!(
         fs::read_to_string(root.join("sub/a.txt.cott.toml"))?,

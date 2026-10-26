@@ -1,11 +1,10 @@
 use crate::{
-    ChecksumMetadata, Metadata, OperationKind, OperationResult, SecretMetadata, is_encrypted_path,
-    make_recipients_checksum_data, project::append_to_gitignore_if_absent, to_decrypted_path,
-    to_encrypted_path, to_metadata_path,
+    ChecksumMetadata, Metadata, OperationKind, OperationResult, PathPrefix, SecretMetadata,
+    is_encrypted_path, make_recipients_checksum_data, project::append_to_gitignore_if_absent,
 };
 use crate::{
     DecryptOptions, Identity, RecipientData, VerifyOptions, decrypt_into_memory, generate_preview,
-    is_metadata_path, iter_encrypted, make_checksum, verify_file,
+    is_metadata_path, make_checksum, verify_file,
 };
 use age::armor::ArmoredWriter;
 use age::secrecy::{ExposeSecret, SecretSlice};
@@ -31,6 +30,7 @@ pub struct EncryptOptions {
 }
 
 pub fn encrypt_file(
+    prefix: &PathPrefix,
     path: &Path,
     opts: &EncryptOptions,
     data: Option<SecretSlice<u8>>,
@@ -69,8 +69,8 @@ pub fn encrypt_file(
         (data, filemtime)
     };
 
-    let output_path = to_encrypted_path(path);
-    let metadata_path = to_metadata_path(path);
+    let output_path = prefix.to_encrypted_path(path);
+    let metadata_path = prefix.to_metadata_path(path);
 
     let old_metadata = Metadata::read_from_path(&metadata_path).ok();
     let verified_data = if !opts.force && metadata_path.exists() && output_path.exists() {
@@ -79,7 +79,7 @@ pub fn encrypt_file(
             skip_verify_encrypted: true,
             skip_verify_recipients: true,
         };
-        verify_file(&output_path, &verify_opts)
+        verify_file(prefix, &output_path, &verify_opts)
     } else {
         Ok(None)
     }?;
@@ -190,7 +190,7 @@ pub fn encrypt_file(
         let mut edits = Vec::new();
         // First add to .gitignore before creating the encrypted file, because, why not!
         if !opts.skip_gitignore
-            && let Some(gi) = append_to_gitignore_if_absent(path, opts.dry_run)?
+            && let Some(gi) = append_to_gitignore_if_absent(prefix, path, opts.dry_run)?
         {
             edits.push(gi);
         }
@@ -235,23 +235,30 @@ pub fn encrypt_file(
     Ok(res)
 }
 
-pub fn encrypt_dir(
+pub fn encrypt_dir<'a>(
+    prefix: &'a PathPrefix,
     path: &Path,
-    options: &EncryptOptions,
-) -> impl Iterator<Item = Result<OperationResult>> {
-    iter_encrypted(path)
-        .filter_map(|e| to_decrypted_path(e.path()))
-        .filter_map(|path| encrypt_file(&path, options, None).transpose())
+    options: &'a EncryptOptions,
+) -> impl Iterator<Item = Result<OperationResult>> + 'a {
+    prefix
+        .iter_encrypted(path)
+        .filter_map(|e| prefix.to_decrypted_path(e.path()))
+        .filter_map(|path| encrypt_file(prefix, &path, options, None).transpose())
 }
 
 pub fn encrypt_path<'a>(
+    prefix: &'a PathPrefix,
     path: &'a Path,
     options: &'a EncryptOptions,
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
     if path.is_dir() {
-        Box::new(encrypt_dir(path, options))
+        Box::new(encrypt_dir(prefix, path, options))
     } else if path.is_file() {
-        Box::new(encrypt_file(path, options, None).transpose().into_iter())
+        Box::new(
+            encrypt_file(prefix, path, options, None)
+                .transpose()
+                .into_iter(),
+        )
     } else {
         Box::new(std::iter::once(Err(anyhow!(
             "{}: path does not exist",

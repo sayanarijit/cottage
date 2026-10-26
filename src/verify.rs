@@ -4,8 +4,8 @@ use age::secrecy::SecretSlice;
 use anyhow::{Context, Result};
 
 use crate::{
-    Metadata, RecipientData, filter_recipients_by_metadata, is_encrypted_path, iter_encrypted,
-    make_recipients_checksum_data, to_decrypted_path, to_metadata_path, verify_checksum,
+    Metadata, PathPrefix, RecipientData, filter_recipients_by_metadata, is_encrypted_path,
+    make_recipients_checksum_data, verify_checksum,
 };
 
 pub struct VerifyOptions {
@@ -48,16 +48,21 @@ pub fn verify_encrypted(
     })
 }
 
-pub fn verify_file(path: &Path, opts: &VerifyOptions) -> Result<Option<VerificationResult>> {
+pub fn verify_file(
+    prefix: &PathPrefix,
+    path: &Path,
+    opts: &VerifyOptions,
+) -> Result<Option<VerificationResult>> {
     log::debug!("{}: verifying file", path.display());
     if !is_encrypted_path(path) {
         log::warn!("skipped: {}: invalid encrypted file", path.display());
         return Ok(None);
     }
 
-    let dec_path = to_decrypted_path(path)
+    let dec_path = prefix
+        .to_decrypted_path(path)
         .with_context(|| format!("{}: could not determine output path", path.display()))?;
-    let metadata_path = to_metadata_path(&dec_path);
+    let metadata_path = prefix.to_metadata_path(&dec_path);
     let metadata = Metadata::read_from_path(&metadata_path)
         .with_context(|| format!("{}: could not read metadata", metadata_path.display()))?;
 
@@ -102,21 +107,25 @@ pub fn verify_file(path: &Path, opts: &VerifyOptions) -> Result<Option<Verificat
     }))
 }
 
-pub fn verify_dir(
+pub fn verify_dir<'a>(
+    prefix: &'a PathPrefix,
     path: &Path,
-    options: &VerifyOptions,
-) -> impl Iterator<Item = Result<VerificationResult>> {
-    iter_encrypted(path).filter_map(move |e| verify_file(e.path(), options).transpose())
+    options: &'a VerifyOptions,
+) -> impl Iterator<Item = Result<VerificationResult>> + 'a {
+    prefix
+        .iter_encrypted(path)
+        .filter_map(move |e| verify_file(prefix, e.path(), options).transpose())
 }
 
 pub fn verify_path<'a>(
+    prefix: &'a PathPrefix,
     path: &'a Path,
     options: &'a VerifyOptions,
 ) -> Box<dyn Iterator<Item = Result<VerificationResult>> + 'a> {
     if path.is_dir() {
-        Box::new(verify_dir(path, options))
+        Box::new(verify_dir(prefix, path, options))
     } else if path.is_file() {
-        Box::new(verify_file(path, options).transpose().into_iter())
+        Box::new(verify_file(prefix, path, options).transpose().into_iter())
     } else {
         Box::new(std::iter::once(Err(anyhow::anyhow!(
             "{}: path does not exist",

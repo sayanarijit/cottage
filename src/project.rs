@@ -1,7 +1,4 @@
-use crate::{
-    PathConfig, PathPrefix, UpstreamMetadata, is_encrypted_path, secure_remove_file,
-    to_decrypted_path,
-};
+use crate::{PathConfig, PathPrefix, UpstreamMetadata, is_encrypted_path, secure_remove_file};
 use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
@@ -175,6 +172,7 @@ pub struct Project {
     ssh_dir: PathBuf,
     git: Option<Git>,
     config: Option<ProjectConfig>,
+    prefix: PathPrefix,
 }
 
 impl Project {
@@ -240,7 +238,6 @@ impl Project {
 
         let prefix = PathPrefix::new(&root, config.as_ref().and_then(|c| c.path.as_ref()));
         prefix.create_dirs()?;
-        prefix.activate();
 
         let recipients_path = cottage_dir.join("recipients");
 
@@ -281,7 +278,12 @@ impl Project {
             ssh_dir,
             global_identity_path,
             config,
+            prefix,
         })
+    }
+
+    pub fn prefix(&self) -> &PathPrefix {
+        &self.prefix
     }
 
     pub fn cwd(&self) -> &Path {
@@ -508,32 +510,6 @@ pub fn keygen(
     Ok(identity_path)
 }
 
-pub fn iter_encrypted(path: &Path) -> impl Iterator<Item = ignore::DirEntry> {
-    fn walk(path: &Path) -> ignore::Walk {
-        let mut builder = ignore::WalkBuilder::new(path);
-        builder
-            .sort_by_file_name(|a, b| a.cmp(b))
-            .standard_filters(true)
-            .hidden(false);
-        builder.build()
-    }
-
-    //Secrets of a directory live under the encrypted prefix, if declared.
-    let prefix = PathPrefix::current();
-    let prefixed = prefix
-        .encrypted_dir_of(path)
-        .filter(|p| path.is_dir() && p.is_dir());
-    let walks = std::iter::once(path.to_path_buf()).chain(prefixed);
-
-    let mut seen = std::collections::HashSet::new();
-    walks
-        .flat_map(|p| walk(&p))
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_file())
-        .filter(|e| is_encrypted_path(e.path()))
-        .filter(move |e| seen.insert(e.path().to_path_buf()))
-}
-
 pub fn get_root(cwd: &Path, root_identifier: &str) -> Option<PathBuf> {
     let mut current = std::path::absolute(cwd).ok()?;
     let is_dir_lookup = root_identifier.ends_with('/');
@@ -670,11 +646,15 @@ fn get_or_create_gitignore_root(path: &Path) -> Result<PathBuf> {
     }
 }
 
-pub fn fmt_gitignore_line(path: &Path, gitignore_root: &Path) -> Result<String> {
+pub fn fmt_gitignore_line(
+    prefix: &PathPrefix,
+    path: &Path,
+    gitignore_root: &Path,
+) -> Result<String> {
     let abs_root = std::path::absolute(gitignore_root)?;
     let mut abs_path = std::path::absolute(path)?;
     if is_encrypted_path(&abs_path) {
-        abs_path = to_decrypted_path(&abs_path).context(format!(
+        abs_path = prefix.to_decrypted_path(&abs_path).context(format!(
             "{}: could not get decrypted path for encrypted file",
             path.display()
         ))?
@@ -690,9 +670,13 @@ pub fn fmt_gitignore_line(path: &Path, gitignore_root: &Path) -> Result<String> 
 }
 
 // Very naive implementation for now
-pub fn append_to_gitignore_if_absent(path: &Path, dry_run: bool) -> Result<Option<PathBuf>> {
+pub fn append_to_gitignore_if_absent(
+    prefix: &PathPrefix,
+    path: &Path,
+    dry_run: bool,
+) -> Result<Option<PathBuf>> {
     let gitignore_root = get_or_create_gitignore_root(path)?;
-    let line_to_add = fmt_gitignore_line(path, &gitignore_root)?;
+    let line_to_add = fmt_gitignore_line(prefix, path, &gitignore_root)?;
 
     let gitignore_path = gitignore_root.join(".gitignore");
     if append_line_if_absent(&gitignore_path, &line_to_add, dry_run)? {
@@ -704,9 +688,13 @@ pub fn append_to_gitignore_if_absent(path: &Path, dry_run: bool) -> Result<Optio
 }
 
 // Very naive implementation for now
-pub fn remove_from_gitignore_if_present(path: &Path, dry_run: bool) -> Result<Option<PathBuf>> {
+pub fn remove_from_gitignore_if_present(
+    prefix: &PathPrefix,
+    path: &Path,
+    dry_run: bool,
+) -> Result<Option<PathBuf>> {
     let gitignore_root = get_or_create_gitignore_root(path)?;
-    let line_to_remove = fmt_gitignore_line(path, &gitignore_root)?;
+    let line_to_remove = fmt_gitignore_line(prefix, path, &gitignore_root)?;
 
     let gitignore_path = gitignore_root.join(".gitignore");
     if remove_line_if_present(&gitignore_path, &line_to_remove, dry_run)? {
@@ -727,7 +715,6 @@ impl Project {
         let root = path.to_path_buf();
         let cottage_dir = root.join(".cottage");
         std::fs::create_dir_all(&cottage_dir).unwrap();
-        PathPrefix::new(&root, None).activate();
         let recipients_path = cottage_dir.join("recipients");
         let dirname = root
             .file_name()
@@ -738,6 +725,8 @@ impl Project {
         let project_identity_dir = global_identity_path.join(&dirname);
         let ssh_dir = root.join(".ssh");
 
+        let prefix = PathPrefix::new(&root, None);
+
         Self {
             cwd: root.clone(),
             root,
@@ -747,6 +736,7 @@ impl Project {
             ssh_dir,
             global_identity_path,
             config: None,
+            prefix,
         }
     }
 
@@ -754,7 +744,7 @@ impl Project {
         let config = toml::from_str::<ProjectConfig>(toml_str)?;
         let prefix = PathPrefix::new(&self.root, config.path.as_ref());
         prefix.create_dirs()?;
-        prefix.activate();
+        self.prefix = prefix;
         self.config = Some(config);
         Ok(self)
     }

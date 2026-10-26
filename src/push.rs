@@ -1,8 +1,7 @@
 use crate::{
     DecryptOptions, Identity, Metadata, OperationKind, OperationResult, Project, RecipientData,
     StatusOptions, UpstreamMetadata, clean_decrypted_secrets, decrypt_into_memory,
-    decrypt_required_secrets, iter_encrypted, run_upstream_script, status::status_file,
-    to_decrypted_path, to_encrypted_path, to_metadata_path,
+    decrypt_required_secrets, run_upstream_script, status::status_file,
 };
 use anyhow::{Context, Result};
 use colored::Colorize;
@@ -21,8 +20,13 @@ pub fn push_path<'a>(
     proj: &'a Project,
     opts: &'a PushOptions,
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
-    let iter = iter_encrypted(path)
-        .filter_map(|e| to_decrypted_path(e.path()).as_deref().map(to_metadata_path))
+    let prefix = proj.prefix();
+    let iter = prefix
+        .iter_encrypted(path)
+        .filter_map(|e| {
+            let dec = prefix.to_decrypted_path(e.path())?;
+            Some(prefix.to_metadata_path(&dec))
+        })
         .filter_map(|p| Metadata::read_from_path(&p).ok().map(|m| (p, m)))
         .filter_map(|(p, m)| m.upstream.map(|um| (p, um)))
         .flat_map(move |(path, um)| {
@@ -71,12 +75,15 @@ pub fn push_upstream(
             )
         })?;
 
-    let decrypted_path = to_decrypted_path(metadata_path).with_context(|| {
-        format!(
-            "{}: could not determine decrypted path",
-            metadata_path.display()
-        )
-    })?;
+    let decrypted_path = proj
+        .prefix()
+        .to_decrypted_path(metadata_path)
+        .with_context(|| {
+            format!(
+                "{}: could not determine decrypted path",
+                metadata_path.display()
+            )
+        })?;
 
     let status_opts = StatusOptions {
         skip_encryption: false,
@@ -84,7 +91,7 @@ pub fn push_upstream(
     };
 
     if decrypted_path.exists()
-        && let Some(res) = status_file(&decrypted_path, status_opts)?
+        && let Some(res) = status_file(proj.prefix(), &decrypted_path, status_opts)?
     {
         anyhow::bail!(
             "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
@@ -93,7 +100,7 @@ pub fn push_upstream(
         );
     }
 
-    let encrypted_path = to_encrypted_path(&decrypted_path);
+    let encrypted_path = proj.prefix().to_encrypted_path(&decrypted_path);
 
     if !encrypted_path.exists() {
         anyhow::bail!(
@@ -163,7 +170,12 @@ pub fn push_upstream(
         opts.debug,
     )?;
 
-    clean_decrypted_secrets(req_decrypted, upstream_name, OperationKind::Push)?;
+    clean_decrypted_secrets(
+        proj.prefix(),
+        req_decrypted,
+        upstream_name,
+        OperationKind::Push,
+    )?;
 
     Ok(Some(OperationResult {
         kind: OperationKind::Push,

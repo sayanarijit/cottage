@@ -13,7 +13,7 @@ fn test_decrypt_into_memory() {
     proj.init_test_recipients();
 
     let input_path = proj_dir.join("secret");
-    let secret_path = crate::to_encrypted_path(&input_path);
+    let secret_path = proj.prefix().to_encrypted_path(&input_path);
     let secret_content = "key=value\nFOO=BAR";
 
     // Encrypt a file manually or using project methods if available
@@ -37,7 +37,7 @@ fn test_decrypt_into_memory() {
 
     let input_path = proj_dir.join("secret");
     std::fs::write(&input_path, secret_content).unwrap();
-    crate::encrypt_file(&input_path, &enc_options, None).unwrap();
+    crate::encrypt_file(proj.prefix(), &input_path, &enc_options, None).unwrap();
 
     let identities = proj.load_test_identities().collect();
     let recipients = proj.load_test_recipients().collect();

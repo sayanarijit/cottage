@@ -1,8 +1,7 @@
 use crate::{
-    Identity, OperationKind, OperationResult, project::append_to_gitignore_if_absent,
-    to_decrypted_path,
+    Identity, OperationKind, OperationResult, PathPrefix, project::append_to_gitignore_if_absent,
 };
-use crate::{RecipientData, VerifyOptions, iter_encrypted, verify_file};
+use crate::{RecipientData, VerifyOptions, verify_file};
 use age::armor::ArmoredReader;
 use age::secrecy::{ExposeSecret, SecretSlice};
 use anyhow::{Context, Result};
@@ -37,7 +36,11 @@ pub fn decrypt_into_memory(
     Ok(buffer.into())
 }
 
-pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<OperationResult>> {
+pub fn decrypt_file(
+    prefix: &PathPrefix,
+    path: &Path,
+    opts: &DecryptOptions,
+) -> Result<Option<OperationResult>> {
     log::debug!("{}: decrypting file", path.display());
     // Just read operations for now ------------------------
 
@@ -47,11 +50,12 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
         skip_verify_recipients: opts.skip_verify_recipients,
     };
 
-    let Some(verified) = verify_file(path, &verify_opts)? else {
+    let Some(verified) = verify_file(prefix, path, &verify_opts)? else {
         return Ok(None);
     };
 
-    let output_path = to_decrypted_path(path)
+    let output_path = prefix
+        .to_decrypted_path(path)
         .with_context(|| format!("{}: could not determine output path", path.display()))?;
     let output = decrypt_into_memory(verified.content.as_slice(), opts)?;
 
@@ -67,7 +71,7 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
         // First add to .gitignore before creating the decrypted file, so that if the operation fails
         // for some reason, we won't have a decrypted file that is not ignored.
         if !opts.skip_gitignore
-            && let Some(gi) = append_to_gitignore_if_absent(&output_path, opts.dry_run)?
+            && let Some(gi) = append_to_gitignore_if_absent(prefix, &output_path, opts.dry_run)?
         {
             edits.push(gi);
         };
@@ -108,21 +112,25 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
     Ok(res)
 }
 
-pub fn decrypt_dir(
+pub fn decrypt_dir<'a>(
+    prefix: &'a PathPrefix,
     path: &Path,
-    options: &DecryptOptions,
-) -> impl Iterator<Item = Result<OperationResult>> {
-    iter_encrypted(path).flat_map(|e| decrypt_file(e.path(), options).transpose())
+    options: &'a DecryptOptions,
+) -> impl Iterator<Item = Result<OperationResult>> + 'a {
+    prefix
+        .iter_encrypted(path)
+        .flat_map(|e| decrypt_file(prefix, e.path(), options).transpose())
 }
 
 pub fn decrypt_path<'a>(
+    prefix: &'a PathPrefix,
     path: &'a Path,
     options: &'a DecryptOptions,
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
     if path.is_dir() {
-        Box::new(decrypt_dir(path, options))
+        Box::new(decrypt_dir(prefix, path, options))
     } else if path.is_file() {
-        Box::new(decrypt_file(path, options).transpose().into_iter())
+        Box::new(decrypt_file(prefix, path, options).transpose().into_iter())
     } else {
         Box::new(std::iter::once(Err(anyhow::anyhow!(
             "{}: path does not exist",

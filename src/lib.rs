@@ -34,13 +34,13 @@ pub(crate) use metadata::{
 };
 pub(crate) use operation::{
     Operation, OperationKind, OperationResult, TempDecryptedFile, clean_decrypted_secrets,
-    decrypt_required_secrets, is_encrypted_path, is_metadata_path, print_result,
-    run_upstream_script, secure_remove_file, to_decrypted_path, to_encrypted_path,
-    to_metadata_path,
+    decrypt_required_secrets, print_result, run_upstream_script, secure_remove_file,
 };
-pub(crate) use prefix::{PathConfig, PathPrefix, prefix_revert, prefix_sync};
+pub(crate) use prefix::{
+    PathConfig, PathPrefix, is_encrypted_path, is_metadata_path, prefix_revert, prefix_sync,
+};
 pub(crate) use preview::generate_preview;
-pub(crate) use project::{Project, iter_encrypted, remove_from_gitignore_if_present};
+pub(crate) use project::{Project, remove_from_gitignore_if_present};
 pub(crate) use pull::{PullOptions, pull_path};
 pub(crate) use push::{PushOptions, push_path};
 

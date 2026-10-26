@@ -9,7 +9,7 @@ fn test_diff_logic() -> Result<()> {
     std::env::set_current_dir(&dir)?;
     fs::create_dir(dir.path().join(".cottage"))?;
 
-    let _proj = Project::load()?;
+    let proj = Project::load()?;
     let secret_path = dir.path().join("secret.txt");
     fs::write(&secret_path, "original content\n")?;
 
@@ -31,11 +31,11 @@ fn test_diff_logic() -> Result<()> {
         skip_timestamps: false,
         skip_preview: true,
         force: false,
-        identity_path: _proj.identity_path().to_path_buf(),
+        identity_path: proj.identity_path().to_path_buf(),
         dry_run: false,
     };
 
-    for res in encrypt_path(&secret_path, &options) {
+    for res in encrypt_path(proj.prefix(), &secret_path, &options) {
         res?;
     }
 
@@ -50,7 +50,8 @@ fn test_diff_logic() -> Result<()> {
 
     // Check status
     let operations: Vec<_> =
-        status_path(&secret_path, crate::StatusOptions::default()).collect::<Result<Vec<_>>>()?;
+        status_path(proj.prefix(), &secret_path, crate::StatusOptions::default())
+            .collect::<Result<Vec<_>>>()?;
     assert_eq!(operations.len(), 1);
 
     // Simulate diff logic

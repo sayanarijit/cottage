@@ -1,6 +1,7 @@
 use crate::{
     DecryptOptions, EncryptOptions, Identity, Operation, OperationKind, OperationResult,
-    RecipientData, dec::decrypt_file, enc::encrypt_file, status::StatusOptions, status_path,
+    PathPrefix, RecipientData, dec::decrypt_file, enc::encrypt_file, status::StatusOptions,
+    status_path,
 };
 use anyhow::Result;
 use std::path::{Path, PathBuf};
@@ -22,7 +23,11 @@ pub struct SyncOptions {
     pub dry_run: bool,
 }
 
-fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<OperationResult>> {
+fn perform(
+    prefix: &PathPrefix,
+    operation: &Operation,
+    sync_options: &SyncOptions,
+) -> Result<Option<OperationResult>> {
     match operation.kind {
         OperationKind::Encrypt => {
             if !sync_options.skip_encryption {
@@ -37,7 +42,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
                     force: sync_options.force,
                     dry_run: sync_options.dry_run,
                 };
-                encrypt_file(&operation.input, &encrypt_options, None)
+                encrypt_file(prefix, &operation.input, &encrypt_options, None)
             } else {
                 log::debug!("{}: skipping encryption", operation.input.display());
                 Ok(None)
@@ -54,7 +59,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
                     skip_verify_recipients: sync_options.skip_verify_recipients,
                     dry_run: sync_options.dry_run,
                 };
-                decrypt_file(&operation.input, &decrypt_options)
+                decrypt_file(prefix, &operation.input, &decrypt_options)
             } else {
                 log::debug!("{}: skipping decryption", operation.input.display());
                 Ok(None)
@@ -68,6 +73,7 @@ fn perform(operation: &Operation, sync_options: &SyncOptions) -> Result<Option<O
 }
 
 pub fn sync_path<'a>(
+    prefix: &'a PathPrefix,
     path: &'a Path,
     opts: &'a SyncOptions,
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
@@ -78,7 +84,7 @@ pub fn sync_path<'a>(
         skip_decryption: opts.skip_decryption,
     };
     Box::new(
-        status_path(path, status_opts)
-            .filter_map(|res| res.and_then(|op| perform(&op, opts)).transpose()),
+        status_path(prefix, path, status_opts)
+            .filter_map(|res| res.and_then(|op| perform(prefix, &op, opts)).transpose()),
     )
 }

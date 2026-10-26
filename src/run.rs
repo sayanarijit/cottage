@@ -1,6 +1,6 @@
 use crate::{
-    DecryptOptions, OperationResult, StatusOptions, TempDecryptedFile, decrypt_path,
-    is_encrypted_path, status_path, to_decrypted_path, to_encrypted_path,
+    DecryptOptions, OperationResult, PathPrefix, StatusOptions, TempDecryptedFile, decrypt_path,
+    is_encrypted_path, status_path,
 };
 use anyhow::Result;
 use colored::Colorize;
@@ -20,6 +20,7 @@ pub struct RunResult {
 }
 
 pub fn run(
+    prefix: &PathPrefix,
     proj_root: &Path,
     relative_cwd: impl Fn(&Path) -> PathBuf,
     opts: RunOptions,
@@ -29,15 +30,15 @@ pub fn run(
     for arg in opts.args.iter() {
         let p = PathBuf::from(arg);
         if is_encrypted_path(&p) && p.exists() {
-            if let Some(dec) = to_decrypted_path(&p) {
+            if let Some(dec) = prefix.to_decrypted_path(&p) {
                 modified_args.push(dec.to_string_lossy().to_string());
             } else {
                 modified_args.push(arg.clone());
             }
             input_paths.push(p);
-        } else if to_encrypted_path(&p).exists() {
+        } else if prefix.to_encrypted_path(&p).exists() {
             modified_args.push(arg.clone());
-            input_paths.push(to_encrypted_path(&p));
+            input_paths.push(prefix.to_encrypted_path(&p));
         } else if p.is_dir() {
             modified_args.push(arg.clone());
             input_paths.push(p);
@@ -61,7 +62,7 @@ pub fn run(
         skip_decryption: true,
     };
     for path in input.iter() {
-        if let Some(res) = status_path(path, status_opts).next() {
+        if let Some(res) = status_path(prefix, path, status_opts).next() {
             let res = res?;
             anyhow::bail!(
                 "{}: {} is dirty, please run `ctg sync` or `ctg encrypt` first",
@@ -74,12 +75,12 @@ pub fn run(
     let mut temp_files = vec![];
     for path in &input {
         if path.is_file() && is_encrypted_path(path) {
-            if let Some(dec) = to_decrypted_path(path) {
+            if let Some(dec) = prefix.to_decrypted_path(path) {
                 temp_files.push(TempDecryptedFile::new(dec, opts.clean));
             }
         } else if path.is_dir() {
-            for entry in crate::iter_encrypted(path) {
-                if let Some(dec) = to_decrypted_path(entry.path()) {
+            for entry in prefix.iter_encrypted(path) {
+                if let Some(dec) = prefix.to_decrypted_path(entry.path()) {
                     temp_files.push(TempDecryptedFile::new(dec, opts.clean));
                 }
             }
@@ -89,7 +90,7 @@ pub fn run(
     let mut results: Vec<Result<OperationResult>> = vec![];
 
     for path in &input {
-        for res in decrypt_path(path, &opts.decrypt_options) {
+        for res in decrypt_path(prefix, path, &opts.decrypt_options) {
             results.push(res);
         }
     }
@@ -110,7 +111,7 @@ pub fn run(
     };
 
     for mut temp_file in temp_files {
-        match temp_file.cleanup(opts.dry_run) {
+        match temp_file.cleanup(prefix, opts.dry_run) {
             Ok(Some(res)) => results.push(Ok(res)),
             Ok(None) => {}
             Err(e) => results.push(Err(e)),

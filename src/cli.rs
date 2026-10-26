@@ -725,7 +725,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
     };
 
     for path in &input {
-        for res in encrypt_path(path, &options) {
+        for res in encrypt_path(proj.prefix(), path, &options) {
             let res = res?;
             if !quiet {
                 print_result(&mut stdout, proj, &res, args.compact)?;
@@ -740,7 +740,10 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
             encrypted: false,
         };
 
-        for res in input.iter().flat_map(|p| clean_path(p, &clean_opts)) {
+        for res in input
+            .iter()
+            .flat_map(|p| clean_path(proj.prefix(), p, &clean_opts))
+        {
             let res = res?;
             if !quiet {
                 print_result(&mut stdout, proj, &res, args.compact)?;
@@ -768,7 +771,7 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
 
     let mut stdout = std::io::stdout();
     for path in &input {
-        for res in decrypt_path(path, &options) {
+        for res in decrypt_path(proj.prefix(), path, &options) {
             let res = res?;
             if !quiet {
                 print_result(&mut stdout, proj, &res, args.compact)?;
@@ -805,7 +808,13 @@ fn run_cat_cmd(proj: &Project, args: CatArgs) -> Result<()> {
         skip_verify_recipients: args.skip_verify_recipients,
     };
 
-    if let Some(res) = cat(&args.path, input, &options, std::io::stdout().lock())? {
+    if let Some(res) = cat(
+        proj.prefix(),
+        &args.path,
+        input,
+        &options,
+        std::io::stdout().lock(),
+    )? {
         print_result(&mut std::io::stdout(), proj, &res, false)?;
     }
     Ok(())
@@ -822,7 +831,7 @@ fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
 
     let mut has_pending = false;
     for path in &input {
-        for res in status_path(path, opts) {
+        for res in status_path(proj.prefix(), path, opts) {
             let res = res?;
             has_pending = true;
             if !quiet {
@@ -861,7 +870,7 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
 
     let mut stdout = std::io::stdout();
     for path in &input {
-        for res in sync_path(path, &sync_options) {
+        for res in sync_path(proj.prefix(), path, &sync_options) {
             let res = res?;
             if !quiet {
                 print_result(&mut stdout, proj, &res, args.compact)?;
@@ -903,7 +912,10 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
     };
 
     let mut stdout = std::io::stdout();
-    for res in input.iter().flat_map(|p| clean_path(p, &opts)) {
+    for res in input
+        .iter()
+        .flat_map(|p| clean_path(proj.prefix(), p, &opts))
+    {
         let res = res?;
         if !quiet {
             print_result(&mut stdout, proj, &res, args.compact)?;
@@ -936,7 +948,12 @@ fn run_run_cmd(proj: &Project, args: RunArgs, quiet: bool) -> Result<()> {
         clean: args.clean,
     };
 
-    let res = run_task(proj.root(), |p| proj.relative_to_cwd(p), options)?;
+    let res = run_task(
+        proj.prefix(),
+        proj.root(),
+        |p| proj.relative_to_cwd(p),
+        options,
+    )?;
     let mut stderr = std::io::stderr();
     for op_res in res.operation_results {
         let op_res = op_res?;
@@ -1004,7 +1021,7 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
         clean: args.clean,
     };
 
-    let res = edit_task(options)?;
+    let res = edit_task(proj.prefix(), options)?;
     let mut stdout = std::io::stdout();
     for op_res in res {
         let op_res = op_res?;
@@ -1119,7 +1136,7 @@ fn run_verify_cmd(proj: &Project, args: VerifyArgs, quiet: bool) -> Result<()> {
     };
 
     for path in &input {
-        for res in verify_path(path, &options) {
+        for res in verify_path(proj.prefix(), path, &options) {
             res?;
         }
     }
@@ -1139,11 +1156,11 @@ fn run_prefix_cmd(proj: &Project, command: PrefixCommand, quiet: bool) -> Result
         PrefixCommand::Sync(args) => {
             let mut moves = vec![];
             for path in get_input_paths(proj, args.path) {
-                moves.extend(prefix_sync(&path, args.dry_run)?);
+                moves.extend(prefix_sync(proj.prefix(), &path, args.dry_run)?);
             }
             (moves, args.dry_run)
         }
-        PrefixCommand::Revert(args) => (prefix_revert(args.dry_run)?, args.dry_run),
+        PrefixCommand::Revert(args) => (prefix_revert(proj.prefix(), args.dry_run)?, args.dry_run),
     };
 
     if !quiet {

@@ -1,7 +1,6 @@
 use crate::{
-    OperationKind, OperationResult, is_encrypted_path, is_metadata_path, iter_encrypted,
-    remove_from_gitignore_if_present, secure_remove_file, to_decrypted_path, to_encrypted_path,
-    to_metadata_path,
+    OperationKind, OperationResult, PathPrefix, is_encrypted_path, is_metadata_path,
+    remove_from_gitignore_if_present, secure_remove_file,
 };
 use anyhow::Result;
 use std::fs;
@@ -14,8 +13,12 @@ pub struct CleanOptions {
     pub gitignore: bool,
 }
 
-pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<OperationResult>> {
-    let encrypted_path = to_encrypted_path(&path);
+pub fn clean_file(
+    prefix: &PathPrefix,
+    path: PathBuf,
+    opts: &CleanOptions,
+) -> Result<Option<OperationResult>> {
+    let encrypted_path = prefix.to_encrypted_path(&path);
     if !encrypted_path.exists() {
         log::warn!("skipped: {}: not a secret", path.display());
         return Ok(None);
@@ -36,7 +39,7 @@ pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<Operation
     }
 
     if opts.gitignore {
-        while let Some(gi) = remove_from_gitignore_if_present(&path, opts.dry_run)? {
+        while let Some(gi) = remove_from_gitignore_if_present(prefix, &path, opts.dry_run)? {
             was_cleaned = true;
             edits.push(gi);
             if opts.dry_run {
@@ -57,7 +60,7 @@ pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<Operation
             cleanups.push(encrypted_path);
         }
 
-        let metadata_path = to_metadata_path(&path);
+        let metadata_path = prefix.to_metadata_path(&path);
         if metadata_path.exists() {
             was_cleaned = true;
             if !opts.dry_run {
@@ -83,30 +86,39 @@ pub fn clean_file(path: PathBuf, opts: &CleanOptions) -> Result<Option<Operation
     }
 }
 
-pub fn clean_dir(
+pub fn clean_dir<'a>(
+    prefix: &'a PathPrefix,
     path: &Path,
-    opts: &CleanOptions,
-) -> impl Iterator<Item = Result<OperationResult>> {
+    opts: &'a CleanOptions,
+) -> impl Iterator<Item = Result<OperationResult>> + 'a {
     Box::new(
-        iter_encrypted(path)
-            .filter_map(|e| to_decrypted_path(e.path()))
-            .filter_map(move |p| clean_file(p, opts).transpose()),
+        prefix
+            .iter_encrypted(path)
+            .filter_map(|e| prefix.to_decrypted_path(e.path()))
+            .filter_map(move |p| clean_file(prefix, p, opts).transpose()),
     )
 }
 
 pub fn clean_path<'a>(
+    prefix: &'a PathPrefix,
     path: &'a Path,
     opts: &'a CleanOptions,
 ) -> Box<dyn Iterator<Item = Result<OperationResult>> + 'a> {
     let decrypted_path = if is_encrypted_path(path) || is_metadata_path(path) {
-        to_decrypted_path(path).unwrap_or_else(|| path.to_path_buf())
+        prefix
+            .to_decrypted_path(path)
+            .unwrap_or_else(|| path.to_path_buf())
     } else {
         path.to_path_buf()
     };
-    if decrypted_path.is_file() || to_encrypted_path(&decrypted_path).is_file() {
-        Box::new(clean_file(decrypted_path, opts).transpose().into_iter())
+    if decrypted_path.is_file() || prefix.to_encrypted_path(&decrypted_path).is_file() {
+        Box::new(
+            clean_file(prefix, decrypted_path, opts)
+                .transpose()
+                .into_iter(),
+        )
     } else if path.is_dir() {
-        Box::new(clean_dir(path, opts))
+        Box::new(clean_dir(prefix, path, opts))
     } else {
         Box::new(std::iter::once(Err(anyhow::anyhow!(
             "{}: path does not exist",

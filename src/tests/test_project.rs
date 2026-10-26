@@ -18,11 +18,11 @@ fn test_get_root() {
 #[test]
 fn test_to_encrypted_path() {
     let path = PathBuf::from("secret.txt");
-    let encrypted_path = to_encrypted_path(&path);
+    let encrypted_path = PathPrefix::default().to_encrypted_path(&path);
     assert_eq!(encrypted_path, PathBuf::from("secret.txt.cott.age"));
 
     let dotenvpath = PathBuf::from(".env");
-    let encrypted_dotenv_path = to_encrypted_path(&dotenvpath);
+    let encrypted_dotenv_path = PathPrefix::default().to_encrypted_path(&dotenvpath);
     assert_eq!(encrypted_dotenv_path, PathBuf::from(".env.cott.age"));
 }
 
@@ -35,25 +35,30 @@ fn test_is_encrypted_path() {
 #[test]
 fn test_to_decrypted_path() {
     let encrypted_path = PathBuf::from("secret.txt.cott.age");
-    let decrypted_path = to_decrypted_path(&encrypted_path);
+    let decrypted_path = PathPrefix::default().to_decrypted_path(&encrypted_path);
     assert_eq!(decrypted_path, Some(PathBuf::from("secret.txt")));
 
     let non_encrypted_path = PathBuf::from("secret.txt");
-    assert_eq!(to_decrypted_path(&non_encrypted_path), None);
+    assert_eq!(
+        PathPrefix::default().to_decrypted_path(&non_encrypted_path),
+        None
+    );
 
     let dotenv_encrypted_path = PathBuf::from(".env.cott.age");
-    let decrypted_dotenv_path = to_decrypted_path(&dotenv_encrypted_path);
+    let decrypted_dotenv_path = PathPrefix::default().to_decrypted_path(&dotenv_encrypted_path);
     assert_eq!(decrypted_dotenv_path, Some(PathBuf::from(".env")));
 
     let double_extension_path = PathBuf::from("archive.tar.gz.cott.age");
-    let decrypted_double_extension_path = to_decrypted_path(&double_extension_path);
+    let decrypted_double_extension_path =
+        PathPrefix::default().to_decrypted_path(&double_extension_path);
     assert_eq!(
         decrypted_double_extension_path,
         Some(PathBuf::from("archive.tar.gz"))
     );
 
     let double_encrypted_path = PathBuf::from("secret.txt.cott.age.cott.age");
-    let decrypted_double_encrypted_path = to_decrypted_path(&double_encrypted_path);
+    let decrypted_double_encrypted_path =
+        PathPrefix::default().to_decrypted_path(&double_encrypted_path);
     assert_eq!(
         decrypted_double_encrypted_path,
         Some(PathBuf::from("secret.txt.cott.age"))
@@ -82,7 +87,7 @@ fn test_add_to_gitignore() {
     std::fs::write(&subdir_secret, "subsecret").unwrap();
 
     // Test adding to parent .gitignore
-    let added_path = append_to_gitignore_if_absent(&parent_secret, false)
+    let added_path = append_to_gitignore_if_absent(&PathPrefix::default(), &parent_secret, false)
         .unwrap()
         .unwrap();
     assert_eq!(added_path, parent_gitignore);
@@ -91,9 +96,10 @@ fn test_add_to_gitignore() {
     assert!(parent_content.contains("/secret.txt"));
 
     // Test adding to parent .gitignore when subdir .gitignore doesn't exist
-    let added_subpath = append_to_gitignore_if_absent(&subdir_secret, false)
-        .unwrap()
-        .unwrap();
+    let added_subpath =
+        append_to_gitignore_if_absent(&PathPrefix::default(), &subdir_secret, false)
+            .unwrap()
+            .unwrap();
     assert_eq!(added_subpath, parent_gitignore);
 
     let parent_content = std::fs::read_to_string(&parent_gitignore).unwrap();
@@ -101,7 +107,8 @@ fn test_add_to_gitignore() {
 
     // Test adding to subdir .gitignore
     std::fs::write(&subdir_gitignore, "").unwrap();
-    let added_subpath_to_subdir = append_to_gitignore_if_absent(&subdir_secret, false).unwrap();
+    let added_subpath_to_subdir =
+        append_to_gitignore_if_absent(&PathPrefix::default(), &subdir_secret, false).unwrap();
 
     assert_eq!(added_subpath_to_subdir, Some(subdir_gitignore.clone()));
 
@@ -109,8 +116,10 @@ fn test_add_to_gitignore() {
     assert!(subdir_content.contains("/subsecret.txt"));
 
     // Check duplicates are not added
-    let duplicate_parent_add = append_to_gitignore_if_absent(&parent_secret, false).unwrap();
-    let duplicate_subdir_add = append_to_gitignore_if_absent(&subdir_secret, false).unwrap();
+    let duplicate_parent_add =
+        append_to_gitignore_if_absent(&PathPrefix::default(), &parent_secret, false).unwrap();
+    let duplicate_subdir_add =
+        append_to_gitignore_if_absent(&PathPrefix::default(), &subdir_secret, false).unwrap();
     let updated_parent_content = std::fs::read_to_string(&parent_gitignore).unwrap();
     let updated_subdir_content = std::fs::read_to_string(&subdir_gitignore).unwrap();
 
@@ -464,7 +473,10 @@ fn test_iter_encrypted_respects_gitignore() {
     std::fs::create_dir_all(root.join("subfolder")).unwrap();
     std::fs::write(root.join("subfolder/nested.txt.cott.age"), "enc").unwrap();
 
-    let entries: Vec<PathBuf> = iter_encrypted(root).map(|e| e.into_path()).collect();
+    let entries: Vec<PathBuf> = PathPrefix::default()
+        .iter_encrypted(root)
+        .map(|e| e.into_path())
+        .collect();
 
     assert!(entries.contains(&root.join("secret.txt.cott.age")));
     assert!(entries.contains(&root.join(".env.cott.age")));

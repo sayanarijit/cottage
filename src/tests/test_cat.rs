@@ -1,4 +1,4 @@
-use crate::{CatOptions, EncryptOptions, Project, cat, to_encrypted_path};
+use crate::{CatOptions, EncryptOptions, Project, cat};
 use assert_fs::prelude::*;
 
 fn setup(proj_dir: &assert_fs::fixture::ChildPath) -> (Project, CatOptions) {
@@ -27,18 +27,25 @@ fn setup(proj_dir: &assert_fs::fixture::ChildPath) -> (Project, CatOptions) {
 fn test_cat_encrypts_stdin_then_decrypts() {
     let temp = assert_fs::TempDir::new().unwrap();
     let proj_dir = temp.child("proj");
-    let (_proj, opts) = setup(&proj_dir);
+    let (proj, opts) = setup(&proj_dir);
     let path = proj_dir.join("secret");
 
     let mut out = vec![];
-    let res = cat(&path, Some(b"hello".to_vec()), &opts, &mut out).unwrap();
+    let res = cat(
+        proj.prefix(),
+        &path,
+        Some(b"hello".to_vec()),
+        &opts,
+        &mut out,
+    )
+    .unwrap();
     assert!(res.is_some());
     assert!(out.is_empty());
-    assert!(to_encrypted_path(&path).is_file());
+    assert!(proj.prefix().to_encrypted_path(&path).is_file());
 
-    for p in [path.clone(), to_encrypted_path(&path)] {
+    for p in [path.clone(), proj.prefix().to_encrypted_path(&path)] {
         let mut out = vec![];
-        let res = cat(&p, None, &opts, &mut out).unwrap();
+        let res = cat(proj.prefix(), &p, None, &opts, &mut out).unwrap();
         assert!(res.is_none());
         assert_eq!(out, b"hello");
     }
@@ -48,13 +55,13 @@ fn test_cat_encrypts_stdin_then_decrypts() {
 fn test_cat_empty_input_decrypts() {
     let temp = assert_fs::TempDir::new().unwrap();
     let proj_dir = temp.child("proj");
-    let (_proj, opts) = setup(&proj_dir);
+    let (proj, opts) = setup(&proj_dir);
     let path = proj_dir.join("secret");
 
-    cat(&path, Some(b"data".to_vec()), &opts, vec![]).unwrap();
+    cat(proj.prefix(), &path, Some(b"data".to_vec()), &opts, vec![]).unwrap();
 
     let mut out = vec![];
-    cat(&path, Some(vec![]), &opts, &mut out).unwrap();
+    cat(proj.prefix(), &path, Some(vec![]), &opts, &mut out).unwrap();
     assert_eq!(out, b"data");
 }
 
@@ -62,12 +69,12 @@ fn test_cat_empty_input_decrypts() {
 fn test_cat_missing_secret_fails() {
     let temp = assert_fs::TempDir::new().unwrap();
     let proj_dir = temp.child("proj");
-    let (_proj, opts) = setup(&proj_dir);
+    let (proj, opts) = setup(&proj_dir);
 
-    let err = cat(&proj_dir.join("nope"), None, &opts, vec![]).unwrap_err();
+    let err = cat(proj.prefix(), &proj_dir.join("nope"), None, &opts, vec![]).unwrap_err();
     assert!(err.to_string().contains("encrypted secret does not exist"));
 
-    let missing_enc = to_encrypted_path(&proj_dir.join("nope"));
-    let err = cat(&missing_enc, None, &opts, vec![]).unwrap_err();
+    let missing_enc = proj.prefix().to_encrypted_path(&proj_dir.join("nope"));
+    let err = cat(proj.prefix(), &missing_enc, None, &opts, vec![]).unwrap_err();
     assert!(err.to_string().contains("path does not exist"));
 }

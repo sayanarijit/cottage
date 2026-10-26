@@ -1,7 +1,6 @@
-use crate::{is_encrypted_path, is_metadata_path, secure_remove_file, to_decrypted_path};
+use crate::secure_remove_file;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
 /// `[path.prefix]` section of cottage.toml.
@@ -25,8 +24,12 @@ pub struct PathPrefix {
     metadata: Option<PathBuf>,
 }
 
-thread_local! {
-    static PATH_PREFIX: RefCell<PathPrefix> = RefCell::new(PathPrefix::default());
+pub fn is_encrypted_path(path: &Path) -> bool {
+    path.to_string_lossy().ends_with(".cott.age")
+}
+
+pub fn is_metadata_path(path: &Path) -> bool {
+    path.to_string_lossy().ends_with(".cott.toml")
 }
 
 impl PathPrefix {
@@ -44,15 +47,6 @@ impl PathPrefix {
             encrypted: prefix.and_then(|p| p.encrypted.as_ref()).map(resolve),
             metadata: prefix.and_then(|p| p.metadata.as_ref()).map(resolve),
         }
-    }
-
-    /// Makes this prefix the one used by the path helpers on the current thread.
-    pub fn activate(self) {
-        PATH_PREFIX.with(|p| *p.borrow_mut() = self);
-    }
-
-    pub fn current() -> Self {
-        PATH_PREFIX.with(|p| p.borrow().clone())
     }
 
     pub fn encrypted_dir(&self) -> Option<&Path> {
@@ -85,18 +79,53 @@ impl PathPrefix {
         self.under(self.encrypted_dir(), path)
     }
 
-    pub fn encrypted_path(&self, path: &Path) -> PathBuf {
+    pub fn to_encrypted_path(&self, path: &Path) -> PathBuf {
         self.under(self.encrypted_dir(), path)
             .unwrap_or_else(|| path.to_path_buf())
             .with_added_extension("cott")
             .with_added_extension("age")
     }
 
-    pub fn metadata_path(&self, path: &Path) -> PathBuf {
+    pub fn to_metadata_path(&self, path: &Path) -> PathBuf {
         self.under(self.metadata_dir(), path)
             .unwrap_or_else(|| path.to_path_buf())
             .with_added_extension("cott")
             .with_added_extension("toml")
+    }
+
+    /// The decrypted path of an encrypted or metadata path, or None if it is neither.
+    pub fn to_decrypted_path(&self, path: &Path) -> Option<PathBuf> {
+        if !is_encrypted_path(path) && !is_metadata_path(path) {
+            return None;
+        }
+        let path = self.unprefixed(path).unwrap_or_else(|| path.to_path_buf());
+        path.file_stem()
+            .and_then(|s| PathBuf::from(s).file_stem().map(|s| path.with_file_name(s)))
+    }
+
+    /// Walks `path` for encrypted secrets, including those mirrored under the encrypted prefix.
+    pub fn iter_encrypted(&self, path: &Path) -> impl Iterator<Item = ignore::DirEntry> + use<> {
+        fn walk(path: &Path) -> ignore::Walk {
+            let mut builder = ignore::WalkBuilder::new(path);
+            builder
+                .sort_by_file_name(|a, b| a.cmp(b))
+                .standard_filters(true)
+                .hidden(false);
+            builder.build()
+        }
+
+        let prefixed = self
+            .encrypted_dir_of(path)
+            .filter(|p| path.is_dir() && p.is_dir());
+        let walks = std::iter::once(path.to_path_buf()).chain(prefixed);
+
+        let mut seen = std::collections::HashSet::new();
+        walks
+            .flat_map(|p| walk(&p))
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_file())
+            .filter(|e| is_encrypted_path(e.path()))
+            .filter(move |e| seen.insert(e.path().to_path_buf()))
     }
 
     /// Strips the prefix directory from a prefixed encrypted/metadata path, if it has one.
@@ -179,12 +208,12 @@ fn relocate(
 ) -> Result<Vec<(PathBuf, PathBuf)>> {
     let mut moves = vec![];
     for path in paths {
-        let Some(decrypted) = to_decrypted_path(path) else {
+        let Some(decrypted) = prefix.to_decrypted_path(path) else {
             continue;
         };
         let target = match (direction, is_encrypted_path(path)) {
-            (Direction::Sync, true) => prefix.encrypted_path(&decrypted),
-            (Direction::Sync, false) => prefix.metadata_path(&decrypted),
+            (Direction::Sync, true) => prefix.to_encrypted_path(&decrypted),
+            (Direction::Sync, false) => prefix.to_metadata_path(&decrypted),
             (Direction::Revert, true) => decrypted.with_added_extension("cott.age"),
             (Direction::Revert, false) => decrypted.with_added_extension("cott.toml"),
         };
@@ -197,8 +226,11 @@ fn relocate(
 }
 
 /// Moves stray encrypted secrets and metadata under `path` to their prefixed location.
-pub fn prefix_sync(path: &Path, dry_run: bool) -> Result<Vec<(PathBuf, PathBuf)>> {
-    let prefix = PathPrefix::current();
+pub fn prefix_sync(
+    prefix: &PathPrefix,
+    path: &Path,
+    dry_run: bool,
+) -> Result<Vec<(PathBuf, PathBuf)>> {
     if !dry_run {
         prefix.create_dirs()?;
     }
@@ -210,12 +242,11 @@ pub fn prefix_sync(path: &Path, dry_run: bool) -> Result<Vec<(PathBuf, PathBuf)>
     }
     // Files already in a prefix directory map to themselves; only strays move.
     files.retain(|f| prefix.unprefixed(f).is_none());
-    relocate(&files, &prefix, Direction::Sync, dry_run)
+    relocate(&files, prefix, Direction::Sync, dry_run)
 }
 
 /// Moves prefixed encrypted secrets and metadata back next to their decrypted paths.
-pub fn prefix_revert(dry_run: bool) -> Result<Vec<(PathBuf, PathBuf)>> {
-    let prefix = PathPrefix::current();
+pub fn prefix_revert(prefix: &PathPrefix, dry_run: bool) -> Result<Vec<(PathBuf, PathBuf)>> {
     let mut files = vec![];
     for dir in prefix
         .encrypted_dir()
@@ -232,7 +263,7 @@ pub fn prefix_revert(dry_run: bool) -> Result<Vec<(PathBuf, PathBuf)>> {
         .into_iter()
         .filter(|f| prefix.unprefixed(f).is_some())
         .collect();
-    let moves = relocate(&files, &prefix, Direction::Revert, dry_run)?;
+    let moves = relocate(&files, prefix, Direction::Revert, dry_run)?;
     if !dry_run {
         for dir in prefix
             .encrypted_dir()
