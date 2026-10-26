@@ -1,5 +1,5 @@
 [spec]
-envfile.default = "./examples/.env.cott.age"
+envfile.default = "./.cottage/secrets/examples/.env.cott.age"
 export.stdout = true
 
 decryption.key.env = "COTTAGE_IDENTITY"
