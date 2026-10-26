@@ -6,6 +6,7 @@ Scenarios for adding recipient and decrypting secrets:
 2.  [I got a checksum mismatch error when decrypting secrets](#i-got-a-checksum-mismatch-error-when-decrypting-secrets)
 3.  [I want to run a command with decrypted secrets (ctg run / ctgx)](#i-want-to-run-a-command-with-decrypted-secrets-ctg-run--ctgx)
 4.  [I want to ensure decrypted secrets are cleaned up after running a command (ctg run --clean)](#i-want-to-ensure-decrypted-secrets-are-cleaned-up-after-running-a-command-ctg-run---clean)
+5.  [I want to use a secret without writing it to disk (ctg cat)](#i-want-to-use-a-secret-without-writing-it-to-disk-ctg-cat)
 
 ## I want to decrypt secrets in the cloned repository
 
@@ -225,3 +226,20 @@ If you want to guarantee that all decrypted secrets are deleted after running a 
 > ```
 
 This decrypts missing secrets before running the command, executes the command, and ensures all target decrypted secrets are deleted upon completion.
+
+## I want to use a secret without writing it to disk (ctg cat)
+
+`ctg cat {path}` decrypts the secret in memory and prints it to stdout, so you can pipe it straight into another tool without creating a decrypted file:
+
+> ```bash
+> ctg cat secret1.env
+> ctg cat secret1.env | docker run --rm --env-file /dev/stdin my-image:latest
+> ```
+
+The same command works in reverse. When content is piped into it, `ctg cat` encrypts that content into the secret instead, again without writing the cleartext to disk:
+
+> ```bash
+> echo SECRET | ctg cat secret1.env
+> ```
+
+If stdin is empty or a terminal, `ctg cat` decrypts as usual.

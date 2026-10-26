@@ -1,10 +1,9 @@
 use crate::{
-    CatOptions, CleanOptions, DecryptOptions, DiffOptions, EditOptions, EncryptOptions, EnvOptions, Project,
-    PullOptions, PushOptions, RunOptions, StatusOptions, SyncOptions, VerifyOptions, cat, clean_path,
-    decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task,
-    load_identities, load_recipients, prefix_revert, prefix_sync, print_result,
-    pull_path, push_path, run as run_task, status_path, sync_path,
-    verify_path,
+    CatOptions, CleanOptions, DecryptOptions, DiffOptions, EditOptions, EncryptOptions, EnvOptions,
+    Project, PullOptions, PushOptions, RunOptions, StatusOptions, SyncOptions, VerifyOptions, cat,
+    clean_path, decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task,
+    load_identities, load_recipients, prefix_revert, prefix_sync, print_result, pull_path,
+    push_path, run as run_task, status_path, sync_path, verify_path,
 };
 use anyhow::Result;
 use clap::CommandFactory;

@@ -7,6 +7,7 @@ Scenarios for encrypting and editing new or existing secrets:
 3.  [I want to re-encrypt all secrets in the current directory](#i-want-to-re-encrypt-all-secrets-in-the-current-directory)
 4.  [I want to edit an existing secret with automatic cleanup or retention](#i-want-to-edit-an-existing-secret-with-automatic-cleanup-or-retention)
 5.  [I want the cleartext secret deleted after encryption or editing](#i-want-the-cleartext-secret-deleted-after-encryption-or-editing)
+6.  [I want to encrypt piped content without writing the cleartext to disk](#i-want-to-encrypt-piped-content-without-writing-the-cleartext-to-disk)
 
 ## I want to create a new encrypted file
 
@@ -167,3 +168,20 @@ But the entries in `.gitignore` will still remain:
 > /secret1.env
 > /secret2.env
 > ```
+
+## I want to encrypt piped content without writing the cleartext to disk
+
+Pipe the content into `ctg cat {path}`. Unlike `ctg edit`, the cleartext file is never written to disk. Only the encrypted counterpart is created or updated:
+
+```bash
+echo SECRET | ctg cat secret3.env
+pbpaste | ctg cat secret3.env.cott.age
+```
+
+To read it back, run `ctg cat` without piping anything into it. The secret is decrypted in memory and printed to stdout:
+
+```bash
+ctg cat secret3.env
+```
+
+> **Note:** If stdin is empty or a terminal, `ctg cat` decrypts instead of encrypting.
