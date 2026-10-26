@@ -29,16 +29,16 @@ The `cottage.toml` file is located at the project root and defines global and up
 
 These settings can be defined at the top level of an upstream or within its `pull`/`push` sections.
 
-| Field      | Type                              | Description                                                                                                              |
-| ---------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `cwd`      | Boolean                           | Optional. If true, run the script in the directory of the secret.                                                        |
-| `envfile`  | Path                              | Optional. Path to an encrypted file to use as environment variables for the script.                                      |
+| Field      | Type                              | Description                                                                                                                                                                                                    |
+| ---------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cwd`      | Boolean                           | Optional. If true, run the script in the directory of the secret.                                                                                                                                              |
+| `envfile`  | Path                              | Optional. Path to an encrypted file to use as environment variables for the script.                                                                                                                            |
 | `vars`     | Map<String, String>               | Optional. Environment variables to pass to the script. If any variable value is a path to a decrypted secret that has a corresponding encrypted counterpart, it is automatically added to the `requires` list. |
-| `requires` | Array<Path>                       | Optional. List of secret paths to be decrypted before running push/pull operations (and securely cleaned up afterwards). |
-| `shell`    | String                            | Optional. The shell to use for running scripts (default: `sh`).                                                          |
-| `pull`     | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the pull operation.                                                                 |
-| `push`     | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the push operation.                                                                 |
-| `plugin`   | String                            | Optional. Path to a plugin executable.                                                                                   |
+| `requires` | Array<Path>                       | Optional. List of secret paths to be decrypted before running push/pull operations (and securely cleaned up afterwards).                                                                                       |
+| `shell`    | String                            | Optional. The shell to use for running scripts (default: `sh`).                                                                                                                                                |
+| `pull`     | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the pull operation.                                                                                                                                                       |
+| `push`     | [PullPushConfig](#pullpushconfig) | Optional. Specific configuration for the push operation.                                                                                                                                                       |
+| `plugin`   | String                            | Optional. Path to a plugin executable.                                                                                                                                                                         |
 
 ### PullPushConfig
 
@@ -58,24 +58,10 @@ Inherits defaults from `UpstreamConfig`.
 
 Defined under `[path.prefix]`.
 
-| Field                     | Type | Description                                                                                       |
-| ------------------------- | ---- | ------------------------------------------------------------------------------------------------- |
-| `path.prefix.encrypted`   | Path | Optional. Directory under which encrypted secrets (`*.cott.age`) are stored.                      |
-| `path.prefix.metadata`    | Path | Optional. Directory under which secret metadata (`*.cott.toml`) is stored.                        |
-
-If `path.prefix.encrypted` and/or `path.prefix.metadata` are defined, ctg reads encrypted secrets and metadata from
-`{path.prefix.encrypted}/{decrypted_path}.cott.age` and `{path.prefix.metadata}/{decrypted_path}.cott.toml` respectively,
-instead of next to the decrypted path. These directories are auto-generated if declared.
-
-```toml
-[path.prefix]
-encrypted = "./.cottage/secrets"
-metadata = "./.cottage/secrets"
-```
-
-- Run `ctg prefix sync [path]` to find stray secrets and/or metadata and move them to the prefixed path.
-- To revert, run `ctg prefix revert` to move the secrets and/or metadata back to the unprefixed relative paths,
-  then remove the declaration from `cottage.toml`.
+| Field                   | Type | Description                                                                  |
+| ----------------------- | ---- | ---------------------------------------------------------------------------- |
+| `path.prefix.encrypted` | Path | Optional. Directory under which encrypted secrets (`*.cott.age`) are stored. |
+| `path.prefix.metadata`  | Path | Optional. Directory under which secret metadata (`*.cott.toml`) is stored.   |
 
 ---
 
