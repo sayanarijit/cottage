@@ -73,6 +73,11 @@ pub fn decrypt_file(path: &Path, opts: &DecryptOptions) -> Result<Option<Operati
         };
 
         if !opts.dry_run {
+            if let Some(parent) = output_path.parent() {
+                std::fs::create_dir_all(parent).with_context(|| {
+                    format!("{}: could not create parent directory", parent.display())
+                })?;
+            }
             log::debug!("{}: writing decrypted file", output_path.display());
             std::fs::write(&output_path, output.expose_secret()).with_context(|| {
                 format!("{}: could not write decrypted file", output_path.display())
