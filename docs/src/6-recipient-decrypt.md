@@ -4,9 +4,9 @@ Scenarios for adding recipient and decrypting secrets:
 
 1.  [I want to decrypt secrets in the cloned repository](#i-want-to-decrypt-secrets-in-the-cloned-repository)
 2.  [I got a checksum mismatch error when decrypting secrets](#i-got-a-checksum-mismatch-error-when-decrypting-secrets)
-3.  [I want to run a command with decrypted secrets (ctg run / ctgx)](#i-want-to-run-a-command-with-decrypted-secrets-ctg-run--ctgx)
-4.  [I want to ensure decrypted secrets are cleaned up after running a command (ctg run --clean)](#i-want-to-ensure-decrypted-secrets-are-cleaned-up-after-running-a-command-ctg-run---clean)
-5.  [I want to use a secret without writing it to disk (ctg cat)](#i-want-to-use-a-secret-without-writing-it-to-disk-ctg-cat)
+3.  [I want to run a command with decrypted secrets](#i-want-to-run-a-command-with-decrypted-secrets)
+4.  [I want to ensure decrypted secrets are cleaned up after running a command](#i-want-to-ensure-decrypted-secrets-are-cleaned-up-after-running-a-command)
+5.  [I want to use a secret without writing it to disk](#i-want-to-use-a-secret-without-writing-it-to-disk)
 
 ## I want to decrypt secrets in the cloned repository
 
@@ -197,7 +197,7 @@ If you are sure that the encrypted secret file and recipient are correct, you ca
 > ctg decrypt --force
 > ```
 
-## I want to run a command with decrypted secrets (ctg run / ctgx)
+## I want to run a command with decrypted secrets
 
 To run a command (such as scripts, deployment tools, or applications) that needs access to secrets on disk, use `ctg run` or its shortcut `ctgx`.
 
@@ -214,7 +214,7 @@ To run a command (such as scripts, deployment tools, or applications) that needs
 > ctgx -- ./deploy.sh
 > ```
 
-## I want to ensure decrypted secrets are cleaned up after running a command (ctg run --clean)
+## I want to ensure decrypted secrets are cleaned up after running a command
 
 If you want to guarantee that all decrypted secrets are deleted after running a command—even if they were already present on disk before running the command—pass the `--clean` flag:
 
@@ -227,7 +227,7 @@ If you want to guarantee that all decrypted secrets are deleted after running a 
 
 This decrypts missing secrets before running the command, executes the command, and ensures all target decrypted secrets are deleted upon completion.
 
-## I want to use a secret without writing it to disk (ctg cat)
+## I want to use a secret without writing it to disk
 
 `ctg cat {path}` decrypts the secret in memory and prints it to stdout, so you can pipe it straight into another tool without creating a decrypted file:
 

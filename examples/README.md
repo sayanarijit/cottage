@@ -305,9 +305,9 @@ ctgx --clean -- ls ./secrets/secret.yaml
 
 # `ctg cat`
 
-Decrypt a single secret in memory and print it to stdout.
+Decrypt or encrypt a single secret in memory.
 
-Useful when another command expects input from stdin and you do not want to write decrypted content to disk.
+Useful when another command expects input from or passes content to stdin and you do not want to write decrypted content to disk.
 
 ```bash +exec
 git checkout . -q && ctg clean -qq
@@ -316,9 +316,11 @@ ctg cat ./secrets/secret.yaml.cott.age
 # Output:
 # SECRET: foobar
 
-ctg cat ./secrets/secret.yaml | grep SECRET
+echo 'SECRET: updated' | ctg cat ./secrets/secret.yaml
 # Output:
-# SECRET: foobar
+# encrypt ./secrets/secret.yaml
+#    into ../.cottage/secrets/examples/secrets/secret.yaml.cott.age
+#    edit ../.cottage/secrets/examples/secrets/secret.yaml.cott.toml
 ```
 
 ### Target Behavior
