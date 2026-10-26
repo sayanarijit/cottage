@@ -21,7 +21,7 @@ const STYLES: Styles = Styles::styled()
     .placeholder(AnsiColor::Cyan.on_default().dimmed());
 
 #[derive(clap::Parser, Debug)]
-#[command(author, version, about, styles = STYLES, long_about = None, arg_required_else_help = true)]
+#[command(name="ctg", author, version, about, styles = STYLES, long_about = None, arg_required_else_help = true)]
 struct CottageCli {
     #[command(subcommand)]
     command: Command,
@@ -31,7 +31,7 @@ struct CottageCli {
 }
 
 #[derive(clap::Parser, Debug)]
-#[command(author, version, about, styles = STYLES, long_about = None, arg_required_else_help = true)]
+#[command(name="ctgx", author, version, about, styles = STYLES, long_about = None, arg_required_else_help = true)]
 struct CottageXCli {
     #[command(flatten)]
     run: RunArgs,
@@ -62,7 +62,7 @@ enum Command {
     #[command(name = "decrypt", aliases = ["de", "dec"])]
     Decrypt(DecryptArgs),
 
-    /// Decrypt a secret in-memory and print it to stdout.
+    /// Decrypt a secret into stdout or encrypt stdin into a secret file.
     #[command(name = "cat")]
     Cat(CatArgs),
 
@@ -338,8 +338,8 @@ struct DecryptArgs {
 
 #[derive(clap::Args, Debug)]
 struct CatArgs {
-    /// The secret path to decrypt and print. Accepts plain, .cott.age, or .cott.toml path.
-    /// If stdin is not empty, its content is encrypted into PATH instead.
+    /// The secret path to decrypt or encrypt. Accepts plain, .cott.age, or .cott.toml path.
+    /// If stdin is empty, path is decrypted and printed to stdout. Else stdin is encrypted and written to path.
     path: PathBuf,
 
     /// Verify against recipients listed at PATH. Can be repeated.
@@ -1066,10 +1066,13 @@ fn run_push_cmd(proj: &Project, args: PushArgs, _quiet: bool) -> Result<()> {
 }
 
 fn run_complete_cmd(shell: clap_complete::Shell) -> Result<()> {
-    let mut cmd = CottageCli::command();
-    let mut out = std::io::stdout();
-    let bin_name = cmd.get_name().to_string();
-    clap_complete::generate(shell, &mut cmd, bin_name, &mut out);
+    let mut ctg = CottageCli::command();
+    let ctg_name = ctg.get_name().to_owned();
+    let mut ctgx = CottageXCli::command();
+    let ctgx_name = ctgx.get_name().to_owned();
+    let mut out = std::io::stdout().lock();
+    clap_complete::generate(shell, &mut ctg, ctg_name, &mut out);
+    clap_complete::generate(shell, &mut ctgx, ctgx_name, &mut out);
     Ok(())
 }
 
