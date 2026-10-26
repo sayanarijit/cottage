@@ -196,6 +196,14 @@ pub fn encrypt_file(
         }
 
         if !opts.dry_run {
+            for parent in [&output_path, &metadata_path]
+                .into_iter()
+                .filter_map(|p| p.parent())
+            {
+                std::fs::create_dir_all(parent)
+                    .with_context(|| format!("{}: could not create directory", parent.display()))?;
+            }
+
             log::debug!("{}: writing encrypted file", output_path.display());
             std::fs::write(&output_path, output.expose_secret()).with_context(|| {
                 format!("{}: could not write encrypted file", output_path.display())

@@ -1,3 +1,4 @@
+use crate::PathPrefix;
 use crate::project::ResolvedUpstream;
 use crate::status::status_file;
 use crate::{
@@ -128,13 +129,11 @@ fn print_cleanups(mut file: impl Write, proj: &Project, cleanups: &[PathBuf]) ->
 }
 
 pub fn to_encrypted_path(path: &Path) -> PathBuf {
-    path.with_added_extension("cott")
-        .with_added_extension("age")
+    PathPrefix::current().encrypted_path(path)
 }
 
 pub fn to_metadata_path(path: &Path) -> PathBuf {
-    path.with_added_extension("cott")
-        .with_added_extension("toml")
+    PathPrefix::current().metadata_path(path)
 }
 
 pub fn is_encrypted_path(path: &Path) -> bool {
@@ -146,12 +145,14 @@ pub fn is_metadata_path(path: &Path) -> bool {
 }
 
 pub fn to_decrypted_path(path: &Path) -> Option<PathBuf> {
-    if is_encrypted_path(path) || is_metadata_path(path) {
-        path.file_stem()
-            .and_then(|s| PathBuf::from(s).file_stem().map(|s| path.with_file_name(s)))
-    } else {
-        None
+    if !is_encrypted_path(path) && !is_metadata_path(path) {
+        return None;
     }
+    let path = PathPrefix::current()
+        .unprefixed(path)
+        .unwrap_or_else(|| path.to_path_buf());
+    path.file_stem()
+        .and_then(|s| PathBuf::from(s).file_stem().map(|s| path.with_file_name(s)))
 }
 
 /// Securely removes a file by overwriting it with zeros and syncing to disk before unlinking.

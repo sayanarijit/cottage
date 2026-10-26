@@ -453,6 +453,35 @@ ctg push customvault ./secrets/secret.json.cott.age
 
 ---
 
+# `ctg prefix`
+
+Store encrypted secrets and metadata under dedicated directories, declared in `cottage.toml`:
+
+```toml
+[path.prefix]
+encrypted = "./.cottage/secrets"
+metadata = "./.cottage/secrets"
+```
+
+`sub/secret.yaml` is then read from `./.cottage/secrets/sub/secret.yaml.cott.age` and `./.cottage/secrets/sub/secret.yaml.cott.toml`. The directories are auto-generated.
+
+```bash
+# Find stray secrets and/or metadata and move them to the prefixed path
+ctg prefix sync [path]
+
+# Move them back to the unprefixed relative paths, before removing the
+# declaration from cottage.toml
+ctg prefix revert
+```
+
+### Target Behavior
+
+- **`sync` File/Dir**: Moves stray `.cott.age` / `.cott.toml` files found there to the prefixed path. Defaults to the project root.
+- **`revert`**: Takes no path, moves every prefixed file back next to its decrypted path.
+- Both accept `-n`, `--dry-run`.
+
+---
+
 # Common Options
 
 Many `ctg` commands share these common options:

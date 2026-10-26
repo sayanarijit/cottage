@@ -6,6 +6,7 @@ This document describes the specification of `cottage.toml` and `*.cott.toml` fi
     1. [Root Fields](#root-fields)
     2. [UpstreamConfig](#upstreamconfig)
     3. [PullPushConfig](#pullpushconfig)
+    4. [PathConfig](#pathconfig)
 2.  [Secret Metadata - .cott.toml](#secret-metadata---.cott.toml)
     1. [Root Fields](#root-fields)
     2. [ChecksumMetadata](#checksummetadata)
@@ -22,6 +23,7 @@ The `cottage.toml` file is located at the project root and defines global and up
 | Field      | Type                                           | Description                                                            |
 | ---------- | ---------------------------------------------- | ---------------------------------------------------------------------- |
 | `upstream` | Map<String, [UpstreamConfig](#upstreamconfig)> | Optional. Defines upstream configurations for pulling/pushing secrets. |
+| `path`     | [PathConfig](#pathconfig)                      | Optional. Defines where encrypted secrets and metadata are stored.     |
 
 ### UpstreamConfig
 
@@ -51,6 +53,29 @@ Inherits defaults from `UpstreamConfig`.
 | `shell`    | String              | Optional.                                                |
 | `script`   | String              | Optional. The shell script to execute for the operation. |
 | `plugin`   | String              | Optional. Path to a plugin executable.                   |
+
+### PathConfig
+
+Defined under `[path.prefix]`.
+
+| Field                     | Type | Description                                                                                       |
+| ------------------------- | ---- | ------------------------------------------------------------------------------------------------- |
+| `path.prefix.encrypted`   | Path | Optional. Directory under which encrypted secrets (`*.cott.age`) are stored.                      |
+| `path.prefix.metadata`    | Path | Optional. Directory under which secret metadata (`*.cott.toml`) is stored.                        |
+
+If `path.prefix.encrypted` and/or `path.prefix.metadata` are defined, ctg reads encrypted secrets and metadata from
+`{path.prefix.encrypted}/{decrypted_path}.cott.age` and `{path.prefix.metadata}/{decrypted_path}.cott.toml` respectively,
+instead of next to the decrypted path. These directories are auto-generated if declared.
+
+```toml
+[path.prefix]
+encrypted = "./.cottage/secrets"
+metadata = "./.cottage/secrets"
+```
+
+- Run `ctg prefix sync [path]` to find stray secrets and/or metadata and move them to the prefixed path.
+- To revert, run `ctg prefix revert` to move the secrets and/or metadata back to the unprefixed relative paths,
+  then remove the declaration from `cottage.toml`.
 
 ---
 

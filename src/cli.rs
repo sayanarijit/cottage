@@ -2,9 +2,9 @@ use crate::{
     CleanOptions, DecryptOptions, DiffOptions, EditOptions, EncryptOptions, EnvOptions, Project,
     PullOptions, PushOptions, RunOptions, StatusOptions, SyncOptions, VerifyOptions, clean_path,
     decrypt_into_memory, decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task,
-    is_encrypted_path, load_identities, load_recipients, print_result, pull_path, push_path,
-    run as run_task, status_path, sync_path, to_decrypted_path, to_encrypted_path, verify_file,
-    verify_path,
+    is_encrypted_path, load_identities, load_recipients, prefix_revert, prefix_sync, print_result,
+    pull_path, push_path, run as run_task, status_path, sync_path, to_decrypted_path,
+    to_encrypted_path, verify_file, verify_path,
 };
 use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result};
@@ -89,6 +89,17 @@ enum Command {
     #[command(name = "clean", aliases = ["cl"])]
     Clean(CleanArgs),
 
+    /// Manage the `path.prefix` directories of encrypted secrets and metadata.
+    #[command(
+        name = "prefix",
+        subcommand_required = true,
+        arg_required_else_help = true
+    )]
+    Prefix {
+        #[command(subcommand)]
+        command: PrefixCommand,
+    },
+
     /// Decrypt secrets, run a command and delete decrypted secrets.
     #[command(name = "run", trailing_var_arg = true)]
     Run(RunArgs),
@@ -114,6 +125,35 @@ enum Command {
         #[arg(value_enum)]
         shell: clap_complete::Shell,
     },
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum PrefixCommand {
+    /// Move stray secrets and metadata to their prefixed paths.
+    #[command(name = "sync")]
+    Sync(PrefixSyncArgs),
+
+    /// Move secrets and metadata back to their unprefixed paths.
+    /// Run this before removing `path.prefix` from cottage.toml.
+    #[command(name = "revert")]
+    Revert(PrefixRevertArgs),
+}
+
+#[derive(clap::Args, Debug)]
+struct PrefixSyncArgs {
+    /// The file or dir to look for stray secrets and metadata, defaults to project root.
+    path: Vec<PathBuf>,
+
+    /// Dry run, don't actually move anything.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct PrefixRevertArgs {
+    /// Dry run, don't actually move anything.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -1100,6 +1140,36 @@ fn run_verify_cmd(proj: &Project, args: VerifyArgs, quiet: bool) -> Result<()> {
     Ok(())
 }
 
+fn run_prefix_cmd(proj: &Project, command: PrefixCommand, quiet: bool) -> Result<()> {
+    let (moves, dry_run) = match command {
+        PrefixCommand::Sync(args) => {
+            let mut moves = vec![];
+            for path in get_input_paths(proj, args.path) {
+                moves.extend(prefix_sync(&path, args.dry_run)?);
+            }
+            (moves, args.dry_run)
+        }
+        PrefixCommand::Revert(args) => (prefix_revert(args.dry_run)?, args.dry_run),
+    };
+
+    if !quiet {
+        for (from, to) in &moves {
+            println!(
+                "{} {} -> {}",
+                if dry_run {
+                    "  would move"
+                } else {
+                    "        move"
+                }
+                .yellow(),
+                proj.relative_to_cwd(from).display(),
+                proj.relative_to_cwd(to).display()
+            );
+        }
+    }
+    Ok(())
+}
+
 fn run_keygen_cmd(proj: &Project, args: KeygenArgs) -> Result<()> {
     proj.keygen(args.name, args.force)
 }
@@ -1131,6 +1201,7 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
         Command::Verify(args) => run_verify_cmd(&proj, args, is_silent),
         Command::Clean(args) => run_clean_cmd(&proj, args, is_silent),
         Command::Edit(args) => run_edit_cmd(&proj, args, is_silent),
+        Command::Prefix { command } => run_prefix_cmd(&proj, command, is_silent),
         Command::Run(args) => run_run_cmd(&proj, args, is_silent),
         Command::Env(args) => run_env_cmd(&proj, args),
         Command::Pull(args) => run_pull_cmd(&proj, args, is_silent),

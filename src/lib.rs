@@ -8,6 +8,7 @@ pub(crate) mod env;
 pub(crate) mod identity;
 pub(crate) mod metadata;
 pub(crate) mod operation;
+pub(crate) mod prefix;
 pub(crate) mod preview;
 pub(crate) mod project;
 pub(crate) mod pull;
@@ -35,6 +36,7 @@ pub(crate) use operation::{
     run_upstream_script, secure_remove_file, to_decrypted_path, to_encrypted_path,
     to_metadata_path,
 };
+pub(crate) use prefix::{PathConfig, PathPrefix, prefix_revert, prefix_sync};
 pub(crate) use preview::generate_preview;
 pub(crate) use project::{Project, iter_encrypted, remove_from_gitignore_if_present};
 pub(crate) use pull::{PullOptions, pull_path};
