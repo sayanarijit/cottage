@@ -11,5 +11,6 @@
 - [Scenarios: Access Control](9-access.md)
 - [Scenarios: Configuring Secret Providers & Plugins](10-providers-plugins.md)
 - [Scenarios: Path Prefixes](11-prefix.md)
+- [Scenarios: Rotating Recipients](12-rotate.md)
 - [Configuration Specification](SPECIFICATION.md)
 - [Consolidated CLI Usage Examples](examples/README.md)

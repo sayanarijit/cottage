@@ -344,6 +344,22 @@ echo 'SECRET: updated' | ctg tee ./secrets/secret.yaml
 
 ---
 
+# `ctg rotate`
+
+Re-encrypt secrets for the current recipients without writing the cleartext to disk.
+
+Each secret is decrypted in memory using your identity, then encrypted for the recipients in `.cottage/recipients`. The recipients checksum is not verified, since it is expected to change. Output is like `ctg tee`, with the encrypted path as the input. `PATH` is optional and can be a file or a directory, defaulting to the project root.
+
+```bash +exec
+ctg rotate ./secrets/secret.yaml
+# Output:
+# encrypt ../.cottage/secrets/examples/secrets/secret.yaml.cott.age
+#    into ../.cottage/secrets/examples/secrets/secret.yaml.cott.age
+#    edit ../.cottage/secrets/examples/secrets/secret.yaml.cott.toml
+```
+
+---
+
 # `ctg env`
 
 Decrypt an environment file in memory and export its content as environment variables for the specified command.

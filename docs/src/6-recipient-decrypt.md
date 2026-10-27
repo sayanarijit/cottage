@@ -242,4 +242,6 @@ To go the other way, pipe content into `ctg tee {path}`. It encrypts that conten
 > echo SECRET | ctg tee secret1.env
 > ```
 
+To re-encrypt existing secrets for updated recipients without them touching the disk, see [Rotating Recipients](12-rotate.md).
+
 `ctg cat` only decrypts. It fails with "use ctg tee to pipe secrets for encryption" if content is piped into it.

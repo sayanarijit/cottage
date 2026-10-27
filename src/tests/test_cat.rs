@@ -1,4 +1,5 @@
-use crate::{CatOptions, EncryptOptions, Project, cat, tee};
+use crate::rotate::rotate;
+use crate::{CatOptions, EncryptOptions, Project, cat, rotate_path, tee};
 use age::secrecy::SecretSlice;
 use assert_fs::prelude::*;
 
@@ -100,4 +101,55 @@ fn test_tee_requires_input() {
         )
         .is_err()
     );
+}
+
+#[test]
+fn test_rotate_reencrypts_in_memory() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let proj_dir = temp.child("proj");
+    let (proj, opts) = setup(&proj_dir);
+    let path = proj_dir.join("secret");
+
+    tee(
+        proj.prefix(),
+        &path,
+        Some(SecretSlice::from(b"hello".to_vec())),
+        &opts.encrypt_options,
+    )
+    .unwrap();
+    let enc = proj.prefix().to_encrypted_path(&path);
+    let before = std::fs::read(&enc).unwrap();
+
+    let res = rotate(proj.prefix(), &enc, &opts.encrypt_options)
+        .unwrap()
+        .unwrap();
+    assert_eq!(res.input, enc);
+    assert_ne!(std::fs::read(&enc).unwrap(), before);
+    assert!(!path.exists());
+
+    let mut out = vec![];
+    cat(proj.prefix(), &path, &opts, &mut out).unwrap();
+    assert_eq!(out, b"hello");
+}
+
+#[test]
+fn test_rotate_path_dir() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let proj_dir = temp.child("proj");
+    let (proj, opts) = setup(&proj_dir);
+
+    for name in ["a", "b"] {
+        tee(
+            proj.prefix(),
+            &proj_dir.join(name),
+            Some(SecretSlice::from(name.as_bytes().to_vec())),
+            &opts.encrypt_options,
+        )
+        .unwrap();
+    }
+
+    let results: Vec<_> = rotate_path(proj.prefix(), &proj_dir, &opts.encrypt_options)
+        .collect::<anyhow::Result<_>>()
+        .unwrap();
+    assert_eq!(results.len(), 2);
 }

@@ -3,7 +3,7 @@ use crate::{
     Project, PullOptions, PushOptions, RunOptions, StatusOptions, SyncOptions, VerifyOptions, cat,
     clean_path, decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task,
     load_identities, load_recipients, prefix_revert, prefix_sync, print_result, pull_path,
-    push_path, run as run_task, status_path, sync_path, tee, verify_path,
+    push_path, rotate_path, run as run_task, status_path, sync_path, tee, verify_path,
 };
 use age::secrecy::ExposeSecret;
 use age::secrecy::SecretSlice;
@@ -71,6 +71,10 @@ enum Command {
     /// Encrypt stdin into a secret file.
     #[command(name = "tee")]
     Tee(TeeArgs),
+
+    /// Re-encrypt a secret for the current recipients without writing cleartext to disk.
+    #[command(name = "rotate")]
+    Rotate(RotateArgs),
 
     /// Sync encrypted and decrypted files.
     #[command(name = "sync", aliases = ["sy", "syn"])]
@@ -396,6 +400,39 @@ struct TeeArgs {
     armor: bool,
 
     /// Dry run, don't actually decrypt or run the command.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
+
+    /// Skip preview generation.
+    #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
+    skip_preview: bool,
+}
+
+#[derive(clap::Args, Debug)]
+struct RotateArgs {
+    /// The secret file or dir to rotate, defaults to project root.
+    /// Recipients checksum is not verified, as it is expected to change.
+    path: Vec<PathBuf>,
+
+    /// Encrypt for recipients listed at PATH. Can be repeated.
+    /// Defaults to recipients in .cottage/recipients.
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
+    recipients_file: Vec<PathBuf>,
+
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
+    identity: Vec<String>,
+
+    /// Skip checksum verification of the encrypted file.
+    #[arg(long, short, env = "COTTAGE_FORCE")]
+    force: bool,
+
+    /// Encrypt to a PEM encoded format.
+    #[arg(short, long, env = "COTTAGE_ARMOR")]
+    armor: bool,
+
+    /// Dry run, don't actually write anything.
     #[arg(short = 'n', long)]
     dry_run: bool,
 
@@ -874,6 +911,31 @@ fn run_tee_cmd(proj: &Project, args: TeeArgs) -> Result<()> {
     Ok(())
 }
 
+fn run_rotate_cmd(proj: &Project, args: RotateArgs) -> Result<()> {
+    let input = get_input_paths(proj, args.path);
+    let identities: Vec<_> = load_identities(proj, args.identity).collect();
+    let recipients: Vec<_> = load_recipients(proj, args.recipients_file, None).collect();
+
+    let options = EncryptOptions {
+        recipients,
+        identities,
+        armor: args.armor,
+        skip_gitignore: true,
+        skip_timestamps: true,
+        skip_preview: args.skip_preview,
+        force: args.force,
+        identity_path: proj.identity_path().to_path_buf(),
+        dry_run: args.dry_run,
+    };
+
+    for path in &input {
+        for res in rotate_path(proj.prefix(), path, &options) {
+            print_result(&mut std::io::stdout().lock(), proj, &res?, false)?;
+        }
+    }
+    Ok(())
+}
+
 fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
 
@@ -1260,6 +1322,7 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
         Command::Decrypt(args) => run_decrypt_cmd(&proj, args, is_silent),
         Command::Cat(args) => run_cat_cmd(&proj, args),
         Command::Tee(args) => run_tee_cmd(&proj, args),
+        Command::Rotate(args) => run_rotate_cmd(&proj, args),
         Command::Sync(args) => run_sync_cmd(&proj, args, is_silent),
         Command::Status(args) => run_status_cmd(&proj, args, is_silent),
         Command::Diff(args) => run_diff_cmd(&proj, args),

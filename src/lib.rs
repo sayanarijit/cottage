@@ -15,13 +15,14 @@ pub(crate) mod project;
 pub(crate) mod pull;
 pub(crate) mod push;
 pub(crate) mod recipients;
+pub(crate) mod rotate;
 pub(crate) mod run;
 pub(crate) mod status;
 pub(crate) mod sync;
 pub(crate) mod tee;
 pub(crate) mod verify;
 
-pub(crate) use cat::{CatOptions, cat};
+pub(crate) use cat::{CatOptions, cat, resolve_encrypted_secret_path};
 pub(crate) use clean::{CleanOptions, clean_path};
 pub(crate) use dec::{DecryptOptions, decrypt_file, decrypt_into_memory, decrypt_path};
 pub(crate) use diff::{DiffOptions, diff};
@@ -48,6 +49,7 @@ pub(crate) use push::{PushOptions, push_path};
 pub(crate) use recipients::{
     RecipientData, filter_recipients_by_metadata, load_recipients, make_recipients_checksum_data,
 };
+pub(crate) use rotate::rotate_path;
 pub(crate) use run::{RunOptions, run};
 pub(crate) use status::{StatusOptions, status_path};
 pub(crate) use sync::{SyncOptions, sync_path};

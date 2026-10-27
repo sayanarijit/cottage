@@ -184,4 +184,6 @@ To read it back, run `ctg cat` (without piping anything into it). The secret is 
 ctg cat secret3.env
 ```
 
+To re-encrypt existing secrets for a new set of recipients, use `ctg rotate [path]` instead. See [Rotating Recipients](12-rotate.md).
+
 > **Note:** `ctg cat` only decrypts and fails if stdin is piped into it. `ctg tee` expects content from stdin.
