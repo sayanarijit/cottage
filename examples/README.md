@@ -305,9 +305,9 @@ ctgx --clean -- ls ./secrets/secret.yaml
 
 # `ctg cat`
 
-Decrypt or encrypt a single secret in memory.
+Decrypt a single secret in memory and print it to stdout.
 
-Useful when another command expects input from or passes content to stdin and you do not want to write decrypted content to disk.
+Useful when another command expects input from stdin and you do not want to write decrypted content to disk.
 
 ```bash +exec
 git checkout . -q && ctg clean -qq
@@ -315,12 +315,6 @@ git checkout . -q && ctg clean -qq
 ctg cat ./secrets/secret.yaml.cott.age
 # Output:
 # SECRET: foobar
-
-echo 'SECRET: updated' | ctg cat ./secrets/secret.yaml
-# Output:
-# encrypt ./secrets/secret.yaml
-#    into ../.cottage/secrets/examples/secrets/secret.yaml.cott.age
-#    edit ../.cottage/secrets/examples/secrets/secret.yaml.cott.toml
 ```
 
 ### Target Behavior
@@ -329,6 +323,24 @@ echo 'SECRET: updated' | ctg cat ./secrets/secret.yaml
 - **`.cott.age` File**: Decrypts and prints content directly.
 - **`.cott.toml` File**: Resolves to the matching `.cott.age` file and prints decrypted content.
 - **Directory**: Not supported.
+
+---
+
+# `ctg tee`
+
+Encrypt content from stdin into a single secret without writing the cleartext to disk.
+
+Expects content from stdin and fails if it is empty.
+
+```bash +exec
+git checkout . -q && ctg clean -qq
+
+echo 'SECRET: updated' | ctg tee ./secrets/secret.yaml
+# Output:
+# encrypt ./secrets/secret.yaml
+#    into ../.cottage/secrets/examples/secrets/secret.yaml.cott.age
+#    edit ../.cottage/secrets/examples/secrets/secret.yaml.cott.toml
+```
 
 ---
 

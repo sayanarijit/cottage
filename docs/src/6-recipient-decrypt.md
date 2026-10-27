@@ -236,10 +236,10 @@ This decrypts missing secrets before running the command, executes the command, 
 > ctg cat secret1.env | docker run --rm --env-file /dev/stdin my-image:latest
 > ```
 
-The same command works in reverse. When content is piped into it, `ctg cat` encrypts that content into the secret instead, again without writing the cleartext to disk:
+To go the other way, pipe content into `ctg tee {path}`. It encrypts that content into the secret, again without writing the cleartext to disk:
 
 > ```bash
-> echo SECRET | ctg cat secret1.env
+> echo SECRET | ctg tee secret1.env
 > ```
 
-If stdin is empty or a terminal, `ctg cat` decrypts as usual.
+`ctg cat` only decrypts. It fails with "use ctg tee to pipe secrets for encryption" if content is piped into it.

@@ -1,9 +1,9 @@
 use crate::PathPrefix;
 use crate::{
     DecryptOptions, EncryptOptions, OperationResult, VerifyOptions, decrypt_into_memory,
-    encrypt_file, is_encrypted_path, verify_file,
+    is_encrypted_path, verify_file,
 };
-use age::secrecy::{ExposeSecret, SecretSlice};
+use age::secrecy::ExposeSecret;
 use anyhow::{Context, Result};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -36,23 +36,13 @@ pub fn resolve_encrypted_secret_path(prefix: &PathPrefix, path: &Path) -> Result
     }
 }
 
-/// Encrypts `input` into `path` when it is non-empty (returning the operation result),
-/// otherwise decrypts `path` into `out`.
+/// Decrypts `path` into `out`.
 pub fn cat(
     prefix: &PathPrefix,
     path: &Path,
-    input: Option<Vec<u8>>,
     opts: &CatOptions,
     mut out: impl Write,
 ) -> Result<Option<OperationResult>> {
-    if let Some(buffer) = input.filter(|b| !b.is_empty()) {
-        let path = prefix
-            .to_decrypted_path(path)
-            .unwrap_or_else(|| path.to_path_buf());
-        let data = SecretSlice::new(buffer.into());
-        return encrypt_file(prefix, &path, &opts.encrypt_options, Some(data));
-    }
-
     let encrypted_path = resolve_encrypted_secret_path(prefix, path)?;
 
     let verify_options = VerifyOptions {
@@ -68,7 +58,7 @@ pub fn cat(
         verified.content.as_slice(),
         &DecryptOptions {
             identities: opts.encrypt_options.identities.clone(),
-            recipients: opts.encrypt_options.recipients.clone(),
+            recipients: verify_options.recipients,
             dry_run: false,
             skip_gitignore: true,
             skip_timestamps: true,
