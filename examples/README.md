@@ -337,7 +337,7 @@ git checkout . -q && ctg clean -qq
 
 echo 'SECRET: updated' | ctg tee ./secrets/secret.yaml
 # Output:
-# encrypt ./secrets/secret.yaml
+# encrypt -
 #    into ../.cottage/secrets/examples/secrets/secret.yaml.cott.age
 #    edit ../.cottage/secrets/examples/secrets/secret.yaml.cott.toml
 ```
