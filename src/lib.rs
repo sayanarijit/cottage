@@ -18,6 +18,7 @@ pub(crate) mod recipients;
 pub(crate) mod run;
 pub(crate) mod status;
 pub(crate) mod sync;
+pub(crate) mod tee;
 pub(crate) mod verify;
 
 pub(crate) use cat::{CatOptions, cat};
@@ -50,6 +51,7 @@ pub(crate) use recipients::{
 pub(crate) use run::{RunOptions, run};
 pub(crate) use status::{StatusOptions, status_path};
 pub(crate) use sync::{SyncOptions, sync_path};
+pub(crate) use tee::tee;
 pub(crate) use verify::{VerifyOptions, verify_file, verify_path};
 
 #[cfg(test)]

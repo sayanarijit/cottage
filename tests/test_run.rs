@@ -180,7 +180,7 @@ fn test_run_command_nested() {
 }
 
 #[test]
-fn test_cat_command() {
+fn test_cat_command_rejects_stdin() {
     let temp = assert_fs::TempDir::new().unwrap();
     let bin_path = env!("CARGO_BIN_EXE_ctg");
 
@@ -209,13 +209,15 @@ fn test_cat_command() {
         .output()
         .unwrap();
 
-    assert!(output.status.success());
-    assert_eq!(output.stdout, b"my secret");
+    // stdin is not a terminal, so cat refuses to run
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("use ctg tee"));
     assert!(!temp.path().join("secret.txt").exists());
 }
 
 #[test]
-fn test_cat_command_nested() {
+fn test_cat_command_nested_rejects_stdin() {
     let temp = assert_fs::TempDir::new().unwrap();
     let bin_path = env!("CARGO_BIN_EXE_ctg");
 
@@ -246,8 +248,10 @@ fn test_cat_command_nested() {
         .output()
         .unwrap();
 
-    assert!(output.status.success());
-    assert_eq!(output.stdout, b"my secret");
+    // stdin is not a terminal, so cat refuses to run
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("use ctg tee"));
     assert!(!nested_dir.join("secret.txt").exists());
 }
 

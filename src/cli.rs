@@ -3,8 +3,9 @@ use crate::{
     Project, PullOptions, PushOptions, RunOptions, StatusOptions, SyncOptions, VerifyOptions, cat,
     clean_path, decrypt_path, diff, edit as edit_task, encrypt_path, env as env_task,
     load_identities, load_recipients, prefix_revert, prefix_sync, print_result, pull_path,
-    push_path, run as run_task, status_path, sync_path, verify_path,
+    push_path, run as run_task, status_path, sync_path, tee, verify_path,
 };
+use age::secrecy::SecretSlice;
 use anyhow::Result;
 use clap::CommandFactory;
 use clap::Parser;
@@ -62,9 +63,13 @@ enum Command {
     #[command(name = "decrypt", aliases = ["de", "dec"])]
     Decrypt(DecryptArgs),
 
-    /// Decrypt a secret into stdout or encrypt stdin into a secret file.
+    /// Decrypt a secret and print it to stdout.
     #[command(name = "cat")]
     Cat(CatArgs),
+
+    /// Encrypt stdin into a secret file.
+    #[command(name = "tee")]
+    Tee(TeeArgs),
 
     /// Sync encrypted and decrypted files.
     #[command(name = "sync", aliases = ["sy", "syn"])]
@@ -338,8 +343,8 @@ struct DecryptArgs {
 
 #[derive(clap::Args, Debug)]
 struct CatArgs {
-    /// The secret path to decrypt or encrypt. Accepts plain, .cott.age, or .cott.toml path.
-    /// If stdin is empty, path is decrypted and printed to stdout. Else stdin is encrypted and written to path.
+    /// The secret path to decrypt. Accepts plain, .cott.age, or .cott.toml path.
+    /// Fails if stdin is not empty. Use `ctg tee` to encrypt stdin.
     path: PathBuf,
 
     /// Verify against recipients listed at PATH. Can be repeated.
@@ -363,16 +368,37 @@ struct CatArgs {
     /// Skip checksum verification of recipients.
     #[arg(long, env = "COTTAGE_SKIP_VERIFY_RECIPIENTS")]
     skip_verify_recipients: bool,
+}
 
-    /// Encrypt to a PEM encoded format (when encrypting from stdin).
+#[derive(clap::Args, Debug)]
+struct TeeArgs {
+    /// The secret path to encrypt into. Accepts plain, .cott.age, or .cott.toml path.
+    /// Expects the content from stdin.
+    path: PathBuf,
+
+    /// Verify against recipients listed at PATH. Can be repeated.
+    /// Defaults to recipients in .cottage/recipients.
+    #[arg(short = 'R', long, env = "COTTAGE_RECIPIENTS_FILE")]
+    recipients_file: Vec<PathBuf>,
+
+    /// Use the identity file at PATH, or the identity string itself. Can be repeated.
+    /// Defaults to ~/.config/cottage/identity/<dirname> or ~/.config/cottage/identity or ~/.ssh.
+    #[arg(short, long, env = "COTTAGE_IDENTITY")]
+    identity: Vec<String>,
+
+    /// Skip checksum verification and force output.
+    #[arg(long, short, env = "COTTAGE_FORCE")]
+    force: bool,
+
+    /// Encrypt to a PEM encoded format.
     #[arg(short, long, env = "COTTAGE_ARMOR")]
     armor: bool,
 
-    /// Skip adding the secret to .gitignore (when encrypting from stdin).
-    #[arg(long, env = "COTTAGE_SKIP_GITIGNORE")]
-    skip_gitignore: bool,
+    /// Dry run, don't actually decrypt or run the command.
+    #[arg(short = 'n', long)]
+    dry_run: bool,
 
-    /// Skip preview generation (when encrypting from stdin).
+    /// Skip preview generation.
     #[arg(long, env = "COTTAGE_SKIP_PREVIEW")]
     skip_preview: bool,
 }
@@ -707,7 +733,6 @@ fn get_input_paths(proj: &Project, path: Vec<PathBuf>) -> Vec<PathBuf> {
 
 fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
-    let mut stdout = std::io::stdout();
 
     let recipients = load_recipients(proj, args.recipients_file, None).collect();
     let identities = load_identities(proj, args.identity).collect();
@@ -728,7 +753,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         for res in encrypt_path(proj.prefix(), path, &options) {
             let res = res?;
             if !quiet {
-                print_result(&mut stdout, proj, &res, args.compact)?;
+                print_result(&mut std::io::stdout().lock(), proj, &res, args.compact)?;
             }
         }
     }
@@ -746,7 +771,7 @@ fn run_encrypt_cmd(proj: &Project, args: EncryptArgs, quiet: bool) -> Result<()>
         {
             let res = res?;
             if !quiet {
-                print_result(&mut stdout, proj, &res, args.compact)?;
+                print_result(&mut std::io::stdout().lock(), proj, &res, args.compact)?;
             }
         }
     }
@@ -769,37 +794,43 @@ fn run_decrypt_cmd(proj: &Project, args: DecryptArgs, quiet: bool) -> Result<()>
         dry_run: args.dry_run,
     };
 
-    let mut stdout = std::io::stdout();
     for path in &input {
         for res in decrypt_path(proj.prefix(), path, &options) {
             let res = res?;
             if !quiet {
-                print_result(&mut stdout, proj, &res, args.compact)?;
+                print_result(&mut std::io::stdout().lock(), proj, &res, args.compact)?;
             }
         }
     }
     Ok(())
 }
 
+fn read_stdin() -> Result<Option<SecretSlice<u8>>> {
+    if std::io::stdin().is_terminal() {
+        return Ok(None);
+    }
+    let mut buffer = vec![];
+    std::io::stdin().lock().read_to_end(&mut buffer)?;
+    Ok(Some(SecretSlice::new(buffer.into())))
+}
+
 fn run_cat_cmd(proj: &Project, args: CatArgs) -> Result<()> {
+    let has_stdin = read_stdin().map(|v| v.is_some()).unwrap_or(false);
+    if has_stdin {
+        anyhow::bail!("use ctg tee to pipe secrets for encryption");
+    }
+
     let identities: Vec<_> = load_identities(proj, args.identity).collect();
     let recipients: Vec<_> = load_recipients(proj, args.recipients_file, None).collect();
-
-    let mut input = None;
-    if !std::io::stdin().is_terminal() {
-        let mut buffer = vec![];
-        std::io::stdin().lock().read_to_end(&mut buffer)?;
-        input = Some(buffer);
-    }
 
     let options = CatOptions {
         encrypt_options: EncryptOptions {
             recipients,
             identities,
-            armor: args.armor,
-            skip_gitignore: args_skip_gitignore(proj, args.skip_gitignore),
+            armor: false,
+            skip_gitignore: true,
             skip_timestamps: true,
-            skip_preview: args.skip_preview,
+            skip_preview: true,
             force: args.force,
             identity_path: proj.identity_path().to_path_buf(),
             dry_run: false,
@@ -808,21 +839,39 @@ fn run_cat_cmd(proj: &Project, args: CatArgs) -> Result<()> {
         skip_verify_recipients: args.skip_verify_recipients,
     };
 
-    if let Some(res) = cat(
+    cat(
         proj.prefix(),
         &args.path,
-        input,
         &options,
         std::io::stdout().lock(),
-    )? {
-        print_result(&mut std::io::stdout(), proj, &res, false)?;
+    )?;
+    Ok(())
+}
+
+fn run_tee_cmd(proj: &Project, args: TeeArgs) -> Result<()> {
+    let identities: Vec<_> = load_identities(proj, args.identity).collect();
+    let recipients: Vec<_> = load_recipients(proj, args.recipients_file, None).collect();
+
+    let options = EncryptOptions {
+        recipients,
+        identities,
+        armor: args.armor,
+        skip_gitignore: true,
+        skip_timestamps: true,
+        skip_preview: args.skip_preview,
+        force: args.force,
+        identity_path: proj.identity_path().to_path_buf(),
+        dry_run: args.dry_run,
+    };
+
+    if let Some(res) = tee(proj.prefix(), &args.path, read_stdin()?, &options)? {
+        print_result(&mut std::io::stdout().lock(), proj, &res, false)?;
     }
     Ok(())
 }
 
 fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
     let input = get_input_paths(proj, args.path);
-    let mut stdout = std::io::stdout();
 
     let opts = StatusOptions {
         skip_encryption: args.skip_encryption,
@@ -835,7 +884,12 @@ fn run_status_cmd(proj: &Project, args: StatusArgs, quiet: bool) -> Result<()> {
             let res = res?;
             has_pending = true;
             if !quiet {
-                print_result(&mut stdout, proj, &res.into(), args.compact)?;
+                print_result(
+                    &mut std::io::stdout().lock(),
+                    proj,
+                    &res.into(),
+                    args.compact,
+                )?;
             }
         }
     }
@@ -868,12 +922,11 @@ fn run_sync_cmd(proj: &Project, args: SyncArgs, quiet: bool) -> Result<()> {
         dry_run: args.dry_run,
     };
 
-    let mut stdout = std::io::stdout();
     for path in &input {
         for res in sync_path(proj.prefix(), path, &sync_options) {
             let res = res?;
             if !quiet {
-                print_result(&mut stdout, proj, &res, args.compact)?;
+                print_result(&mut std::io::stdout().lock(), proj, &res, args.compact)?;
             }
         }
     }
@@ -911,14 +964,13 @@ fn run_clean_cmd(proj: &Project, args: CleanArgs, quiet: bool) -> Result<()> {
         encrypted: args.all || args.encrypted,
     };
 
-    let mut stdout = std::io::stdout();
     for res in input
         .iter()
         .flat_map(|p| clean_path(proj.prefix(), p, &opts))
     {
         let res = res?;
         if !quiet {
-            print_result(&mut stdout, proj, &res, args.compact)?;
+            print_result(&mut std::io::stdout().lock(), proj, &res, args.compact)?;
         }
     }
 
@@ -1022,11 +1074,10 @@ fn run_edit_cmd(proj: &Project, args: EditArgs, quiet: bool) -> Result<()> {
     };
 
     let res = edit_task(proj.prefix(), options)?;
-    let mut stdout = std::io::stdout();
     for op_res in res {
         let op_res = op_res?;
         if !quiet {
-            print_result(&mut stdout, proj, &op_res, args.compact)?;
+            print_result(&mut std::io::stdout().lock(), proj, &op_res, args.compact)?;
         }
     }
 
@@ -1049,11 +1100,10 @@ fn run_pull_cmd(proj: &Project, args: PullArgs, _quiet: bool) -> Result<()> {
         debug: args.debug,
     };
 
-    let mut stdout = std::io::stdout();
     for path in &input {
         for res in pull_path(path, proj, &options) {
             let res = res?;
-            print_result(&mut stdout, proj, &res, args.compact)?;
+            print_result(&mut std::io::stdout().lock(), proj, &res, args.compact)?;
         }
     }
     Ok(())
@@ -1072,11 +1122,10 @@ fn run_push_cmd(proj: &Project, args: PushArgs, _quiet: bool) -> Result<()> {
         debug: args.debug,
     };
 
-    let mut stdout = std::io::stdout();
     for path in &input {
         for res in push_path(path, proj, &options) {
             let res = res?;
-            print_result(&mut stdout, proj, &res, args.compact)?;
+            print_result(&mut std::io::stdout().lock(), proj, &res, args.compact)?;
         }
     }
     Ok(())
@@ -1206,6 +1255,7 @@ fn run_cmd(cmd: Command, verbosity: Verbosity<WarnLevel>) -> Result<()> {
         Command::Encrypt(args) => run_encrypt_cmd(&proj, args, is_silent),
         Command::Decrypt(args) => run_decrypt_cmd(&proj, args, is_silent),
         Command::Cat(args) => run_cat_cmd(&proj, args),
+        Command::Tee(args) => run_tee_cmd(&proj, args),
         Command::Sync(args) => run_sync_cmd(&proj, args, is_silent),
         Command::Status(args) => run_status_cmd(&proj, args, is_silent),
         Command::Diff(args) => run_diff_cmd(&proj, args),

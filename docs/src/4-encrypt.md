@@ -171,17 +171,17 @@ But the entries in `.gitignore` will still remain:
 
 ## I want to encrypt piped content without writing the cleartext to disk
 
-Pipe the content into `ctg cat {path}`. Unlike `ctg edit`, the cleartext file is never written to disk. Only the encrypted counterpart is created or updated:
+Pipe the content into `ctg tee {path}`. Unlike `ctg edit`, the cleartext file is never written to disk. Only the encrypted counterpart is created or updated:
 
 ```bash
-echo SECRET | ctg cat secret3.env
-pbpaste | ctg cat secret3.env.cott.age
+echo SECRET | ctg tee secret3.env
+pbpaste | ctg tee secret3.env.cott.age
 ```
 
-To read it back, run `ctg cat` without piping anything into it. The secret is decrypted in memory and printed to stdout:
+To read it back, run `ctg cat` (without piping anything into it). The secret is decrypted in memory and printed to stdout:
 
 ```bash
 ctg cat secret3.env
 ```
 
-> **Note:** If stdin is empty or a terminal, `ctg cat` decrypts instead of encrypting.
+> **Note:** `ctg cat` only decrypts and fails if stdin is piped into it. `ctg tee` expects content from stdin.
