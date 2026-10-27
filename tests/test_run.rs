@@ -1,5 +1,21 @@
 use assert_fs::prelude::*;
-use std::process::Command;
+use std::io::Write;
+use std::path::Path;
+use std::process::{Command, Output, Stdio};
+
+fn cat_with_stdin(bin_path: &str, dir: &Path, input: &[u8]) -> Output {
+    let mut child = Command::new(bin_path)
+        .arg("cat")
+        .arg("secret.txt")
+        .current_dir(dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(input).unwrap();
+    child.wait_with_output().unwrap()
+}
 
 #[test]
 fn test_run_command() {
@@ -202,17 +218,12 @@ fn test_cat_command_rejects_stdin() {
 
     std::fs::remove_file(temp.path().join("secret.txt")).unwrap();
 
-    let output = Command::new(bin_path)
-        .arg("cat")
-        .arg("secret.txt")
-        .current_dir(temp.path())
-        .output()
-        .unwrap();
+    let output = cat_with_stdin(bin_path, temp.path(), b"piped data");
 
-    // stdin is not a terminal, so cat refuses to run
+    // stdin has piped content, so cat refuses to run
     assert!(!output.status.success());
     assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("use ctg tee"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("use 'ctg tee'"));
     assert!(!temp.path().join("secret.txt").exists());
 }
 
@@ -241,17 +252,12 @@ fn test_cat_command_nested_rejects_stdin() {
 
     std::fs::remove_file(nested_dir.join("secret.txt")).unwrap();
 
-    let output = Command::new(bin_path)
-        .arg("cat")
-        .arg("secret.txt")
-        .current_dir(&nested_dir)
-        .output()
-        .unwrap();
+    let output = cat_with_stdin(bin_path, &nested_dir, b"piped data");
 
-    // stdin is not a terminal, so cat refuses to run
+    // stdin has piped content, so cat refuses to run
     assert!(!output.status.success());
     assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("use ctg tee"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("use 'ctg tee'"));
     assert!(!nested_dir.join("secret.txt").exists());
 }
 

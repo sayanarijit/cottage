@@ -5,6 +5,7 @@ use crate::{
     load_identities, load_recipients, prefix_revert, prefix_sync, print_result, pull_path,
     push_path, run as run_task, status_path, sync_path, tee, verify_path,
 };
+use age::secrecy::ExposeSecret;
 use age::secrecy::SecretSlice;
 use anyhow::Result;
 use clap::CommandFactory;
@@ -815,9 +816,12 @@ fn read_stdin() -> Result<Option<SecretSlice<u8>>> {
 }
 
 fn run_cat_cmd(proj: &Project, args: CatArgs) -> Result<()> {
-    let has_stdin = read_stdin().map(|v| v.is_some()).unwrap_or(false);
+    let has_stdin = read_stdin()
+        .ok()
+        .flatten()
+        .map_or(false, |s| !s.expose_secret().is_empty());
     if has_stdin {
-        anyhow::bail!("use ctg tee to pipe secrets for encryption");
+        anyhow::bail!("use 'ctg tee' to pipe secrets for encryption");
     }
 
     let identities: Vec<_> = load_identities(proj, args.identity).collect();
