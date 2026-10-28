@@ -7,7 +7,7 @@
 </p>
 
 [![Cottage Verify](https://github.com/sayanarijit/cottage/actions/workflows/cottage-verify.yml/badge.svg)](https://github.com/sayanarijit/cottage/actions/workflows/cottage-verify.yml)
-[![Cottage Rotate](https://github.com/sayanarijit/cottage/actions/workflows/cottage-verify.yml/badge.svg)](https://github.com/sayanarijit/cottage/actions/workflows/cottage-rotate.yml)
+[![Cottage Rotate](https://github.com/sayanarijit/cottage/actions/workflows/cottage-rotate.yml/badge.svg)](https://github.com/sayanarijit/cottage/actions/workflows/cottage-rotate.yml)
 [![Crates.io Version](https://img.shields.io/crates/v/cottage)](https://crates.io/crates/cottage)
 [![PyPI Version](https://img.shields.io/pypi/v/cottage)](https://pypi.org/project/cottage/)
 [![NPM Version](https://img.shields.io/npm/v/%40sayanarijit%2Fcottage)](https://www.npmjs.com/package/@sayanarijit/cottage)
