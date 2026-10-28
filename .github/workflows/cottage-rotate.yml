@@ -1,0 +1,28 @@
+# .github/workflows/cottage-rotate.yml
+name: Cottage Rotate
+on:
+  push:
+    paths:
+      - ".cottage/recipients/**"
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  verify-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Rotate secrets
+        env:
+          COTTAGE_IDENTITY: ${{ secrets.COTTAGE_IDENTITY }}
+        run: docker run --rm -v "${{ github.workspace }}:/app" -e COTTAGE_IDENTITY ghcr.io/sayanarijit/cottage rotate
+      - name: Commit and push
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          if ! git commit -am "cottage: auto rotate secrets"; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git push origin HEAD:main

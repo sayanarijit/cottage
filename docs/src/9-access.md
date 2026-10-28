@@ -193,7 +193,7 @@ jobs:
   verify-secrets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: Verify secrets
         run: docker run --rm -v "${{ github.workspace }}:/app" ghcr.io/sayanarijit/cottage verify
 ```
