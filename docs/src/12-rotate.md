@@ -64,11 +64,9 @@ jobs:
         run: |
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          if ! git commit -am "cottage: auto rotate secrets"; then
-            echo "No changes to commit"
-            exit 0
+          if git commit -am "cottage: auto rotate secrets"; then
+            git push origin HEAD:main
           fi
-          git push origin HEAD:main
 ```
 
 This requires that the `COTTAGE_IDENTITY` environment variable is set to a valid identity in the repository.
