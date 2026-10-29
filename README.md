@@ -71,6 +71,10 @@ in plaintext.
 
 ## Installation
 
+[Directly download the binary](https://github.com/sayanarijit/cottage/releases)
+
+Or install from a package registry:
+
 ```bash
 # rust: cargo-binstall/cargo
 cargo binstall --locked cottage
