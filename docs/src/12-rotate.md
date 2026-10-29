@@ -52,7 +52,7 @@ on:
 permissions:
   contents: write
 jobs:
-  verify-secrets:
+  rotate-secrets:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
